@@ -1,0 +1,6 @@
+digraph clusterdouble_string {
+	graph [label=double_string]
+	3 [label="#3
+return text + text
+"]
+}

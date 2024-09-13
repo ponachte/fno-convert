@@ -1,0 +1,221 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix pf: <http://www.example.com/pythonfunctions#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix fno: <https://w3id.org/function/ontology#> .
+@prefix fnoc: <https://w3id.org/function/vocabulary/composition#> .
+@prefix ptype: <http://example.com/ptype#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+
+pf:Is a fno:Function ;
+      a prov:Entity ;
+      fno:expects [ a rdf:Seq ;
+                    rdf:_1 pf:ObjectParameter1 ;
+                    rdf:_2 pf:ObjectParameter2 ] ;
+      fno:returns [ a rdf:Seq ;
+                    rdf:_1 pf:BoolOutput ] ;
+      dcterms:description "The is function compares two objects and returns wether the first object is the same as the second object" .
+
+pf:IsNot a fno:Function ;
+         a prov:Entity ;
+         fno:expects [ a rdf:Seq ;
+                       rdf:_1 pf:ObjectParameter1 ;
+                       rdf:_2 pf:ObjectParameter2 ] ;
+         fno:returns [ a rdf:Seq ;
+                       rdf:_1 pf:BoolOutput ] ;
+         dcterms:description "The is function compares two objects and returns wether the first object is not the same as the second object" .
+
+pf:ObjectParameter1 a fno:Parameter ;
+                    fno:predicate pf:object1 ;
+                    fno:type ptype:Any .
+
+pf:ObjectParameter2 a fno:Parameter ;
+                    fno:predicate pf:object2 ;
+                    fno:type ptype:Any .
+
+# LOOPS
+
+pf:for a fno:Function ;
+       a prov:Entity ;
+       fno:expects [ a rdf:Seq ;
+                     rdf:_1 pf:IterParameter ] ;
+       fno:returns [ a rdf:Seq ;
+                     rdf:_1 pf:TargetOutput ] ;
+       dcterms:descrition "The for function iterates over the elements of the IterParameter." .
+
+pf:IterParameter a fno:Parameter ;
+                   fno:required "True"^^xsd:bool ;
+                   fno:predicate pf:iter .
+
+pf:TargetOutput a fno:Output ;
+                  fno:required "True"^^xsd:bool ;
+                  fno:predicate pf:target .
+
+# IF EXPR
+
+pf:ifexpr a fno:Function ;
+          a prov:Entity ;
+          fno:expects [ a rdf:Seq ;
+                        rdf:_1 pf:TestParameter ;
+                        rdf:_2 pf:IfTrueParameter ;
+                        rdf:_3 pf:IfFalseParameter ] ;
+          fno:returns [ a rdf:Seq ;
+                        rdf:_1 pf:IfExprOutput ] ;
+          dcterms:descrition "ask GPT for description" .
+
+pf:TestParameter a fno:Parameter ;
+                 fno:predicate pf:test ;
+                 fno:type ptype:bool .
+
+pf:IfTrueParameter a fno:Parameter ;
+                   fno:predicate pf:trueValue ;
+                   fno:type ptype:Any .
+
+pf:IfFalseParameter a fno:Parameter ;
+                    fno:predicate pf:falseValue ;
+                    fno:type ptype:Any .
+
+pf:IfExprOutput a fno:Output ;
+                fno:predicate pf:ifExprResult ;
+                fno:type ptype:Any .
+
+# CONTAINTERS
+
+pf:slice a fno:Function ;
+         a prov:Entity ;
+         fno:expects [ a rdf:Seq ;
+                       rdf:_1 pf:LowerIndexParameter ;
+                       rdf:_2 pf:UpperIndexParameter ;
+                       rdf:_3 pf:StepParameter ] ;
+         fno:returns [ a rdf:Seq ;
+                       rdf:_1 pf:SliceOutput ] ;
+         dcterms:descrition "Create a slicing object." .
+
+pf:LowerIndexParameter a fno:Parameter ;
+                       fno:predicate pf:lower ;
+                       fno:type xsd:integer .
+
+pf:UpperIndexParameter a fno:Parameter ;
+                       fno:predicate pf:upper ;
+                       fno:type xsd:integer .
+
+pf:StepParameter a fno:Parameter ;
+                 fno:predicate pf:step ;
+                 fno:type xsd:integer .
+
+pf:SliceOutput a fno:Output ;
+               fno:predicate pf:sliceResult ;
+               fno:type rdf:Resource .
+
+# CONTAINTERS
+
+pf:list a fno:Function ;
+      a prov:Entity ;
+      fno:expects [ a rdf:Seq ;
+                    rdf:_1 pf:Elements ] ;
+      fno:returns [ a rdf:Seq ;
+                      rdf:_1 pf:ListOutput ] ;
+      dcterms:descrition "ask GPT for description" .
+
+pf:Elements a fno:Parameter ;
+            fno:predicate pf:elements .
+
+pf:ListOutput a fno:Output ;
+              fno:predicate pf:listResult ;
+              fno:type rdf:List .
+
+pf:tuple a fno:Function ;
+      a prov:Entity ;
+      fno:expects [ a rdf:Seq ;
+                    rdf:_1 pf:Elements ] ;
+      fno:returns [ a rdf:Seq ;
+                    rdf:_1 pf:TupleOutput ] ;
+      dcterms:descrition "ask GPT for description" .
+
+pf:TupleOutput a fno:Output ;
+               fno:predicate pf:tupleResult ;
+               fno:type rdf:List .
+
+pf:dict a fno:Function ;
+      a prov:Entity ;
+      fno:expects [ a rdf:Seq ;
+                    rdf:_1 pf:Pairs ] ;
+      fno:returns [ a rdf:Seq ;
+                      rdf:_1 pf:DictOutput ] ;
+      dcterms:descrition "ask GPT for description" .
+
+pf:Pairs a fno:Parameter ;
+         fno:predicate pf:pairs ;
+         fno:type rdf:Seq .
+
+pf:DictOutput a fno:Output ;
+              fno:predicate pf:dictResult ;
+              fno:type rdf:Seq .
+
+# ATTRIBUTE
+
+pf:attribute a fno:Function ;
+      a prov:Entity ;
+      fno:expects [ a rdf:Seq ;
+                    rdf:_1 pf:ValueParameter ;
+                    rdf:_2 pf:AttributeParameter ] ;
+      fno:returns [ a rdf:Seq ;
+                    rdf:_1 pf:AttributeOutput ;
+                    rdf:_2 pf:AttributeSelfOutput ] ;
+      dcterms:description "The attrbiute functions access an attribute of an object." .
+
+pf:ValueParameter a fno:Parameter ;
+                    fno:predicate pf:value ;
+                    fno:type rdf:Resource .
+
+pf:AttributeParameter a fno:Parameter ;
+                    fno:predicate pf:attr ;
+                    fno:type xsd:string .
+
+pf:AttributeOutput a fno:Output ;
+            fno:predicate pf:attrResult ;
+            fno:type rdf:Resource .
+
+pf:AttributeSelfOutput a fno:Output ;
+            fno:predicate pf:self_output ;
+            fno:type rdf:Resource .
+
+# FORMAT
+
+pf:strjoin a fno:Function ;
+      a prov:Entity ;
+      fno:expects [ a rdf:Seq ;
+                    rdf:_1 pf:StringsParameter ] ;
+      fno:returns [ a rdf:Seq ;
+                    rdf:_1 pf:StrJoinOutput ] ;
+      dcterms:description "Join a list of strings" .
+
+pf:StringsParameter a fno:Parameter ;
+      fno:predicate pf:strings ;
+      fno:type rdf:List .
+
+pf:StrJoinOutput a fno:Output ;
+      fno:predicate pf:joinResult ;
+      fno:type xsd:string .
+
+pf:format a fno:Function ;
+      a prov:Entity ;
+      fno:expects [ a rdf:Seq ;
+                    rdf:_1 pf:ValueParameter ;
+                    rdf:_2 pf:ConversionParameter ;
+                    rdf:_2 pf:SpecParameter ] ;
+      fno:returns [ a rdf:Seq ;
+                    rdf:_1 pf:FormatOutput ] ;
+      dcterms:description "Format a value to a string" .
+
+pf:ConversionParameter a fno:Parameter ;
+      fno:predicate pf:conversion ;
+      fno:type xsd:string .
+
+pf:SpecParameter a fno:Parameter ;
+      fno:predicate pf:spec ;
+      fno:type xsd:string .
+
+pf:FormatOutput a fno:Output ;
+      fno:predicate pf:formatResult ;
+      fno:type xsd:string .
