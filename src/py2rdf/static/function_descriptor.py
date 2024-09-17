@@ -45,8 +45,6 @@ class FunctionDescriptor():
 
         # create the composition
         composition = block_id
-        g.add((composition, RDF.type, PrefixMap.ns('fnoc')["Composition"]))
-        g.add((composition, RDF.type, PrefixMap.ns('prov')["Entity"]))
 
         # initiate the mapping nodes
         mapping_nodes = [BNode() for i in range(len(mappings))]
@@ -115,6 +113,8 @@ class FunctionDescriptor():
     def link_with_condition(g: PipelineGraph, condition: MappingNode, source_id, if_true, if_false):
         conditionNode = BNode()
         triples = [
+            (source_id, RDF.type, PrefixMap.ns('fnoc')["IfFlowComposition"]),
+            (source_id, RDF.type, PrefixMap.ns('prov')["Entity"]),
             (source_id, PrefixMap.ns('fnoc')['condition'], conditionNode),
             (conditionNode, PrefixMap.ns('fnoc')["constituentFunction"], condition.context),
             (conditionNode, PrefixMap.ns('fnoc')["functionOutput" if condition.is_output() else "functionParameter"], condition.get_value()),
@@ -127,6 +127,8 @@ class FunctionDescriptor():
     def link_with_iterator(g: PipelineGraph, iterator: MappingNode, source_id, if_next, followed_by):
         iteratorNode = BNode()
         triples = [
+            (source_id, RDF.type, PrefixMap.ns('fnoc')["ForFlowComposition"]),
+            (source_id, RDF.type, PrefixMap.ns('prov')["Entity"]),
             (source_id, PrefixMap.ns('fnoc')['iterator'], iteratorNode),
             (iteratorNode, PrefixMap.ns('fnoc')["constituentFunction"], iterator.context),
             (iteratorNode, PrefixMap.ns('fnoc')["functionOutput" if iterator.is_output() else "functionParameter"], iterator.get_value()),
@@ -137,7 +139,12 @@ class FunctionDescriptor():
     
     @staticmethod
     def link(g: PipelineGraph, source_id, target_id):
-        g.add((source_id, PrefixMap.ns('fnoc')['followedBy'], target_id))
+        triples = [
+            (source_id, RDF.type, PrefixMap.ns('fnoc')["Composition"]),
+            (source_id, RDF.type, PrefixMap.ns('prov')["Entity"]),
+            (source_id, PrefixMap.ns('fnoc')['followedBy'], target_id)
+        ]
+        [ g.add(x) for x in triples ]
     
     @staticmethod
     def describe_part_function(call, applies, parameters, terms):
