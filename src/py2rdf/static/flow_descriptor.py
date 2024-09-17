@@ -190,6 +190,8 @@ class FlowDescriptor:
             return self.handle_format(stmt.value, stmt.conversion, stmt.format_spec)
         elif isinstance(stmt, ast.Assign):
             return self.handle_assignment(stmt.value, stmt.targets)
+        elif isinstance(stmt, ast.AugAssign):
+            return self.handle_augassignment(stmt.target, stmt.op, stmt.value)
         elif isinstance(stmt, ast.Call):
             return self.handle_call(stmt.func, stmt.args, stmt.keywords)
         elif isinstance(stmt, ast.UnaryOp):
@@ -283,6 +285,9 @@ class FlowDescriptor:
         
         # Return the identifier without context if no resolution is found
         return MappingNode().set_constant(id)
+    
+    def handle_augassignment(self, target, op, value):
+        self.handle_assignment(ast.BinOp(target, op, value), [target])
     
     def handle_assignment(self, value, targets):
         """
