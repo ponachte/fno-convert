@@ -1,24 +1,24 @@
 digraph clusterbinarycount1 {
 	graph [label=binarycount1]
-	15 [label="#15
+	3 [label="#3
 count = 0
 "]
-	16 [label="#16
+	4 [label="#4
 for i, bit in enumerate(bits):
 "]
-	17 [label="#17
+	5 [label="#5
 if bit == 0:
 "]
-	19 [label="#19
+	7 [label="#7
 count = count + 2 ** i
 "]
-	19 -> 16 [label=""]
-	17 -> 19 [label="bit == 0"]
-	17 -> 16 [label="(bit != 0)"]
-	16 -> 17 [label="enumerate(bits)"]
-	18 [label="#18
+	7 -> 4 [label=""]
+	5 -> 7 [label="bit == 0"]
+	5 -> 4 [label="(bit != 0)"]
+	4 -> 5 [label="enumerate(bits)"]
+	6 [label="#6
 return count
 "]
-	16 -> 18 [label=""]
-	15 -> 16 [label=""]
+	4 -> 6 [label=""]
+	3 -> 4 [label=""]
 }

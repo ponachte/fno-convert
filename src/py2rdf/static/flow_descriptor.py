@@ -1,7 +1,7 @@
 import inspect
 import builtins
 import traceback
-import ast
+import ast, astpretty
 
 from operator import (__add__, __and__, __contains__, __eq__, __floordiv__, __ge__, __getitem__, __gt__, 
                       __iadd__, __iand__, __ifloordiv__, __ilshift__, __imatmul__, __imod__, __imul__, __invert__, 
@@ -32,12 +32,15 @@ class FlowDescriptor:
 
         self.scope = None
         self.block_id = None
+        self.block = None
 
+        self.used_vars = {}
         self.fun_cfgs = {}
         self.f_counter = {}
         self.assigned = {}
         self.default_map = {}
         self.var_types = {}
+        self.returns = []
 
         self.depth = 0
         self.max_depth = max_depth
@@ -72,8 +75,8 @@ class FlowDescriptor:
             return self.var_types[var]
         
         # Check if the variable is assigned to the output of a function with a stored type
-        if var in self.assigned:
-            return self.get_type(self.assigned[var][1])
+        if var in self.assigned and not self.assigned[var].is_variable():
+            return self.get_type(self.assigned[var].get_value())
         
         # Return None if no type information is found
         return None
@@ -107,23 +110,29 @@ class FlowDescriptor:
                     # Store current scope
                     prev_scope = self.scope
                     prev_assigned = self.assigned
+                    prev_returns = self.returns
 
                     # Enter scope of function
                     self.scope = s
                     self.assigned = {}
+                    self.returns = []
 
                     # Assign parameters to function arguments
                     parameters = self.g.get_param_predicates(s)
                     for par, pred in parameters:
                         self.handle_assignment(MappingNode().set_function_par(s, par), [self.name_node(pred)])                   
 
-                    # TODO Iterate blocks
+                    # Iterate blocks
                     for block in fun_cfg:
                         self.block_to_comp(block)
+                
+                    # Handle returns
+                    self.handle_returns()
                     
                     # Reset to previous scope
                     self.scope = prev_scope
                     self.assigned = prev_assigned
+                    self.returns = prev_returns
                     
         except TypeError as e:
             print("Error: Unable to describe flow of builtin functions.")
@@ -139,13 +148,27 @@ class FlowDescriptor:
         block : scalpel.cfg.model.Block
             A CFG Block consisting of a sequence of statements without control structures.
         """
+
+        prev_block = self.block
         prev_block_id = self.block_id
+        self.block = block
         self.block_id = URIRef(f"{self.scope}_Block{block.id}")
 
         for stmt in block.statements:
             self.handle_stmt(stmt)
+        
+        if not (isinstance(stmt, ast.For) or isinstance(stmt, ast.If)):
+            for link in block.exits:
+                target_id = URIRef(f"{self.scope}_Block{link.target.id}")
+                FunctionDescriptor.link(self.g, self.block_id, target_id)
+        
+        # Variables used in previous blocks need to be explictly mapped
+        for var in self.assigned:
+            if var not in self.used_vars:
+                self.used_vars[var] = self.block_id
 
         self.block_id = prev_block_id
+        self.block = prev_block
 
     def handle_stmt(self, stmt):
         if isinstance(stmt, ast.Constant):
@@ -184,6 +207,10 @@ class FlowDescriptor:
             return self.handle_subscript(stmt.value, stmt.slice)
         elif isinstance(stmt, ast.Return):
             return self.handle_return(stmt.value)
+        elif isinstance(stmt, ast.For):
+            return self.handle_for(stmt.target, stmt.iter)
+        elif isinstance(stmt, ast.If):
+            return self.handle_if(stmt.test)
         elif isinstance(stmt, MappingNode):
             return stmt
         return MappingNode().set_constant("Unknown source")
@@ -284,7 +311,15 @@ class FlowDescriptor:
                 # Handle assignment to variable
                 target = get_name(target.id)
 
-                self.assigned[target] = value_output
+                if target not in self.used_vars:
+                    self.assigned[target] = value_output
+                else:
+                    varmap = self.assigned[target]
+                    if not varmap.is_variable():
+                        mapto = MappingNode().set_variable(target)
+                        FunctionDescriptor.describe_composition(self.g, self.used_vars[target], [Mapping(varmap, mapto)])
+                        self.assigned[target] = varmap = mapto
+                    FunctionDescriptor.describe_composition(self.g, self.block_id, [Mapping(value_output, varmap)])
 
                 # Copy the type if the assigned value has a type
                 val_type = self.get_type(value_output.get_value())
@@ -303,6 +338,9 @@ class FlowDescriptor:
                     self.handle_assignment(subscript_output, [el])
     
     def handle_return(self, value):
+        self.returns.append((value, self.scope, self.block_id))
+        
+    def handle_returns(self):
         """
         Handles an AST return node, mapping the value output to the output of the outer scope.
         This method also manages conditional return statements within if expressions.
@@ -325,21 +363,22 @@ class FlowDescriptor:
         5. Propagate the type of the value output to the outer scope output if available.
         6. Describe the composition in the RDF graph using `FnODescriptor`.
         """
-        # Retrieve the output node of the outer scope
-        output = self.g.get_output(self.scope)
+        for value, scope, block_id in self.returns:
+            # Retrieve the output node of the outer scope
+            output = self.g.get_output(scope)
 
-        # Handle the value node
-        mapfrom = self.handle_stmt(value)
-        mapto = MappingNode().set_function_par(self.scope, output)
-        mappings = [Mapping(mapfrom, mapto)]
+            # Handle the value node
+            mapfrom = self.handle_stmt(value)
+            mapto = MappingNode().set_function_par(scope, output)
+            mappings = [Mapping(mapfrom, mapto)]
 
-        # Propagate the type of the value output to the outer scope output if available
-        out_type = self.get_type(mapfrom.get_value())
-        if out_type:
-            self.var_types[output] = out_type
+            # Propagate the type of the value output to the outer scope output if available
+            out_type = self.get_type(mapfrom.get_value())
+            if out_type:
+                self.var_types[output] = out_type
 
-        # Describe the composition in the RDF graph using FnODescriptor
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
+            # Describe the composition in the RDF graph using FnODescriptor
+            FunctionDescriptor.describe_composition(self.g, block_id, mappings)
     
     def handle_call(self, func, args, kargs):
         """
@@ -1322,6 +1361,44 @@ class FlowDescriptor:
         FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'IfExprOutput'))
+    
+    def handle_for(self, target, iter):
+        if "for" not in self.f_counter:
+            self.f_counter["for"] = 1
+            _, desc = PipelineGraph.from_std("for")
+            self.g += desc
+        else:
+            self.f_counter["for"] += 1
+        
+        f = to_uri(PrefixMap.pf(), 'for')
+        call = URIRef(f"{f}_{self.f_counter['for']}")
+        self.g += FunctionDescriptor.apply(call, f)
+
+        # Create a variable for the targets
+        if isinstance(target, ast.Tuple):
+            for i, elt in enumerate(target.elts):
+                elt_output = self.handle_stmt(elt)
+                mapto = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput')).set_strategy(i)
+                self.handle_assignment(mapto, [self.name_node(elt_output.get_value())])
+        else:
+            target_output = self.handle_stmt(target)
+            mapto = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput'))
+            self.handle_assignment(mapto, [self.name_node(target_output.get_value())])
+        
+        # Link the iter parameter
+        mapfrom = self.handle_stmt(iter)
+        mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'IterParameter'))
+        FunctionDescriptor.describe_composition(self.g, self.block_id, [Mapping(mapfrom, mapto)])
+
+        if_next = URIRef(f"{self.scope}_Block{self.block.exits[0].target.id}")
+        followed_by = URIRef(f"{self.scope}_Block{self.block.exits[1].target.id}")
+        FunctionDescriptor.link_with_iterator(self.g, mapfrom, self.block_id, if_next, followed_by)
+    
+    def handle_if(self, test):
+        condition = self.handle_stmt(test)
+        is_true = URIRef(f"{self.scope}_Block{self.block.exits[0].target.id}")
+        is_false = URIRef(f"{self.scope}_Block{self.block.exits[1].target.id}")
+        FunctionDescriptor.link_with_condition(self.g, condition, self.block_id, is_true, is_false)
     
     def function_to_rdf(self, fun_name, context, fun, num, keywords, self_class=None, static=None):
         """

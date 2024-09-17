@@ -21,6 +21,7 @@ std_prefixes = {
     'fnoi': "https://w3id.org/function/vocabulary/implementation#",
     'fnom': "https://w3id.org/function/vocabulary/mapping#",
     'fnoc': "https://w3id.org/function/vocabulary/composition#",
+    'fnof': "http://example.com/vocabulary/flow#",
     'ptype': "http://example.com/ptype#",
     'prov': "http://www.w3.org/ns/prov#",
     'cc': "http://creativecommons.org/ns#",

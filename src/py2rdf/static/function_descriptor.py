@@ -51,7 +51,17 @@ class FunctionDescriptor():
 
             g.add((composition, PrefixMap.ns('fnoc')["composedOf"], node))
             
-            if not mapping.mapfrom.from_term():
+            if mapping.mapfrom.from_term():
+                # map from term
+                term = mapping.mapfrom.get_value()
+                term_lit, type_desc = InstMap.inst_to_rdf(term)
+                if type_desc is not None:
+                    g += type_desc
+                g.add((node, PrefixMap.ns('fnoc')["mapFromTerm"], term_lit))
+            elif mapping.mapfrom.is_variable():
+                var = mapping.mapfrom.get_value()
+                g.add((node, PrefixMap.ns('fnoc')["mapFromVariable"], Literal(var)))
+            else:
                 # map from function
                 mapfrom = BNode()
 
@@ -71,33 +81,56 @@ class FunctionDescriptor():
                         triples.append((mapfrom, PrefixMap.ns('fnoc')["property"], Literal(index)))
 
                 [ g.add(x) for x in triples ]
+                
+            if mapping.mapto.is_variable():
+                # map to variable
+                var = mapping.mapto.get_value()
+                g.add((node, PrefixMap.ns('fnoc')["mapToVariable"], Literal(var)))
             else:
-                # map from term
-                term = mapping.mapfrom.get_value()
-                term_lit, type_desc = InstMap.inst_to_rdf(term)
-                if type_desc is not None:
-                    g += type_desc
-                g.add((node, PrefixMap.ns('fnoc')["mapFromTerm"], term_lit))
+                # map to function
+                mapto = BNode()
 
-            # map to function
-            mapto = BNode()
+                triples = [
+                    (node, PrefixMap.ns('fnoc')["mapTo"], mapto),
+                    (mapto, PrefixMap.ns('fnoc')["constituentFunction"], mapping.mapto.context),
+                    (mapto, PrefixMap.ns('fnoc')["functionOutput" if mapping.mapto.is_output() else "functionParameter"], mapping.mapto.get_value())
+                ]
 
-            triples = [
-                (node, PrefixMap.ns('fnoc')["mapTo"], mapto),
-                (mapto, PrefixMap.ns('fnoc')["constituentFunction"], mapping.mapto.context),
-                (mapto, PrefixMap.ns('fnoc')["functionOutput" if mapping.mapto.is_output() else "functionOutput"], mapping.mapto.get_value())
-            ]
+                # map to strategy
+                if mapping.mapto.has_map_strategy():
+                    index = mapping.mapto.index
+                    triples.append((mapto, PrefixMap.ns('fnoc')["mappingStrategy"], PrefixMap.ns('fnoc')["setItem"]))
+                    if isinstance(index, int):
+                        triples.append((mapto, PrefixMap.ns('fnoc')["index"], Literal(index)))
+                    else:
+                        triples.append((mapto, PrefixMap.ns('fnoc')["property"], Literal(index)))
 
-            # map to strategy
-            if mapping.mapto.has_map_strategy():
-                index = mapping.mapto.index
-                triples.append((mapto, PrefixMap.ns('fnoc')["mappingStrategy"], PrefixMap.ns('fnoc')["setItem"]))
-                if isinstance(index, int):
-                    triples.append((mapto, PrefixMap.ns('fnoc')["index"], Literal(index)))
-                else:
-                    triples.append((mapto, PrefixMap.ns('fnoc')["property"], Literal(index)))
-
-            [ g.add(x) for x in triples ]
+                [ g.add(x) for x in triples ]
+    
+    def link_with_condition(g: PipelineGraph, condition: MappingNode, source_id, if_true, if_false):
+        conditionNode = BNode()
+        triples = [
+            (source_id, PrefixMap.ns('fnoc')['condition'], conditionNode),
+            (conditionNode, PrefixMap.ns('fnoc')["constituentFunction"], condition.context),
+            (conditionNode, PrefixMap.ns('fnoc')["functionOutput" if condition.is_output() else "functionParameter"], condition.get_value()),
+            (source_id, PrefixMap.ns('fnoc')['ifTrue'], if_true),
+            (source_id, PrefixMap.ns('fnoc')['ifFalse'], if_false)
+        ]
+        [ g.add(x) for x in triples ]
+    
+    def link_with_iterator(g: PipelineGraph, iterator: MappingNode, source_id, if_next, followed_by):
+        iteratorNode = BNode()
+        triples = [
+            (source_id, PrefixMap.ns('fnoc')['iterator'], iteratorNode),
+            (iteratorNode, PrefixMap.ns('fnoc')["constituentFunction"], iterator.context),
+            (iteratorNode, PrefixMap.ns('fnoc')["functionOutput" if iterator.is_output() else "functionParameter"], iterator.get_value()),
+            (source_id, PrefixMap.ns('fnoc')['ifNext'], if_next),
+            (source_id, PrefixMap.ns('fnoc')['followedBy'], followed_by)
+        ]
+        [ g.add(x) for x in triples ]
+    
+    def link(g: PipelineGraph, source_id, target_id):
+        g.add((source_id, PrefixMap.ns('fnoc')['followedBy'], target_id))
     
     @staticmethod
     def describe_part_function(call, applies, parameters, terms):
