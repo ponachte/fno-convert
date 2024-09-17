@@ -26,6 +26,10 @@ class FunctionDescriptor():
         g = PrefixMap.bind_namespaces(PipelineGraph())
         g.add((call, PrefixMap.ns('fnoc')["applies"], f))
         return g
+    
+    @staticmethod
+    def link_composition(g: PipelineGraph, function, composition):
+        g.add((function, PrefixMap.ns('fnoc')['composition'], composition))
 
     @staticmethod
     def describe_composition(g: PipelineGraph, block_id, mappings: List[Mapping]):
@@ -107,6 +111,7 @@ class FunctionDescriptor():
 
                 [ g.add(x) for x in triples ]
     
+    @staticmethod
     def link_with_condition(g: PipelineGraph, condition: MappingNode, source_id, if_true, if_false):
         conditionNode = BNode()
         triples = [
@@ -118,6 +123,7 @@ class FunctionDescriptor():
         ]
         [ g.add(x) for x in triples ]
     
+    @staticmethod
     def link_with_iterator(g: PipelineGraph, iterator: MappingNode, source_id, if_next, followed_by):
         iteratorNode = BNode()
         triples = [
@@ -129,6 +135,7 @@ class FunctionDescriptor():
         ]
         [ g.add(x) for x in triples ]
     
+    @staticmethod
     def link(g: PipelineGraph, source_id, target_id):
         g.add((source_id, PrefixMap.ns('fnoc')['followedBy'], target_id))
     

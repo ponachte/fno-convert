@@ -129,6 +129,10 @@ class FlowDescriptor:
                 
                     # Handle returns
                     self.handle_returns()
+
+                    # Connect FnO Function to composition of first block
+                    block_id = URIRef(f"{self.scope}_Block{fun_cfg.entryblock.id}")
+                    FunctionDescriptor.link_composition(self.g, self.scope, block_id)
                     
                     # Reset to previous scope
                     self.scope = prev_scope
