@@ -165,7 +165,7 @@ class FunctionDescriptor():
         
     @staticmethod
     def describe_function(f_name, context,
-                          inputs = [], input_types = [], input_defaults = None, 
+                          inputs = [], input_types = [], 
                           output = None, output_type = None, self_type=None):
         """
         Describe a function.
@@ -190,8 +190,7 @@ class FunctionDescriptor():
         # create inputs
         for i, input in enumerate(inputs):
             type = input_types[i]
-            default = input_defaults[i] if input_defaults else inspect._empty
-            g_params_outputs += FunctionDescriptor.describe_parameter(context, type, input, default, i)
+            g_params_outputs += FunctionDescriptor.describe_parameter(context, type, input, i)
         
         if self_type is not None:
             # create self parameter
@@ -236,7 +235,7 @@ class FunctionDescriptor():
         return s, g
 
     @staticmethod
-    def describe_parameter(f_name, type, pred = 'self', default=None, i=-1) -> PipelineGraph:
+    def describe_parameter(f_name, type, pred = 'self', i=-1) -> PipelineGraph:
         """
         Describe a parameter.
 
@@ -262,16 +261,6 @@ class FunctionDescriptor():
             (s, PrefixMap.ns('fno')["predicate"], PrefixMap.ns('')[pred]),
             (s, PrefixMap.ns('fno')["type"], type)
         ]
-
-        if default is not inspect._empty:
-            default_lit, type_desc = InstMap.inst_to_rdf(default)
-            if type_desc is not None:
-                g += type_desc
-
-            triples.append((s, PrefixMap.ns('fno')["default"], default_lit))
-            triples.append((s, PrefixMap.ns('fno')["required"], Literal(False)))
-        else:
-            triples.append((s, PrefixMap.ns('fno')["required"], Literal(True)))
 
         [ g.add(x) for x in triples ]
 
@@ -338,7 +327,7 @@ class FunctionDescriptor():
         return PrefixMap.ns('')[f"{f_name}Implementation"], g
     
     @staticmethod
-    def describe_mapping(f, imp, f_name, positional, keyword, args, kargs, output, self_output) -> PipelineGraph:
+    def describe_mapping(f, imp, f_name, positional, keyword, args, kargs, output, self_output, defaults={}) -> PipelineGraph:
         """
         Describe a mapping.
 
@@ -384,6 +373,8 @@ class FunctionDescriptor():
                 (selfNode, PrefixMap.ns('fnom')['functionOutput'], self_output)
             ])
 
+        ### POSITIONAL PARAMETER MAPPING ###
+
         for i, param in enumerate(positional):
             paramNode = BNode()
 
@@ -392,9 +383,14 @@ class FunctionDescriptor():
                 (paramNode, RDF.type, PrefixMap.ns('fnom')['PositionParameterMapping']),
                 (paramNode, PrefixMap.ns('fnom')['functionParameter'], param),
                 (paramNode, PrefixMap.ns('fnom')['implementationParameterPosition'], Literal(i))
-
             ])
 
+            if param in defaults:
+                triples.append((param, PrefixMap.ns('fno')["required"], Literal(False)))
+            else:
+                triples.append((param, PrefixMap.ns('fno')["required"], Literal(True)))
+
+        ### PROPERTY PARAMETER MAPPING ###
         
         for (param, key) in keyword:
             paramNode = BNode()
@@ -407,6 +403,28 @@ class FunctionDescriptor():
 
             ])
 
+            if param in defaults:
+                triples.append((param, PrefixMap.ns('fno')["required"], Literal(False)))
+            else:
+                triples.append((param, PrefixMap.ns('fno')["required"], Literal(True)))
+        
+        ### DEFAULT PARAMETER MAPPING ###
+
+        for (param, default) in defaults.items():
+            defaultNode = BNode()
+            default_lit, type_desc = InstMap.inst_to_rdf(default)
+            if type_desc is not None:
+                g += type_desc
+                
+            triples.extend([
+                (s, PrefixMap.ns('fno')['parameterMapping'], defaultNode),
+                (defaultNode, RDF.type, PrefixMap.ns('fnom')['DefaultParameterMapping']),
+                (defaultNode, PrefixMap.ns('fnom')['functionParameter'], param),
+                (defaultNode, PrefixMap.ns('fnom')['defaultValue'], default_lit),
+            ])
+
+        ### VAR POSITIONAL PARAMETER MAPPING ###
+        
         if args is not None:
             argNode = BNode()
             triples.extend([
@@ -414,6 +432,8 @@ class FunctionDescriptor():
                 (argNode, RDF.type, PrefixMap.ns('fnom')['VarPositionalParameterMapping']),
                 (argNode, PrefixMap.ns('fnom')['functionParameter'], args)
             ])
+        
+        ### VAR KEYWORD PARAMETER MAPPING ###
 
         if kargs is not None:
             kargNode = BNode()

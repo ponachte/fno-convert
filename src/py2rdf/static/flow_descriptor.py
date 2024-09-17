@@ -1554,11 +1554,7 @@ class FlowDescriptor:
             # Create function description from signature
             parameter_preds = []
             parameter_types = []
-            parameter_defaults = []
             self_type = None
-
-            if context not in self.default_map:
-                self.default_map[context] = {}
 
             for i, (name, param) in enumerate(params.items()):
                 if name == 'self':
@@ -1575,10 +1571,6 @@ class FlowDescriptor:
                         self.g += type_desc
                     parameter_types.append(param_type)
                     self.var_types[to_uri(PrefixMap.base(), par_name)] = param.annotation
-
-                    parameter_defaults.append(param.default)
-                    if param.default is not inspect._empty:
-                        self.default_map[context].update({name: param.default})
         
             output_pred = f"{context}Result"
             output = to_uri(PrefixMap.base(), f"{context}Output")
@@ -1597,7 +1589,7 @@ class FlowDescriptor:
         
             # Add function description
             s, desc = FunctionDescriptor.describe_function(f_name, context,
-                                                 parameter_preds, parameter_types, parameter_defaults,
+                                                 parameter_preds, parameter_types,
                                                  output_pred, output_type,
                                                  self_type=self_type)
             self.g += desc
@@ -1671,7 +1663,7 @@ class FlowDescriptor:
                 self_type = None
 
             s, desc= FunctionDescriptor.describe_function(f_name, context,
-                                                     parameter_preds, parameter_types, None,
+                                                     parameter_preds, parameter_types,
                                                      output_pred, output_type,
                                                      self_type=self_type)
             self.g += desc
@@ -1710,6 +1702,10 @@ class FlowDescriptor:
         keyword = []
         args = None
         kargs = None
+        defaults = {}
+
+        if s not in self.default_map:
+            self.default_map[s] = {}
 
         for name, param in params.items():
             # Get the parameter linked to this predicate
@@ -1725,8 +1721,12 @@ class FlowDescriptor:
                 args = par
             elif param.kind == inspect.Parameter.VAR_KEYWORD:
                 kargs = par
+            
+            if param.default is not inspect._empty:
+                defaults[par] = param.default
+                self.default_map[s].update({name: param.default})
 
-        _, desc = FunctionDescriptor.describe_mapping(s, imp, f_name, positional, keyword, args, kargs, output, self_output)
+        _, desc = FunctionDescriptor.describe_mapping(s, imp, f_name, positional, keyword, args, kargs, output, self_output, defaults)
         self.g += desc
 
     def map_with_num(self, s, keywords, imp, f_name, output, self_output):
