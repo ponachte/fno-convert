@@ -1,6 +1,6 @@
 from examples.example_functions import *
 from examples.cycle_problem import *
-from src.py2rdf.static.flow_descriptor import FlowDescriptor
+from src.py2rdf.describe.flow_descriptor import FlowDescriptor
 
 fd = FlowDescriptor(binarycount2)
 
