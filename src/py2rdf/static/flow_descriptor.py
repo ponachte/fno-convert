@@ -38,6 +38,7 @@ class FlowDescriptor:
         self.fun_cfgs = {}
         self.f_counter = {}
         self.assigned = {}
+        self.being_assigned = set()
         self.default_map = {}
         self.var_types = {}
         self.returns = []
@@ -262,6 +263,13 @@ class FlowDescriptor:
         """
         # Check if the variable is assigned to a function output
         if id in self.assigned:
+            if id in self.being_assigned:
+                varmap = self.assigned[id]
+                if not varmap.is_variable():
+                    mapto = MappingNode().set_variable(id)
+                    block_id = self.used_vars.get(id, self.block_id)
+                    FunctionDescriptor.describe_composition(self.g, block_id, [Mapping(varmap, mapto)])
+                    self.assigned[id] = mapto
             return self.assigned[id]
         
         # Check if it references an imported object
@@ -305,11 +313,15 @@ class FlowDescriptor:
 
         # TODO Handle binary operations within the value
         
-        value_output = self.handle_stmt(value)
         for target in targets:
             if isinstance(target, ast.Name):
                 # Handle assignment to variable
                 target = get_name(target.id)
+
+                # Indicate which variable is getting assigned to handle augmented assignments
+                self.being_assigned.add(target)
+                value_output = self.handle_stmt(value)
+                self.being_assigned.remove(target)
 
                 if target not in self.used_vars:
                     self.assigned[target] = value_output
@@ -328,11 +340,13 @@ class FlowDescriptor:
 
             elif isinstance(target, ast.Subscript):
                 # Handle assignment to subscript nodes
+                value_output = self.handle_stmt(value)
                 subscript_output = self.handle_subscript(target.value, target.slice, value_output)
                 self.handle_assignment(subscript_output, [target.value])
 
             elif isinstance(target, ast.Tuple):
                 # Handle unpacking assignments
+                value_output = self.handle_stmt(value)
                 for i, el in enumerate(target.elts):
                     subscript_output = self.handle_subscript(value_output, ast.Constant(value=i))
                     self.handle_assignment(subscript_output, [el])
