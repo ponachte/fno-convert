@@ -22,13 +22,14 @@ class Node:
         self.x0 = x0
         self.y0 = y0
 
+        self.container = None
+
         self.margin = 10
         self.height_per_string = 20
         self.name_height = 30 + 2 * self.margin
         self.min_width = 200
         self.width = self.min_width
         self.min_gap = 50
-
         self.font = font.Font(family='helvetica', size=12)
         
         # Calculate the height based on the number of strings
@@ -129,6 +130,9 @@ class Node:
                 # Calculate the new y position for each square and text
                 y_offset = (len(self.output_terminals) - index) * (self.height_per_string + self.margin) + 2 * self.margin
                 ter.move(new_x1 - 10, new_y0 + y_offset)
+            
+            if self.container is not None:
+                self.container.update_container()
 
     def on_release(self, event):
         """Stop dragging when the mouse button is released."""
