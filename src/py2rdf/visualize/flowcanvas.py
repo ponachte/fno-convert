@@ -9,16 +9,18 @@ class FlowCanvas(tk.Canvas):
         self.pack(fill="both", expand=True)
 
         # Create a few Node objects (rectangles) on the canvas
-        self.nodes = []
+        self.nodes = {}
         strings = ["terminal1", "terminal2", "terminal3"]
-        self.add_node(50, 50, strings, "red")
-        self.add_node(100, 100, strings, "blue")
-        self.add_node(150, 150, strings, "green")
+        self.add_node("node1", 50, 50, strings)
+        self.add_node("node2", 100, 100, strings)
+        self.add_node("node3", 150, 150, strings)
 
-    def add_node(self, x0, y0, strings, color):
+        self.nodes["node1"].output_terminals["terminal1"].connect_to(self.nodes["node2"].input_terminals["terminal3"])
+
+    def add_node(self, name, x0, y0, strings):
         """Adds a new draggable Node (rectangle) to the canvas."""
-        node = Node(self, x0, y0, strings, strings, color=color)
-        self.nodes.append(node)
+        node = Node(self, name, x0, y0, strings, strings)
+        self.nodes[name] = node
 
     def on_resize(self, event):
         """Handle window resizing and adjust the canvas size."""

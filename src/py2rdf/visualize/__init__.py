@@ -1,4 +1,5 @@
 from .flowcanvas import FlowCanvas
+from tkinter import font
 
 class App:
 
