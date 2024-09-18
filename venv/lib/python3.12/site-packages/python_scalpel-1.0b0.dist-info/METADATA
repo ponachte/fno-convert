@@ -1,0 +1,29 @@
+Metadata-Version: 2.1
+Name: python-scalpel
+Version: 1.0b0
+Summary: Scalpel: The Python Program Analysis Framework
+Home-page: https://github.com/SMAT-Lab/Scalpel
+Author: Jiawei Wang and Li Li and Haowei Quan
+Author-email: jiawei.wang1@monash.edu, li.li@monash.edu, haowei.quan@monash.edu
+License: UNKNOWN
+Platform: UNKNOWN
+Requires-Dist: astor (~=0.8.1)
+Requires-Dist: graphviz (~=0.17)
+Requires-Dist: networkx
+Requires-Dist: astunparse (~=1.6.3)
+Requires-Dist: typed-ast
+Requires-Dist: typeshed-client
+Requires-Dist: regex
+Requires-Dist: setuptools
+Requires-Dist: dataclasses
+Requires-Dist: pycg
+Provides-Extra: docs
+Requires-Dist: sphinx ; extra == 'docs'
+Requires-Dist: myst-parser ; extra == 'docs'
+Requires-Dist: sphinx-rtd-theme ; extra == 'docs'
+Requires-Dist: sphinxcontrib-spelling ; extra == 'docs'
+Requires-Dist: pydoctor ; extra == 'docs'
+
+UNKNOWN
+
+

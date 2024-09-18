@@ -5,7 +5,7 @@ from itertools import chain
 
 class Node:
     
-    def __init__(self, canvas: tk.Canvas, x0, y0, inputs, outputs, color="red"):
+    def __init__(self, canvas: tk.Canvas, name, x0, y0, inputs, outputs):
         """
         Initialize a draggable node (rectangle) on the canvas that displays a list of strings,
         each with a small black square next to it.
@@ -21,33 +21,35 @@ class Node:
         self.canvas = canvas
         self.x0 = x0
         self.y0 = y0
-        self.inputs = inputs
-        self.outputs = outputs
-        self.color = color
 
         self.margin = 10
         self.height_per_string = 20
+        self.name_height = 30 + 2 * self.margin
         self.min_width = 200
         self.width = self.min_width
         self.min_gap = 50
 
-        self.font = font.Font(family="Helvetica", size=12)
+        self.font = font.Font(family='helvetica', size=12)
         
         # Calculate the height based on the number of strings
         max_len = max(len(inputs), len(outputs))
-        self.height = max_len * self.height_per_string + max_len * self.margin
-
+        self.height = max_len * (self.height_per_string + self.margin) + self.name_height
 
         # Create the main rectangle for the node
         self.rect = self.canvas.create_rectangle(
-            x0, y0, x0 + self.min_width, y0 + self.height, fill=color
+            x0, y0, x0 + self.min_width, y0 + self.height, fill="gray", outline="black", width=2
         )
+
+        # Draw the name at the top of the node
+        name_font = font.Font(family='helvetica', size=12, weight='bold')
+        self.name = self.canvas.create_text(x0 + self.width / 2, y0 + self.name_height / 2, text=name, 
+                                font=name_font, fill='black')
         
         # Create input terminals
         self.input_terminals = {}
         for index, name in enumerate(inputs):
             # Calculate the y position for each string and square
-            y_pos = y0 + index * (self.height_per_string + self.margin) + self.margin
+            y_pos = y0 + (len(inputs) - index) * (self.height_per_string + self.margin) + 2 * self.margin
 
             # Create input terminal
             self.input_terminals[name] =Terminal(canvas, name, x0, y_pos)
@@ -56,7 +58,7 @@ class Node:
         self.output_terminals = {}
         for index, name in enumerate(outputs):
             # Calculate the y position for each string and square
-            y_pos = y0 + index * (self.height_per_string + self.margin) + self.margin
+            y_pos = y0 + (len(outputs) - index) * (self.height_per_string + self.margin) + 2 * self.margin
             self.output_terminals[name] = Terminal(canvas, name, x0 + self.width - 10, y_pos, is_output=True)
 
         self.adjust_width()
@@ -70,6 +72,9 @@ class Node:
         self.canvas.tag_bind(self.rect, "<Button-1>", self.on_click)
         self.canvas.tag_bind(self.rect, "<B1-Motion>", self.on_drag)
         self.canvas.tag_bind(self.rect, "<ButtonRelease-1>", self.on_release)
+        self.canvas.tag_bind(self.name, "<Button-1>", self.on_click)
+        self.canvas.tag_bind(self.name, "<B1-Motion>", self.on_drag)
+        self.canvas.tag_bind(self.name, "<ButtonRelease-1>", self.on_release)
 
         # Ensure terminals are also draggable
         for ter in chain(self.input_terminals.values(), self.output_terminals.values()):
@@ -88,7 +93,7 @@ class Node:
         self.canvas.coords(self.rect, self.x0, self.y0, self.x0 + self.width, self.y0 + self.height)
 
         for index, ter in enumerate(self.output_terminals.values()):
-            y_offset = index * (self.height_per_string + self.margin) + self.margin
+            y_offset = (len(self.output_terminals) - index) * (self.height_per_string + self.margin) + 2 * self.margin
             ter.move(self.x0 + self.width - 10, self.y0 + y_offset)
 
     def on_click(self, event):
@@ -110,16 +115,19 @@ class Node:
             # Move the rectangle to the new position
             self.canvas.coords(self.rect, new_x0, new_y0, new_x1, new_y1)
 
+            # Move the title to the new position
+            self.canvas.coords(self.name, new_x0 + self.width / 2, new_y0 + self.name_height / 2)
+
             # Move each input terminal accordingly
             for index, ter in enumerate(self.input_terminals.values()):
                 # Calculate the new y position for each square and text
-                y_offset = index * (self.height_per_string + self.margin) + self.margin
+                y_offset = (len(self.input_terminals) - index) * (self.height_per_string + self.margin) + 2 * self.margin
                 ter.move(new_x0, new_y0 + y_offset)
             
             # Move each output terminal accordingly
             for index, ter in enumerate(self.output_terminals.values()):
                 # Calculate the new y position for each square and text
-                y_offset = index * (self.height_per_string + self.margin) + self.margin
+                y_offset = (len(self.output_terminals) - index) * (self.height_per_string + self.margin) + 2 * self.margin
                 ter.move(new_x1 - 10, new_y0 + y_offset)
 
     def on_release(self, event):
