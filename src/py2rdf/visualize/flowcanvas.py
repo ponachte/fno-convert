@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import font
 from .node import Node
 from .containers import Container
 from .store import Variable
@@ -9,6 +10,22 @@ class FlowCanvas(tk.Canvas):
         super().__init__(root)
         self.root = root
         self.pack(fill="both", expand=True)
+
+        ### SCALING ###
+
+        # Bind mouse scroll for zooming
+        self.bind("<MouseWheel>", self.zoom)  # Windows scroll event
+        self.bind("<Button-4>", self.zoom)    # Linux scroll event
+        self.bind("<Button-5>", self.zoom)    # Linux scroll event
+        
+        # Store initial scaling factor
+        self.current_scale = 1.0
+
+        # Bind arrow keys to scroll events
+        self.bind_all("<Left>", self.on_left_arrow)
+        self.bind_all("<Right>", self.on_right_arrow)
+        self.bind_all("<Up>", self.on_up_arrow)
+        self.bind_all("<Down>", self.on_down_arrow)
 
         # Create a few Node objects (rectangles) on the canvas
         self.nodes = {}
@@ -44,6 +61,60 @@ class FlowCanvas(tk.Canvas):
     def add_variable(self, name, x, y):
         var = Variable(self, name, x, y)
         self.variables[name] = var
+    
+    def zoom(self, event):
+        """Zoom in or out based on scroll direction."""
+        # Handle zoom direction differently for each platform
+        if event.num == 4 or event.delta > 0:
+            scale_factor = 1.1  # Zoom in
+        elif event.num == 5 or event.delta < 0:
+            scale_factor = 0.9  # Zoom out
+        else:
+            return
+        self.current_scale *= scale_factor
+
+        # Center of the zoom (mouse position or center of canvas)
+        x = self.canvasx(event.x)
+        y = self.canvasy(event.y)
+
+        # Scale all items on the canvas
+        self.scale("all", x, y, scale_factor, scale_factor)
+
+        # Scale fonts
+        self.update_text_fonts(scale_factor)
+        
+        # Adjust the scroll region so the canvas expands/contracts correctly
+        self.configure(scrollregion=self.bbox("all"))
+    
+    def update_text_fonts(self, scale_factor):
+        """Update font sizes of text objects based on scale factor."""
+        for item in self.find_all():
+            if self.type(item) == "text":
+                # Get the current font object
+                current_font = font.Font(self, self.itemcget(item, "font"))
+                
+                # Calculate new font size based on scale factor
+                new_size = int(float(current_font.cget("size")) * scale_factor)
+                
+                # Update the font size while keeping other properties unchanged
+                current_font.config(size=new_size)
+                self.itemconfig(item, font=current_font)
+
+    def on_left_arrow(self, event):
+        """Move canvas left when left arrow is pressed."""
+        self.xview_scroll(-1, "units")  # Scroll left by 1 unit
+
+    def on_right_arrow(self, event):
+        """Move canvas right when right arrow is pressed."""
+        self.xview_scroll(1, "units")  # Scroll right by 1 unit
+
+    def on_up_arrow(self, event):
+        """Move canvas up when up arrow is pressed."""
+        self.yview_scroll(-1, "units")  # Scroll up by 1 unit
+
+    def on_down_arrow(self, event):
+        """Move canvas down when down arrow is pressed."""
+        self.yview_scroll(1, "units")  # Scroll down by 1 unit
 
     def on_resize(self, event):
         """Handle window resizing and adjust the canvas size."""
