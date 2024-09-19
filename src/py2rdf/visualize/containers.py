@@ -6,6 +6,8 @@ class Container:
         self.canvas = canvas
         self.name = name
 
+        self.flows = {}
+
         self.padding = 15
         self.name_height = 30
         
@@ -36,3 +38,46 @@ class Container:
         # Adjust container size and position with padding
         self.canvas.coords(self.rect, min_x - self.padding, min_y - self.padding - self.name_height, max_x + self.padding, max_y + self.padding)
         self.canvas.coords(self.name_id, (min_x + max_x) / 2, min_y - self.padding - self.name_height / 2)
+
+        # Adjust container flows
+        for flow in self.flows.values():
+            flow.update()
+    
+    def flow_to(self, target: "Container"):
+        flow = Flow(self.canvas, self, target)
+        self.flows[target.name] = flow
+        target.flows[self.name] = flow
+
+class Flow:
+
+    def __init__(self, canvas: tk.Canvas, source: Container, target: Container) -> None:
+        self.canvas = canvas
+        self.source = source
+        self.target = target
+
+        # Get the bounding box of source rectangle
+        _, y0_source, x1_source, y1_source = self.canvas.coords(self.source.rect)
+        # Middle of the right side of the source rectangle
+        source_point = (x1_source, (y0_source + y1_source) / 2)
+
+        # Get the bounding box of target rectangle
+        x0_target, y0_target, _, y1_target = self.canvas.coords(self.target.rect)
+        # Middle of the left side of the target rectangle
+        target_point = (x0_target, (y0_target + y1_target) / 2)
+
+        # Draw a line between the source and target points
+        self.line = self.canvas.create_line(source_point, target_point, arrow=tk.LAST, fill="black", width=2)
+    
+    def update(self):
+        # Get the bounding box of source rectangle
+        _, y0_source, x1_source, y1_source = self.canvas.coords(self.source.rect)
+        # Middle of the right side of the source rectangle
+        source_point = (x1_source, (y0_source + y1_source) / 2)
+
+        # Get the bounding box of target rectangle
+        x0_target, y0_target, _, y1_target = self.canvas.coords(self.target.rect)
+        # Middle of the left side of the target rectangle
+        target_point = (x0_target, (y0_target + y1_target) / 2)
+
+        # Draw a line between the source and target points
+        self.canvas.coords(self.line, source_point, target_point)
