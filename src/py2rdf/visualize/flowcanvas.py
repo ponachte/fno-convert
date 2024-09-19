@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import font
+from itertools import chain
 from .node import Node
 from .containers import Container
 from .store import Variable
@@ -43,12 +44,12 @@ class FlowCanvas(tk.Canvas):
 
         self.containers["container1"].flow_to(self.containers["container2"])
 
-        self.variables = {}
+        self.variables = []
         self.add_variable("count", 300, 300)
 
-        self.nodes["node2"].output_terminals["terminal2"].map_to(self.variables["count"])
+        self.nodes["node2"].output_terminals["terminal2"].map_to(self.variables[0])
 
-        self.layout_nodes()
+        self.layout_elements()
 
     def add_node(self, name, x0, y0, strings):
         """Adds a new draggable Node (rectangle) to the canvas."""
@@ -60,7 +61,7 @@ class FlowCanvas(tk.Canvas):
     
     def add_variable(self, name, x, y):
         var = Variable(self, name, x, y)
-        self.variables[name] = var
+        self.variables.append(var)
     
     def zoom(self, event):
         """Zoom in or out based on scroll direction."""
@@ -120,7 +121,7 @@ class FlowCanvas(tk.Canvas):
         """Handle window resizing and adjust the canvas size."""
         self.config(width=event.width, height=event.height)
     
-    def layout_nodes(self):
+    def layout_elements(self):
         margin_x = 150
         margin_y = 100
 
@@ -128,32 +129,30 @@ class FlowCanvas(tk.Canvas):
         levels = {}
         
         # Step 2: Calculate the level for each node
-        for node in self.nodes.values():
-            level = self.calculate_level(node)
+        for element in chain(self.nodes.values(), self.variables):
+            level = self.calculate_level(element)
             if level not in levels:
                 levels[level] = []
-            levels[level].append(node)
+            levels[level].append(element)
         
         # Step 3: Place nodes in their appropriate levels (left to right)
         x_offset = margin_x
         for level in sorted(levels.keys()):
             y_offset = margin_y
-            for node in levels[level]:
+            for element in levels[level]:
                 # Step 4: Position the node at (x_offset, y_offset)
-                node_x = x_offset
-                node_y = y_offset
-                node.move(node_x, node_y)
+                element.move(x_offset, y_offset)
                 
                 # Increase vertical offset for next node in this level
-                y_offset += node.height + margin_y
+                y_offset += element.height + margin_y
             
             # Increase horizontal offset for next column
-            x_offset += node.width + margin_x
+            x_offset += element.width + margin_x
 
-    def calculate_level(self, node):
+    def calculate_level(self, element):
         # Base case: If node has no dependencies, it belongs to level 0
-        if node.dependencies() == []:
+        if element.dependencies() == []:
             return 0
         
         # Otherwise, it's 1 level greater than the max level of its dependencies
-        return 1 + max(self.calculate_level(input_node) for input_node in node.dependencies())
+        return 1 + max(self.calculate_level(input) for input in element.dependencies())
