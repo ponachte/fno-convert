@@ -84,6 +84,7 @@ class Variable(Mappable):
         super().__init__(name, canvas, self)
         
         self.radius = 30
+        self.width = self.height = 2 * self.radius
 
         self.circle = canvas.create_oval(x - self.radius, y - self.radius, x + self.radius, y + self.radius, 
                                          outline="black", width=2, fill="gray")
@@ -97,6 +98,22 @@ class Variable(Mappable):
         self.canvas.tag_bind(self.text, "<Button-1>", self.on_click)
         self.canvas.tag_bind(self.text, "<B1-Motion>", self.on_drag)
         self.canvas.tag_bind(self.text, "<ButtonRelease-1>", self.on_release)
+    
+    def move(self, new_x0, new_y0):
+        new_x1 = new_x0 + self.radius * 2
+        new_y1 = new_y0 + self.radius * 2
+
+        # Move the circle to the new position
+        self.canvas.coords(self.circle, new_x0, new_y0, new_x1, new_y1)
+
+        # Move the text with the circle
+        self.canvas.coords(self.text, new_x0 + self.radius, new_y0 + self.radius)
+            
+        for mapping in self.mappings.values():
+            mapping.update()
+    
+    def dependencies(self):
+        return self.depends_on
 
     def on_click(self, event):
         """Start dragging when the circle is clicked."""
@@ -111,18 +128,8 @@ class Variable(Mappable):
             # Calculate the new coordinates for the rectangle
             new_x0 = event.x - self.offset_x
             new_y0 = event.y - self.offset_y
-            new_x1 = new_x0 + self.radius * 2
-            new_y1 = new_y0 + self.radius * 2
-
-            # Move the circle to the new position
-            self.canvas.coords(self.circle, new_x0, new_y0, new_x1, new_y1)
-
-            # Move the text with the circle
-            self.canvas.coords(self.text, new_x0 + self.radius, new_y0 + self.radius)
+            self.move(new_x0, new_y0)
             
-            for mapping in self.mappings.values():
-                mapping.update()
-
     def on_release(self, event):
         """Stop dragging when the mouse button is released."""
         self.dragging = False
