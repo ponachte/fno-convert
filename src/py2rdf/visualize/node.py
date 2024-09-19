@@ -98,26 +98,26 @@ class Node:
             ter.move(self.x0 + self.width - 10, self.y0 + y_offset)
     
     def move(self, new_x0, new_y0):
-        new_x1 = new_x0 + self.width
-        new_y1 = new_y0 + self.height
+        new_x1 = new_x0 + self.width * self.canvas.current_scale
+        new_y1 = new_y0 + self.height * self.canvas.current_scale
         
         # Move the rectangle to the new position
         self.canvas.coords(self.rect, new_x0, new_y0, new_x1, new_y1)
 
         # Move the title to the new position
-        self.canvas.coords(self.name, new_x0 + self.width / 2, new_y0 + self.name_height / 2)
+        self.canvas.coords(self.name, new_x0 + self.width * self.canvas.current_scale / 2, new_y0 + self.name_height * self.canvas.current_scale / 2)
 
         # Move each input terminal accordingly
         for index, ter in enumerate(self.input_terminals.values()):
             # Calculate the new y position for each square and text
             y_offset = (len(self.input_terminals) - index) * (self.height_per_string + self.margin) + 2 * self.margin
-            ter.move(new_x0, new_y0 + y_offset)
+            ter.move(new_x0, new_y0 + y_offset * self.canvas.current_scale)
             
         # Move each output terminal accordingly
         for index, ter in enumerate(self.output_terminals.values()):
             # Calculate the new y position for each square and text
             y_offset = (len(self.output_terminals) - index) * (self.height_per_string + self.margin) + 2 * self.margin
-            ter.move(new_x1 - 10, new_y0 + y_offset)
+            ter.move(new_x1 - 10 * self.canvas.current_scale, new_y0 + y_offset * self.canvas.current_scale)
             
         if self.container is not None:
             self.container.update_container()
