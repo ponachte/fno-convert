@@ -182,22 +182,7 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-     def is_for_loop(self, s) -> bool:
-        """
-        Checks if a function is applied in a for loop.
-        
-        :param s: URIRef
-            The function URI to check.
-        :return: bool
-            True if the function is in a for loop, False otherwise.
-        """
-        results = self.query(
-            f'''ASK WHERE {{ <{s}> fnoc:applies pf:for }}''', 
-            initNs=PrefixMap.NAMESPACES
-        )
-        return True if results else False
-
-     def in_for_loop(self, loop, call) -> bool:
+     def in_composition(self, comp, call) -> bool:
         """
         Checks if a function call is within a for loop body.
         
@@ -208,13 +193,14 @@ class PipelineGraph(Graph):
         :return: bool
             True if the function call is within the for loop, False otherwise.
         """
-        p = to_uri(PrefixMap.base(), f"{self.get_name(loop)}Pipeline")
         results = self.query(
             f'''
             ASK WHERE {{
-                <{p}> a fnoc:Composition ;
-                      fnoc:composedOf ?mapping .
-                ?mapping fnoc:mapTo ?mapto .
+                <{comp}> a fnoc:Composition ;
+                      fnoc:composedOf ?mapping1, ?mapping2 .
+                ?mapping1 fnoc:mapFrom ?mapfrom .
+                ?mapfrom fnoc:constituentFunction <{call}> .    
+                ?mapping2 fnoc:mapTo ?mapto .
                 ?mapto fnoc:constituentFunction <{call}> .
             }}''', 
             initNs=PrefixMap.NAMESPACES
@@ -682,19 +668,19 @@ class PipelineGraph(Graph):
          result = self.query(f'''
             ASK WHERE {{ <{c}> a fnoc:Composition . }}
          ''', initNs=PrefixMap.NAMESPACES)
-         return result
+         return True if result else False
      
      def is_if_composition(self, c: URIRef) -> bool:
          result = self.query(f'''
             ASK WHERE {{ <{c}> a fnoc:IfFlowComposition . }}
          ''', initNs=PrefixMap.NAMESPACES)
-         return result
+         return True if result else False
      
      def is_for_composition(self, c: URIRef) -> bool:
          result = self.query(f'''
             ASK WHERE {{ <{c}> a fnoc:ForFlowComposition . }}
          ''', initNs=PrefixMap.NAMESPACES)
-         return result
+         return True if result else False
      
      def followed_by(self, c: URIRef) -> URIRef:
          result = [x['next'] for x in self.query(f'''

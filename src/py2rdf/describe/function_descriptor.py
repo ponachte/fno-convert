@@ -138,9 +138,12 @@ class FunctionDescriptor():
         [ g.add(x) for x in triples ]
     
     @staticmethod
+    def set_comp_type(g: PipelineGraph, comp):
+        g.add((comp, RDF.type, PrefixMap.ns('fnoc')["Composition"]))
+    
+    @staticmethod
     def link(g: PipelineGraph, source_id, target_id):
         triples = [
-            (source_id, RDF.type, PrefixMap.ns('fnoc')["Composition"]),
             (source_id, RDF.type, PrefixMap.ns('prov')["Entity"]),
             (source_id, PrefixMap.ns('fnoc')['followedBy'], target_id)
         ]

@@ -15,5 +15,5 @@ def list_fonts():
 if __name__ == "__main__":
     list_fonts()
     root = tk.Tk()
-    app = App(root)
+    app = App(root, power_string)
     root.mainloop()
