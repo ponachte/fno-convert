@@ -38,7 +38,7 @@ class FlowDescriptor:
         self.fun_cfgs = {}
         self.f_counter = {}
         self.assigned = {}
-        self.being_assigned = set()
+        self.being_assigned = {}
         self.default_map = {}
         self.var_types = {}
         self.returns = []
@@ -46,7 +46,10 @@ class FlowDescriptor:
         self.depth = 0
         self.max_depth = max_depth
 
-        self.describe_flow(fun.__name__, fun.__name__, fun)
+        self.uri = self.describe_flow(fun.__name__, fun.__name__, fun)
+    
+    def get_flow(self):
+        return self.g, self.uri
     
     def get_type(self, var):
         """
@@ -163,6 +166,7 @@ class FlowDescriptor:
             self.handle_stmt(stmt)
         
         if not (isinstance(stmt, ast.For) or isinstance(stmt, ast.If)):
+            FunctionDescriptor.set_comp_type(self.g, self.block_id)
             for link in block.exits:
                 target_id = URIRef(f"{self.scope}_Block{link.target.id}")
                 FunctionDescriptor.link(self.g, self.block_id, target_id)
@@ -328,9 +332,12 @@ class FlowDescriptor:
                 target = get_name(target.id)
 
                 # Indicate which variable is getting assigned to handle augmented assignments
-                self.being_assigned.add(target)
+                self.being_assigned[target] = self.being_assigned.get(target, 0) + 1
                 value_output = self.handle_stmt(value)
-                self.being_assigned.remove(target)
+                if self.being_assigned[target] == 1:
+                    del self.being_assigned[target]
+                else:
+                    self.being_assigned[target] -= 1
 
                 if target not in self.used_vars:
                     self.assigned[target] = value_output

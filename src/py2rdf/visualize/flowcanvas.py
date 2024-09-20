@@ -12,6 +12,10 @@ class FlowCanvas(tk.Canvas):
         self.root = root
         self.pack(fill="both", expand=True)
 
+        self.nodes = {}
+        self.containers = {}
+        self.variables = []
+
         ### SCALING ###
 
         # Bind mouse scroll for zooming
@@ -28,33 +32,14 @@ class FlowCanvas(tk.Canvas):
         self.bind_all("<Up>", self.on_up_arrow)
         self.bind_all("<Down>", self.on_down_arrow)
 
-        # Create a few Node objects (rectangles) on the canvas
-        self.nodes = {}
-        strings = ["terminal1", "terminal2", "terminal3"]
-        self.add_node("node1", 50, 50, strings)
-        self.add_node("node2", 100, 100, strings)
-        self.add_node("node3", 150, 150, strings)
-
-        self.nodes["node1"].output_terminals["terminal1"].map_to(self.nodes["node2"].input_terminals["terminal3"])
-        self.nodes["node3"].output_terminals["terminal2"].map_to(self.nodes["node1"].input_terminals["terminal3"])
-
-        self.containers = {}
-        self.add_container("container1", [self.nodes["node1"], self.nodes["node3"]])
-        self.add_container("container2", [self.nodes["node2"]])
-
-        self.containers["container1"].flow_to(self.containers["container2"])
-
-        self.variables = []
-        self.add_variable("count", 300, 300)
-
-        self.nodes["node2"].output_terminals["terminal2"].map_to(self.variables[0])
-
-        self.layout_elements()
-
-    def add_node(self, name, x0, y0, strings):
+    def add_node(self, subject, name, x0, y0, inputs, outputs):
         """Adds a new draggable Node (rectangle) to the canvas."""
-        node = Node(self, name, x0, y0, strings, strings)
-        self.nodes[name] = node
+        node = Node(self, name, x0, y0, inputs, outputs)
+        self.nodes[subject] = node
+    
+    def add_link_nodes(self, subject, name, x0, y0, inputs, outputs):
+        self.input = Node(self, subject, f"{name} input", x0, y0, [], inputs)
+        self.output = Node(self, subject, f"{name} output", x0, y0, outputs, [])
     
     def add_container(self, name, nodes):
         self.containers[name] = Container(self, name, nodes)
@@ -62,6 +47,17 @@ class FlowCanvas(tk.Canvas):
     def add_variable(self, name, x, y):
         var = Variable(self, name, x, y)
         self.variables.append(var)
+        return var
+    
+    def get_source_terminal(self, fun, ter):
+        if fun in self.nodes:
+            return self.nodes[fun].output_terminals[ter]
+        self.input.output_terminals[ter]
+    
+    def get_target_terminal(self, fun, ter):
+        if fun in self.nodes:
+            return self.nodes[fun].input_terminals[ter]
+        self.output.input_terminals[ter]
     
     def zoom(self, event):
         """Zoom in or out based on scroll direction."""
