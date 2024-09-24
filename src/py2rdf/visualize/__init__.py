@@ -1,50 +1,45 @@
-from .flowcanvas import FlowCanvas
-from ..execute.flow_executer import Flow, Terminal, Variable
-from ..describe.flow_descriptor import FlowDescriptor
-from tkinter import font
+from PyQt5.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QTabWidget
 
-class App:
+from .flowview import FlowCtrlWidget
+from .load import ScrollWidget, FunctionPicker
 
-    def __init__(self, root, function):
-        self.root = root
-        self.root.title("Drag and Drop Rectangle")
+class PY2RDFWindow(QMainWindow):
 
-        # Allow the window to be resizable
-        self.root.geometry("400x400")  # Starting size of the window
-        self.root.resizable(True, True)  # Make the window resizable
+    def __init__(self) -> None:
+        super().__init__()
 
-        self.canvas = FlowCanvas(root)
-        self.graph, self.uri = FlowDescriptor(function).get_flow()
-        print(self.graph.serialize(format='turtle'))
-        self.flow = Flow(self.graph, self.uri)
+        self.setWindowTitle("Flow Visualizer")
+        self.setGeometry(100, 100, 600, 400)
 
-        self.visualize_flow()
+        # Tab to describe a flow
+        loadTab = QWidget()
+        layout1 = QGridLayout()
+        loadTab.setLayout(layout1)
 
-        # Bind resize event to the window to handle resizing
-        self.root.bind("<Configure>", self.canvas.on_resize)
-    
-    def visualize_flow(self):
+        code_viewer = ScrollWidget()
+        rdf_viewer = ScrollWidget()
+        f_picker = FunctionPicker()
 
-        ### FUNCTIONS ###
+        layout1.addWidget(f_picker, 0, 0, 1, 1)
+        layout1.addWidget(code_viewer, 0, 1, 1, 4)
+        layout1.addWidget(rdf_viewer, 0, 5, 1, 4)
 
-        for func in self.flow.functions.values():
-            inputs = []
-            outputs = []
-            for term in func.terminals.values():
-                (outputs if term.is_output else inputs).append(term.name)
-            self.canvas.add_node(func.call_uri, func.name, 100, 100, inputs, outputs)
-        
-        for comp in self.flow.compositions.values():
-            for mapping in comp.mappings:
-                if isinstance(mapping.source, Terminal):
-                    source = self.canvas.get_source_terminal(mapping.source.fun_uri, mapping.source.uri)
-                else:
-                    source = self.canvas.add_variable(mapping.source.name, 100, 100)
-                if isinstance(mapping.target, Terminal):
-                    target = self.canvas.get_target_terminal(mapping.target.fun_uri, mapping.target.uri)
-                else:
-                    target = self.canvas.add_variable(mapping.target.name, 100, 100)
-                
-                source.connect_to(target)
-    
-        self.canvas.layout_elements()
+        # Tab to view flow
+        viewTab = QWidget()
+        layout2 = QHBoxLayout()
+        viewTab.setLayout(layout2)
+
+        ctrlWidget = FlowCtrlWidget()
+        layout2.addWidget(ctrlWidget)
+
+        # Event handling
+        f_picker.file_loaded.connect(code_viewer.setText)
+        f_picker.function_loaded.connect(code_viewer.setSource)
+        f_picker.function_loaded.connect(rdf_viewer.setGraph)
+        f_picker.function_loaded.connect(ctrlWidget.setFlow)
+
+        # Add Tabs
+        tabWidget = QTabWidget()
+        tabWidget.addTab(loadTab, "Load")
+        tabWidget.addTab(viewTab, "View")
+        self.setCentralWidget(tabWidget)

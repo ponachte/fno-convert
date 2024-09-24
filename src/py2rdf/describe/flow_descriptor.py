@@ -26,7 +26,7 @@ class FlowDescriptor:
     def name_node(name: str):
         return ast.Name(id=name, ctx=ast.Load())
 
-    def __init__(self, fun, max_depth=3) -> None:
+    def describe_function(self, fun, max_depth=3):
         self.g = PrefixMap.bind_namespaces(PipelineGraph())
         self.importer = Importer()
 
@@ -47,6 +47,8 @@ class FlowDescriptor:
         self.max_depth = max_depth
 
         self.uri = self.describe_flow(fun.__name__, fun.__name__, fun)
+
+        return self.g, self.uri
     
     def get_flow(self):
         return self.g, self.uri
