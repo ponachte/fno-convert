@@ -1,19 +1,10 @@
-from examples.example_functions import *
-from examples.cycle_problem import *
-from src.py2rdf.describe.flow_descriptor import FlowDescriptor
-from src.py2rdf.visualize import App
-import tkinter as tk
+from PyQt5.QtWidgets import QApplication
+from src.py2rdf.visualize import PY2RDFWindow
 
-import tkinter as tk
-
-def list_fonts():
-    root = tk.Tk()
-    fonts = root.tk.call("font", "families")
-    print("Available fonts:", fonts)
-    root.destroy()
+import sys
 
 if __name__ == "__main__":
-    list_fonts()
-    root = tk.Tk()
-    app = App(root, power_string)
-    root.mainloop()
+    app = QApplication(sys.argv)
+    window = PY2RDFWindow()
+    window.show()
+    sys.exit(app.exec())

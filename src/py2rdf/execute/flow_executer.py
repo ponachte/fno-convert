@@ -180,12 +180,18 @@ class Function:
             self.terminals[self.self_input.uri] = self.self_input
         if g.has_output(fun):
             uri = g.get_output(fun)
-            self.output = Terminal(uri, g.get_output_predicate(fun), call, type=g.get_output_type(uri), is_output=True)
+            self.output = Terminal(uri, g.get_output_predicate(fun)[1], call, type=g.get_output_type(uri), is_output=True)
             self.terminals[self.output.uri] = self.output
         if g.has_self_output(fun):
             uri = g.get_self_output(fun)
             self.self_output = Terminal(uri, 'self_output', call, type=g.get_output_type(uri), is_output=True)
             self.terminals[self.self_output.uri] = self.self_output
+    
+    def inputs(self):
+        return { name: self.terminals[name] for name in self.terminals if not self.terminals[name].is_output }
+
+    def outputs(self):
+        return { name: self.terminals[name] for name in self.terminals if self.terminals[name].is_output }
 
 class Constant:
 
