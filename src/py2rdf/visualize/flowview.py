@@ -10,9 +10,10 @@ from ..execute.flow_executer import Flow
 from ..execute.processable import Processable
 from ..execute.store import ValueStore, Terminal
 from ..graph import PipelineGraph
-from .function import ProcessGraphicsItem
+from .process import ProcessGraphicsItem
 from .store import StoreGraphicsItem, VariableGraphicsItem
 from .mapping import MappingGraphicsItem
+from .layout import sugiyama_algorithm
 
 class FlowGraphicsView(GraphicsView):
 
@@ -98,17 +99,22 @@ class FlowViewWidget(DockArea):
         self.functions = {}
         self.terminals = {}
         self.variables = {}
+        self.mappings = set()
 
         # add input and output
         self.addFunction(self.flow.input)
         self.addFunction(self.flow.output)
 
+        # add all used functions
         for fun in self.flow.functions.values():
             self.addFunction(fun)
 
+        # add all mappings
         for comp in self.flow.compositions.values():
             for mapping in comp.mappings:
                 self.addMapping(mapping.source, mapping.target)
+        
+        self.autoArrange()
     
     def addFunction(self, fun: Processable):
         item = ProcessGraphicsItem(fun)
@@ -135,6 +141,7 @@ class FlowViewWidget(DockArea):
         
         item = MappingGraphicsItem(source, target)
         self.viewBox().addItem(item)
+        self.mappings.add(item)
     
     def selectionChanged(self):
         items = self._scene.selectedItems()
@@ -158,4 +165,15 @@ class FlowViewWidget(DockArea):
             if len(value) > 400:
                 value = value[:400] + "..."
             self.hoverText.setPlainText("%s = %s" % (store.name, value))
+    
+    def autoArrange(self):
+        edges = [(mapping.source.parentItem(), mapping.target.parentItem()) for mapping in self.mappings]
+
+        if len(edges) > 0:
+            positions = sugiyama_algorithm(edges, list(self.functions.values()))
+
+            for process in positions:
+                process.setPos(*positions[process])
+        
+        self.viewBox().autoRange()
             
