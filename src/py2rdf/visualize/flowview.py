@@ -1,11 +1,12 @@
-from PyQt5.QtGui import QPainter
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QSizePolicy
+from PyQt6.QtGui import QPainter
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QSizePolicy
+from PyQt6.QtCore import QPoint, QPointF
 
 from pyqtgraph import GraphicsView, ViewBox
 from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
 
-from ..execute.flow_executer import Flow
+from ..execute.flow_executer import Flow, Terminal
 from ..graph import PipelineGraph
 from .function import FunctionGraphicsItem
 
@@ -99,7 +100,7 @@ class FlowViewWidget(DockArea):
         item.setZValue(self.nextZVal*2)
         self.nextZVal += 1
         self.viewBox().addItem(item)
-        self.functions[subject] = fun
+        self.functions[subject] = (fun, item)
     
     def selectionChanged(self):
         items = self._scene.selectedItems()
@@ -107,5 +108,20 @@ class FlowViewWidget(DockArea):
             item = items[0]
             self.selectText.setPlainText(f"Selected item: {item}")
     
-    def hoverOver(self):
-        pass
+    def hoverOver(self, items):
+        term = None
+        for item in items:
+            if item is self.hoverItem:
+                return
+            self.hoverItem = item
+            if hasattr(item, 'terminal') and isinstance(item.terminal, Terminal):
+                term = item.terminal
+                break
+        if term is None:
+            self.hoverText.setPlainText("")
+        else:
+            value = str(term.value)
+            if len(value) > 400:
+                value = value[:400] + "..."
+            self.hoverText.setPlainText("%s = %s" % (term.name, value))
+            

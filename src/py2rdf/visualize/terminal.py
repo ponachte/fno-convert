@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
-from PyQt5.QtCore import QRectF, Qt, QPoint
+from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
+from PyQt6.QtCore import QRectF, Qt, QPoint
 from pyqtgraph import GraphicsObject
 import pyqtgraph.functions as fn
 
@@ -10,8 +10,8 @@ class TerminalGraphicsItem(GraphicsObject):
     def __init__(self, terminal: Terminal, parent=None):
         GraphicsObject.__init__(self, parent)
 
-        self.brush = fn.mkBrush(0,0,0)
         self.box = QGraphicsRectItem(0, 0, 10, 10, self)
+        self.setBrush(fn.mkBrush(0, 0, 0))
         self.label = QGraphicsTextItem(terminal.name, self)
         self.label.setScale(0.7)
         self.label.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
@@ -23,6 +23,7 @@ class TerminalGraphicsItem(GraphicsObject):
     def setBrush(self, brush):
         self.brush = brush
         self.box.setBrush(brush)
+        self.update()
 
     def boundingRect(self) -> QRectF:
         # Return the smallest rectangle that contains both the label and the box
