@@ -6,9 +6,11 @@ from pyqtgraph import GraphicsView, ViewBox
 from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
 
-from ..execute.flow_executer import Flow, Terminal
+from ..execute.flow_executer import Flow, ValueStore
 from ..graph import PipelineGraph
 from .function import FunctionGraphicsItem
+from .terminal import TerminalGraphicsItem
+from .variable import VariableGraphicsItem
 
 class FlowGraphicsView(GraphicsView):
 
@@ -92,8 +94,11 @@ class FlowViewWidget(DockArea):
     def setFlow(self, flow: Flow):
         self.flow = flow
         self.functions = {}
+        self.variables = {}
         for subject, fun in self.flow.functions.items():
             self.addFunction(subject, fun)
+        for name, var in self.flow.variables.items():
+            self.addVariable(name, var)
     
     def addFunction(self, subject, fun):
         item = FunctionGraphicsItem(fun)
@@ -102,6 +107,15 @@ class FlowViewWidget(DockArea):
         self.viewBox().addItem(item)
         self.functions[subject] = (fun, item)
     
+    def addVariable(self, name, var):
+        item = VariableGraphicsItem(var)
+        item.setZValue(self.nextZVal*2)
+        self.nextZVal += 1
+        self.viewBox().addItem(item)
+        if name not in self.variables:
+            self.variables[name] = []
+        self.variables[name].append((var, item))
+    
     def selectionChanged(self):
         items = self._scene.selectedItems()
         if len(items) > 0:
@@ -109,19 +123,21 @@ class FlowViewWidget(DockArea):
             self.selectText.setPlainText(f"Selected item: {item}")
     
     def hoverOver(self, items):
-        term = None
+        store = None
         for item in items:
             if item is self.hoverItem:
                 return
             self.hoverItem = item
-            if hasattr(item, 'terminal') and isinstance(item.terminal, Terminal):
-                term = item.terminal
+            if isinstance(item, TerminalGraphicsItem):
+                store = item.terminal
                 break
-        if term is None:
+            if isinstance(item, VariableGraphicsItem):
+                store = item.var
+        if store is None:
             self.hoverText.setPlainText("")
         else:
-            value = str(term.value)
+            value = str(store.value)
             if len(value) > 400:
                 value = value[:400] + "..."
-            self.hoverText.setPlainText("%s = %s" % (term.name, value))
+            self.hoverText.setPlainText("%s = %s" % (store.name, value))
             
