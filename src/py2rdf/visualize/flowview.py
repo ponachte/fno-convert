@@ -6,9 +6,11 @@ from pyqtgraph import GraphicsView, ViewBox
 from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
 
-from ..execute.flow_executer import Flow, ValueStore, Terminal, Processable
+from ..execute.flow_executer import Flow
+from ..execute.processable import Processable
+from ..execute.store import ValueStore, Terminal
 from ..graph import PipelineGraph
-from .function import FunctionGraphicsItem
+from .function import ProcessGraphicsItem
 from .store import StoreGraphicsItem, VariableGraphicsItem
 from .mapping import MappingGraphicsItem
 
@@ -109,7 +111,7 @@ class FlowViewWidget(DockArea):
                 self.addMapping(mapping.source, mapping.target)
     
     def addFunction(self, fun: Processable):
-        item = FunctionGraphicsItem(fun)
+        item = ProcessGraphicsItem(fun)
         item.setZValue(self.nextZVal*2)
         self.nextZVal += 1
         self.viewBox().addItem(item)
