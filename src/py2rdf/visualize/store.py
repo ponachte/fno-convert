@@ -4,7 +4,7 @@ from PyQt6.QtGui import QColor, QPen, QBrush
 from pyqtgraph import GraphicsObject
 import pyqtgraph.functions as fn
 
-from ..execute.flow_executer import Terminal, Variable, ValueStore
+from ..execute.store import Terminal, Variable, ValueStore
 
 from abc import abstractmethod
 

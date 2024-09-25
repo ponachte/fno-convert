@@ -3,12 +3,12 @@ from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtWidgets import QGraphicsTextItem
 from pyqtgraph import GraphicsObject
 
-from ..execute.flow_executer import Processable
+from ..execute.processable import Processable
 from .store import TerminalGraphicsItem
 
 STD_COLOR = QColor(170, 170, 170)
 
-class FunctionGraphicsItem(GraphicsObject):
+class ProcessGraphicsItem(GraphicsObject):
 
     def __init__(self, function: Processable):
         GraphicsObject.__init__(self)

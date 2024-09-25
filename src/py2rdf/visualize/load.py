@@ -2,11 +2,11 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QScrollArea, QTextEdit, QVBoxLayout, QPushButton, 
                              QFileDialog, QMessageBox, QComboBox, QLineEdit, QSizePolicy)
 from PyQt6.QtGui import QTextCursor, QColor, QTextCharFormat
-from ..map import ImpMap, PrefixMap
+from ..map import ImpMap
 from ..graph import PipelineGraph
 from ..util import ASTUtil
 from ..describe.flow_descriptor import FlowDescriptor
-from rdflib import Graph, URIRef
+from rdflib import URIRef
 
 import os, sys, ast, inspect, time
 

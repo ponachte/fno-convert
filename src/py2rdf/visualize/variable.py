@@ -3,7 +3,7 @@ from PyQt6.QtGui import QColor, QBrush, QPen
 from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtWidgets import QGraphicsTextItem
 
-from ..execute.flow_executer import Variable
+from ..execute.store import Variable
 
 STD_COLOR = QColor(170, 170, 170)
 
