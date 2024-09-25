@@ -6,11 +6,11 @@ from pyqtgraph import GraphicsView, ViewBox
 from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
 
-from ..execute.flow_executer import Flow, ValueStore
+from ..execute.flow_executer import Flow, ValueStore, Terminal, Processable
 from ..graph import PipelineGraph
 from .function import FunctionGraphicsItem
-from .terminal import TerminalGraphicsItem
-from .variable import VariableGraphicsItem
+from .store import StoreGraphicsItem, VariableGraphicsItem
+from .mapping import MappingGraphicsItem
 
 class FlowGraphicsView(GraphicsView):
 
@@ -94,18 +94,27 @@ class FlowViewWidget(DockArea):
     def setFlow(self, flow: Flow):
         self.flow = flow
         self.functions = {}
+        self.terminals = {}
         self.variables = {}
-        for subject, fun in self.flow.functions.items():
-            self.addFunction(subject, fun)
-        for name, var in self.flow.variables.items():
-            self.addVariable(name, var)
+
+        # add input and output
+        self.addFunction(self.flow.input)
+        self.addFunction(self.flow.output)
+
+        for fun in self.flow.functions.values():
+            self.addFunction(fun)
+
+        for comp in self.flow.compositions.values():
+            for mapping in comp.mappings:
+                self.addMapping(mapping.source, mapping.target)
     
-    def addFunction(self, subject, fun):
+    def addFunction(self, fun: Processable):
         item = FunctionGraphicsItem(fun)
         item.setZValue(self.nextZVal*2)
         self.nextZVal += 1
         self.viewBox().addItem(item)
-        self.functions[subject] = (fun, item)
+        self.functions[fun] = item
+        self.terminals.update(item.terminals)
     
     def addVariable(self, name, var):
         item = VariableGraphicsItem(var)
@@ -115,6 +124,15 @@ class FlowViewWidget(DockArea):
         if name not in self.variables:
             self.variables[name] = []
         self.variables[name].append((var, item))
+    
+    def addMapping(self, source: ValueStore, target: ValueStore):
+        if isinstance(source, Terminal):
+            source = self.terminals[source]
+        if isinstance(target, Terminal):
+            target = self.terminals[target]
+        
+        item = MappingGraphicsItem(source, target)
+        self.viewBox().addItem(item)
     
     def selectionChanged(self):
         items = self._scene.selectedItems()
@@ -128,11 +146,9 @@ class FlowViewWidget(DockArea):
             if item is self.hoverItem:
                 return
             self.hoverItem = item
-            if isinstance(item, TerminalGraphicsItem):
-                store = item.terminal
+            if isinstance(item, StoreGraphicsItem):
+                store = item.store
                 break
-            if isinstance(item, VariableGraphicsItem):
-                store = item.var
         if store is None:
             self.hoverText.setPlainText("")
         else:

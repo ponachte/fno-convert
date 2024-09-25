@@ -3,14 +3,14 @@ from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtWidgets import QGraphicsTextItem
 from pyqtgraph import GraphicsObject
 
-from ..execute.flow_executer import Function
-from .terminal import TerminalGraphicsItem
+from ..execute.flow_executer import Processable
+from .store import TerminalGraphicsItem
 
 STD_COLOR = QColor(170, 170, 170)
 
 class FunctionGraphicsItem(GraphicsObject):
 
-    def __init__(self, function: Function):
+    def __init__(self, function: Processable):
         GraphicsObject.__init__(self)
 
         self.hovered = False
@@ -86,7 +86,7 @@ class FunctionGraphicsItem(GraphicsObject):
             item = TerminalGraphicsItem(term, self)
             item.setZValue(self.zValue())
             item.setAnchor(0, y)
-            self.terminals[name] = (term, item)
+            self.terminals[term] = item
             y += self._terminalOffset
         
         # Populate outputs
@@ -94,7 +94,7 @@ class FunctionGraphicsItem(GraphicsObject):
             item = TerminalGraphicsItem(term, self)
             item.setZValue(self.zValue())
             item.setAnchor(int(self.bounds.width()), y)
-            self.terminals[name] = (term, item)
+            self.terminals[term] = item
             y += self._terminalOffset
     
     def boundingRect(self) -> QRectF:
@@ -141,7 +141,6 @@ class FunctionGraphicsItem(GraphicsObject):
 
     def itemChange(self, change, value):
         if change == self.GraphicsItemChange.ItemPositionHasChanged:
-            for term in self.terminals.values():
-                term[1].functionMoved()
+            for item in self.terminals.values():
+                item.functionMoved()
         return GraphicsObject.itemChange(self, change, value)
-

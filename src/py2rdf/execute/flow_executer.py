@@ -13,10 +13,11 @@ class FlowExecuter:
 class Flow:
 
     def __init__(self, g: PipelineGraph, fun: URIRef) -> None:
-        self.f_uri = fun
+        self.f_uri = g.check_call(fun)
+        self.scope = fun
 
-        self.input = FunctionLink(g, fun)
-        self.output = FunctionLink(g, fun, is_output=True)
+        self.input = FunctionLink(g, self.f_uri, self.scope)
+        self.output = FunctionLink(g, self.f_uri, self.scope, is_output=True)
         self.functions = {}
         self.variables = {}
         self.compositions = {}
@@ -34,6 +35,8 @@ class Composition:
 
     @staticmethod
     def build_composition(flow: "Flow", g: PipelineGraph, comp: URIRef) -> "Composition":
+        if comp is None:
+            return
         if g.is_composition(comp):
             return LinearComposition(flow, g, comp)
         if g.is_if_composition(comp):
@@ -52,7 +55,7 @@ class Composition:
         # TODO IfFlowComposition without mappings but with a composition !!
         for (call, fun) in g.get_used_functions(self.uri):
             if fun != flow.f_uri and call not in flow.functions:
-                flow.functions[call] = Function(g, call, fun)
+                flow.functions[call] = Function(g, call, fun, flow.scope)
             if g.in_composition(comp, call):
                 self.functions.append(call)
 
@@ -135,32 +138,12 @@ class ForFlowComposition(Composition):
         next_comp = g.followed_by(comp)
         self.followed_by = flow.compositions.get(next_comp, Composition.build_composition(flow, g, next_comp))
 
-class FunctionLink:
+class Processable:
 
-    def __init__(self, g: PipelineGraph, fun: URIRef, is_output=False) -> None:
-        self.fun_uri = fun
-
-        if is_output:
-            # Output terminals as input
-            self.terminals = {}
-            if g.has_output(fun):
-                uri = g.get_output(fun)
-                output = Terminal(uri, g.get_output_predicate(fun), fun, type=g.get_output_type(uri))
-                self.terminals[output.uri] = output
-            if g.has_self_output(fun):
-                uri = g.get_self_output(fun)
-                output = Terminal(uri, 'self_output', fun, type=g.get_output_type(uri))
-                self.terminals[output.uri] = output
-        else:
-            # Input terminals as output
-            self.terminals = { par: Terminal(par, g.get_param_predicate(par), fun, type=g.get_param_type(par), is_output=True) 
-                              for par in g.get_parameters(fun) }
-
-class Function:
-
-    def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef) -> None:
+    def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef, scope: URIRef) -> None:
         self.call_uri = call
         self.fun_uri = fun
+        self.scope_uri = scope
         self.map_uri, self.imp_uri = g.get_implementation(fun)
         self.name = g.get_name(fun)
 
@@ -170,28 +153,67 @@ class Function:
 
         ### TERMINALS ###
 
-        self.terminals = { par: Terminal(par, g.get_param_predicate(par), call, type=g.get_param_type(par)) for par in g.get_parameters(fun) }
+        self.terminals = {}
         self.self_input = None
         self.self_output = None
         self.output = None
-        if g.has_self(fun):
-            uri = g.get_self(fun)
-            self.self_input = Terminal(uri, 'self', call, type=g.get_param_type(uri))
-            self.terminals[self.self_input.uri] = self.self_input
-        if g.has_output(fun):
-            uri = g.get_output(fun)
-            self.output = Terminal(uri, g.get_output_predicate(fun)[1], call, type=g.get_output_type(uri), is_output=True)
-            self.terminals[self.output.uri] = self.output
-        if g.has_self_output(fun):
-            uri = g.get_self_output(fun)
-            self.self_output = Terminal(uri, 'self_output', call, type=g.get_output_type(uri), is_output=True)
-            self.terminals[self.self_output.uri] = self.self_output
-    
+
     def inputs(self):
         return { name: self.terminals[name] for name in self.terminals if not self.terminals[name].is_output }
 
     def outputs(self):
         return { name: self.terminals[name] for name in self.terminals if self.terminals[name].is_output }
+    
+    def __hash__(self) -> int:
+        return hash(self.fun_uri)
+    
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Function) and self.call_uri == other.call_uri and self.fun_uri == other.fun_uri and self.scope_uri == other.scope_uri
+
+class Function(Processable):
+
+    def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef, scope: URIRef) -> None:
+        super().__init__(g, call, fun, scope)
+
+        ### TERMINALS ###
+
+        self.terminals.update({ par: Terminal(par, g.get_param_predicate(par), call, scope, type=g.get_param_type(par)) for par in g.get_parameters(fun) })
+        if g.has_self(fun):
+            uri = g.get_self(fun)
+            self.self_input = Terminal(uri, 'self', call, scope, type=g.get_param_type(uri))
+            self.terminals[self.self_input.uri] = self.self_input
+        if g.has_output(fun):
+            uri = g.get_output(fun)
+            self.output = Terminal(uri, g.get_output_predicate(fun)[1], call, scope, type=g.get_output_type(uri), is_output=True)
+            self.terminals[self.output.uri] = self.output
+        if g.has_self_output(fun):
+            uri = g.get_self_output(fun)
+            self.self_output = Terminal(uri, 'self_output', call, scope, type=g.get_output_type(uri), is_output=True)
+            self.terminals[self.self_output.uri] = self.self_output
+    
+class FunctionLink(Processable):
+
+    def __init__(self, g: PipelineGraph, fun: URIRef, scope: URIRef, is_output=False) -> None:
+        super().__init__(g, None, fun, scope)
+
+        if is_output:
+            # Output terminals as input
+            if g.has_output(fun):
+                uri = g.get_output(fun)
+                self.output = Terminal(uri, g.get_output_predicate(fun)[1], fun, scope, type=g.get_output_type(uri))
+                self.terminals[self.output.uri] = self.output
+            if g.has_self_output(fun):
+                uri = g.get_self_output(fun)
+                self.self_output = Terminal(uri, 'self_output', fun, type=g.get_output_type(uri))
+                self.terminals[self.self_output.uri] = self.self_output
+        else:
+            # Input terminals as output
+            self.terminals.update({ par: Terminal(par, g.get_param_predicate(par), fun, scope, type=g.get_param_type(par), is_output=True) 
+                              for par in g.get_parameters(fun) })
+            if g.has_self(fun):
+                uri = g.get_self(fun)
+                self.self_input = Terminal(uri, 'self', fun, scope, type=g.get_param_type(uri))
+                self.terminals[self.self_input.uri] = self.self_input
 
 class Constant:
 
@@ -207,7 +229,8 @@ class Mapping:
 
 class ValueStore:
 
-    def __init__(self, value=None, type=None) -> None:
+    def __init__(self, name, value=None, type=None) -> None:
+        self.name = name
         self.value = None
         self.type = type
         self.set_value(value)
@@ -229,16 +252,21 @@ class ValueStore:
 
 class Terminal(ValueStore):
 
-    def __init__(self, uri: URIRef, pred: str, fun_uri: URIRef, value=None, type=None, is_output=False) -> None:
-        super().__init__(value, type)
+    def __init__(self, uri: URIRef, pred: str, fun_uri: URIRef, scope_uri: URIRef, value=None, type=None, is_output=False) -> None:
+        super().__init__(get_name(pred), value, type)
         self.uri = uri
         self.pred = pred
-        self.name = get_name(pred)
         self.fun_uri = fun_uri
+        self.scope_uri = scope_uri
         self.is_output = is_output
+
+    def __hash__(self) -> int:
+        return hash(self.uri)
+    
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Terminal) and self.uri == other.uri and self.fun_uri == other.fun_uri and self.scope_uri == other.scope_uri
 
 class Variable(ValueStore):
 
     def __init__(self, name: str) -> None:
-        super().__init__()
-        self.name = name
+        super().__init__(name)
