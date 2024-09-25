@@ -117,11 +117,15 @@ class FlowDescriptor:
                     prev_scope = self.scope
                     prev_assigned = self.assigned
                     prev_returns = self.returns
+                    prev_used = self.used_vars
+                    prev_types = self.var_types
 
                     # Enter scope of function
                     self.scope = s
                     self.assigned = {}
                     self.returns = []
+                    self.used_vars = {}
+                    self.var_types = {}
 
                     # Assign parameters to function arguments
                     parameters = self.g.get_param_predicates(s)
@@ -143,6 +147,8 @@ class FlowDescriptor:
                     self.scope = prev_scope
                     self.assigned = prev_assigned
                     self.returns = prev_returns
+                    self.used_vars = prev_used
+                    self.var_types = prev_types
                     
         except TypeError as e:
             print("Error: Unable to describe flow of builtin functions.")
@@ -275,13 +281,13 @@ class FlowDescriptor:
         """
         # Check if the variable is assigned to a function output
         if id in self.assigned:
-            if id in self.being_assigned:
+            """if id in self.being_assigned:
                 varmap = self.assigned[id]
                 if not varmap.is_variable():
                     mapto = MappingNode().set_variable(id)
                     block_id = self.used_vars.get(id, self.block_id)
                     FunctionDescriptor.describe_composition(self.g, block_id, [Mapping(varmap, mapto)])
-                    self.assigned[id] = mapto
+                    self.assigned[id] = mapto"""
             return self.assigned[id]
         
         # Check if it references an imported object
@@ -332,14 +338,15 @@ class FlowDescriptor:
             if isinstance(target, ast.Name):
                 # Handle assignment to variable
                 target = get_name(target.id)
+                value_output = self.handle_stmt(value)
 
                 # Indicate which variable is getting assigned to handle augmented assignments
-                self.being_assigned[target] = self.being_assigned.get(target, 0) + 1
+                """self.being_assigned[target] = self.being_assigned.get(target, 0) + 1
                 value_output = self.handle_stmt(value)
                 if self.being_assigned[target] == 1:
                     del self.being_assigned[target]
                 else:
-                    self.being_assigned[target] -= 1
+                    self.being_assigned[target] -= 1"""
 
                 if target not in self.used_vars:
                     self.assigned[target] = value_output
@@ -396,6 +403,14 @@ class FlowDescriptor:
         6. Describe the composition in the RDF graph using `FnODescriptor`.
         """
         for value, scope, block_id in self.returns:
+            # Store current scope
+            prev_scope = self.scope
+            prev_block_id = self.block_id
+
+            # Change scope
+            self.scope = scope
+            self.block_id = block_id
+
             # Retrieve the output node of the outer scope
             output = self.g.get_output(scope)
 
@@ -411,6 +426,10 @@ class FlowDescriptor:
 
             # Describe the composition in the RDF graph using FnODescriptor
             FunctionDescriptor.describe_composition(self.g, block_id, mappings)
+
+            # Restore previous scope
+            self.scope = prev_scope
+            self.block_id = prev_block_id
     
     def handle_call(self, func, args, kargs):
         """
