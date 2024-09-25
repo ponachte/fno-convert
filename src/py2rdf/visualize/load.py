@@ -1,7 +1,7 @@
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QScrollArea, QTextEdit, QVBoxLayout, QPushButton, 
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QScrollArea, QTextEdit, QVBoxLayout, QPushButton, 
                              QFileDialog, QMessageBox, QComboBox, QLineEdit, QSizePolicy)
-from PyQt5.QtGui import QTextCursor, QColor, QTextCharFormat
+from PyQt6.QtGui import QTextCursor, QColor, QTextCharFormat
 from ..map import ImpMap, PrefixMap
 from ..graph import PipelineGraph
 from ..util import ASTUtil

@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QTabWidget
+from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QTabWidget
 
 from .flowview import FlowCtrlWidget
 from .load import ScrollWidget, FunctionPicker

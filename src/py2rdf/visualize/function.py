@@ -1,7 +1,6 @@
-
-from PyQt5.QtGui import QColor, QKeyEvent, QPen, QBrush
-from PyQt5.QtCore import QRectF, Qt
-from PyQt5.QtWidgets import QGraphicsTextItem
+from PyQt6.QtGui import QColor, QPen, QBrush
+from PyQt6.QtCore import QRectF, Qt
+from PyQt6.QtWidgets import QGraphicsTextItem
 from pyqtgraph import GraphicsObject
 
 from ..execute.flow_executer import Function
@@ -29,7 +28,7 @@ class FunctionGraphicsItem(GraphicsObject):
         self.setFlags(flags)
 
         self.bounds = QRectF(0, 0, 200, 100)
-        self.nameItem = QGraphicsTextItem(function.name)
+        self.nameItem = QGraphicsTextItem(function.name, self)
         self.nameItem.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.nameItem.setDefaultTextColor(QColor(50, 50, 50))
         self.nameItem.moveBy(self.bounds.width()/2. - self.nameItem.boundingRect().width()/2, 0)
@@ -85,6 +84,7 @@ class FunctionGraphicsItem(GraphicsObject):
         y = self._titleOffset
         for name, term in inps.items():
             item = TerminalGraphicsItem(term, self)
+            item.setZValue(self.zValue())
             item.setAnchor(0, y)
             self.terminals[name] = (term, item)
             y += self._terminalOffset
@@ -92,18 +92,18 @@ class FunctionGraphicsItem(GraphicsObject):
         # Populate outputs
         for name, term in outs.items():
             item = TerminalGraphicsItem(term, self)
+            item.setZValue(self.zValue())
             item.setAnchor(int(self.bounds.width()), y)
-            self.setZValue(self.zValue())
             self.terminals[name] = (term, item)
             y += self._terminalOffset
     
     def boundingRect(self) -> QRectF:
-        return self.bounds.adjusted(-5, -5, -5, -5)
+        return self.bounds.adjusted(-5, -5, 5, 5)
     
     def paint(self, p, *args):
         if self.isSelected():
             p.setPen(self.selectPen)
-            p.setbrush(self.selectBrush)
+            p.setBrush(self.selectBrush)
         else:
             p.setPen(self.pen)
             if self.hovered:
@@ -124,6 +124,11 @@ class FunctionGraphicsItem(GraphicsObject):
                 self.update()
     
     def mouseDragEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            event.accept()
+            self.setPos(self.pos() + self.mapToParent(event.pos()) - self.mapToParent(event.lastPos()))
+    
+    def hoverEvent(self, event):
         if not event.isExit() and event.acceptClicks(Qt.MouseButton.LeftButton):
             event.acceptDrags(Qt.MouseButton.LeftButton)
             self.hovered = True
@@ -131,11 +136,12 @@ class FunctionGraphicsItem(GraphicsObject):
             self.hovered = False
         self.update()
     
-    def keyPressEvent(self, event: QKeyEvent | None) -> None:
+    def keyPressEvent(self, event) -> None:
         event.ignore()
 
     def itemChange(self, change, value):
-        if change == self.GraphicsItemChange.ItemPositionChange:
+        if change == self.GraphicsItemChange.ItemPositionHasChanged:
             for term in self.terminals.values():
                 term[1].functionMoved()
+        return GraphicsObject.itemChange(self, change, value)
 
