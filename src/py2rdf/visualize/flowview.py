@@ -9,10 +9,12 @@ from rdflib import URIRef
 from ..execute.flow_executer import Flow
 from ..execute.processable import Processable
 from ..execute.store import ValueStore, Terminal
+from ..execute.composition import Composition
 from ..graph import PipelineGraph
 from .process import ProcessGraphicsItem
 from .store import StoreGraphicsItem, VariableGraphicsItem
 from .mapping import MappingGraphicsItem
+from .composition import CompositionGraphicsItem
 from .layout import sugiyama_algorithm
 
 class FlowGraphicsView(GraphicsView):
@@ -99,6 +101,7 @@ class FlowViewWidget(DockArea):
         self.functions = {}
         self.terminals = {}
         self.variables = {}
+        self.compositions = {}
         self.mappings = set()
 
         # add input and output
@@ -111,6 +114,7 @@ class FlowViewWidget(DockArea):
 
         # add all mappings
         for comp in self.flow.compositions.values():
+            self.addComposition(comp)
             for mapping in comp.mappings:
                 self.addMapping(mapping.source, mapping.target)
         
@@ -123,6 +127,12 @@ class FlowViewWidget(DockArea):
         self.viewBox().addItem(item)
         self.functions[fun] = item
         self.terminals.update(item.terminals)
+    
+    def addComposition(self, comp: Composition):
+        function_items = [ self.functions[fun] for fun in comp.functions ]
+        item = CompositionGraphicsItem(comp, function_items)
+        self.viewBox().addItem(item)
+        self.compositions[comp] = item
     
     def addVariable(self, name, var):
         item = VariableGraphicsItem(var)

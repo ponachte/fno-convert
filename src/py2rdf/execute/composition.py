@@ -1,4 +1,4 @@
-from ..graph import PipelineGraph
+from ..graph import PipelineGraph, get_name
 from .processable import Function, Constant
 from .store import Mapping, Variable
 from rdflib import URIRef
@@ -29,7 +29,7 @@ class Composition:
             if fun != flow.f_uri and call not in flow.functions:
                 flow.functions[call] = Function(g, call, fun, flow.scope)
             if g.in_composition(comp, call):
-                self.functions.append(call)
+                self.functions.append(flow.functions[call])
 
         ### MAPPINGS ###
 
@@ -59,10 +59,17 @@ class Composition:
             ter1 = flow.get_terminal(f, par)
             ter2 = flow.variables[var]
             self.mappings.add(Mapping(ter1, ter2))
+    
+    def __hash__(self) -> int:
+        return hash(self.uri)
+    
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Composition) and self.uri == other.uri
 
 class LinearComposition(Composition):
         
     def __init__(self, flow, g: PipelineGraph, comp: URIRef) -> None:
+        self.name = "Block"
         super().__init__(flow, g, comp)
         
         ### FOLLOWED BY ###
@@ -73,6 +80,7 @@ class LinearComposition(Composition):
 class IfFlowComposition(Composition):
 
     def __init__(self, flow, g: PipelineGraph, comp: URIRef) -> None:
+        self.name = "If"
         super().__init__(flow, g, comp)
 
         ### CONDITION ###
@@ -93,6 +101,7 @@ class IfFlowComposition(Composition):
 class ForFlowComposition(Composition):
 
     def __init__(self, flow, g: PipelineGraph, comp: URIRef) -> None:
+        self.name = "For"
         super().__init__(flow, g, comp)
 
         ### ITERATOR ###

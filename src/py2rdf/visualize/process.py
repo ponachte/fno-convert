@@ -23,18 +23,24 @@ class ProcessGraphicsItem(GraphicsObject):
 
         self.function = function
         self.terminals = {}
+        self.inps = self.function.inputs()
+        self.outs = self.function.outputs()
+        self.composition = None
+        self.titleOffset = 25
+        self.terminalOffset = 12
 
         flags = self.GraphicsItemFlag.ItemIsMovable | self.GraphicsItemFlag.ItemIsSelectable | self.GraphicsItemFlag.ItemIsFocusable | self.GraphicsItemFlag.ItemSendsGeometryChanges
         self.setFlags(flags)
 
-        self.bounds = QRectF(0, 0, 200, 100)
+        # calculate height
+        numOfTerms = len(self.inps) + len(self.outs)
+        height = self.titleOffset + numOfTerms * self.terminalOffset
+
+        self.bounds = QRectF(0, 0, 200, height)
         self.nameItem = QGraphicsTextItem(function.name, self)
         self.nameItem.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.nameItem.setDefaultTextColor(QColor(50, 50, 50))
         self.nameItem.moveBy(self.bounds.width()/2. - self.nameItem.boundingRect().width()/2, 0)
-        
-        self._titleOffset = 25
-        self._terminalOffset = 12
 
         self.updateTerminals()
     
@@ -66,36 +72,23 @@ class ProcessGraphicsItem(GraphicsObject):
         self.update()
     
     def updateTerminals(self):
-        self.terminals = {}
-        inps = self.function.inputs()
-        outs = self.function.outputs()
 
-        numOfTerms = len(inps) + len(outs)
-
-        # calculate new height
-        newHeight = self._titleOffset + numOfTerms * self._terminalOffset
-
-        # if current height is not equal to new height, update
-        if not self.bounds.height() == newHeight:
-            self.bounds.setHeight(newHeight)
-            self.update()
-        
         # Populate inputs
-        y = self._titleOffset
-        for name, term in inps.items():
+        y = self.titleOffset
+        for name, term in self.inps.items():
             item = TerminalGraphicsItem(term, self)
             item.setZValue(self.zValue())
             item.setAnchor(0, y)
             self.terminals[term] = item
-            y += self._terminalOffset
+            y += self.terminalOffset
         
         # Populate outputs
-        for name, term in outs.items():
+        for name, term in self.outs.items():
             item = TerminalGraphicsItem(term, self)
             item.setZValue(self.zValue())
             item.setAnchor(int(self.bounds.width()), y)
             self.terminals[term] = item
-            y += self._terminalOffset
+            y += self.terminalOffset
     
     def boundingRect(self) -> QRectF:
         return self.bounds.adjusted(-5, -5, 5, 5)
@@ -143,4 +136,6 @@ class ProcessGraphicsItem(GraphicsObject):
         if change == self.GraphicsItemChange.ItemPositionHasChanged:
             for item in self.terminals.values():
                 item.functionMoved()
+            if self.composition is not None:
+                self.composition.updateBounds()
         return GraphicsObject.itemChange(self, change, value)

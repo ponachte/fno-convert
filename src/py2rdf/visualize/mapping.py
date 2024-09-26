@@ -32,7 +32,7 @@ class MappingGraphicsItem(GraphicsObject):
         self.target.mappings[source] = self
         
         self.updateLine()
-        self.setZValue(0)
+        self.setZValue(1)
     
     def updateLine(self):
         start = Point(self.source.sourcePoint())
