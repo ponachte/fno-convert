@@ -2,8 +2,9 @@ from ..graph import PipelineGraph
 from ..map import ImpMap
 from .store import Terminal
 from rdflib import URIRef
+from typing import Set
 
-class Processable:
+class Process:
 
     def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef, scope: URIRef) -> None:
         self.call_uri = call
@@ -23,11 +24,11 @@ class Processable:
         self.self_output = None
         self.output = None
 
-    def inputs(self):
-        return { name: self.terminals[name] for name in self.terminals if not self.terminals[name].is_output }
+    def inputs(self) -> Set[Terminal]:
+        return { self.terminals[name] for name in self.terminals if not self.terminals[name].is_output }
 
-    def outputs(self):
-        return { name: self.terminals[name] for name in self.terminals if self.terminals[name].is_output }
+    def outputs(self) -> Set[Terminal]:
+        return { self.terminals[name] for name in self.terminals if self.terminals[name].is_output }
     
     def __hash__(self) -> int:
         return hash(self.fun_uri)
@@ -35,7 +36,7 @@ class Processable:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Function) and self.call_uri == other.call_uri and self.fun_uri == other.fun_uri and self.scope_uri == other.scope_uri
 
-class Function(Processable):
+class Function(Process):
 
     def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef, scope: URIRef) -> None:
         super().__init__(g, call, fun, scope)
@@ -56,7 +57,7 @@ class Function(Processable):
             self.self_output = Terminal(uri, 'self_output', call, scope, type=g.get_output_type(uri), is_output=True)
             self.terminals[self.self_output.uri] = self.self_output
     
-class FunctionLink(Processable):
+class FunctionLink(Process):
 
     def __init__(self, g: PipelineGraph, fun: URIRef, scope: URIRef, is_output=False) -> None:
         super().__init__(g, None, fun, scope)

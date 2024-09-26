@@ -14,16 +14,16 @@ class ValueStore:
         self.name = name
         self.value = None
         self.type = type
-        self.set_value(value)
+        self.setValue(value)
 
         self.sends_to = set()
         self.depends_on = set()
         self.mappings = {}
 
-    def set_value(self, value):
+    def setValue(self, value):
         if value != self.value:
             if self.type is not None and not isinstance(value, self.type):
-                raise Exception(f"Error while setting value of {self.uri}: Type of value '{value}' must be '{self.type}', while type is '{type(value)}'")
+                raise Exception(f"Error while setting value of {self.name}: Type of value '{value}' must be '{self.type}', while type is '{type(value)}'")
             self.value = value
     
     def connect_to(self, target: "ValueStore", mapping: "Mapping"):

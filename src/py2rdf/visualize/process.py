@@ -3,14 +3,14 @@ from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtWidgets import QGraphicsTextItem
 from pyqtgraph import GraphicsObject
 
-from ..execute.processable import Processable
+from ..execute.process import Process
 from .store import TerminalGraphicsItem
 
 STD_COLOR = QColor(170, 170, 170)
 
 class ProcessGraphicsItem(GraphicsObject):
 
-    def __init__(self, function: Processable):
+    def __init__(self, function: Process):
         GraphicsObject.__init__(self)
 
         self.hovered = False
@@ -75,7 +75,7 @@ class ProcessGraphicsItem(GraphicsObject):
 
         # Populate inputs
         y = self.titleOffset
-        for name, term in self.inps.items():
+        for term in self.inps:
             item = TerminalGraphicsItem(term, self)
             item.setZValue(self.zValue())
             item.setAnchor(0, y)
@@ -83,7 +83,7 @@ class ProcessGraphicsItem(GraphicsObject):
             y += self.terminalOffset
         
         # Populate outputs
-        for name, term in self.outs.items():
+        for term in self.outs:
             item = TerminalGraphicsItem(term, self)
             item.setZValue(self.zValue())
             item.setAnchor(int(self.bounds.width()), y)

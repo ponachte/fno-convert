@@ -7,7 +7,7 @@ from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
 
 from ..execute.flow_executer import Flow
-from ..execute.processable import Processable
+from ..execute.process import Process
 from ..execute.store import ValueStore, Terminal
 from ..execute.composition import Composition
 from ..graph import PipelineGraph
@@ -39,21 +39,6 @@ class FlowViewBox(ViewBox):
 
         # Set the background of the viewbox
         self.setBackgroundColor('white')
-
-class FlowCtrlWidget(QWidget):
-
-    def __init__(self) -> None:
-        QWidget.__init__(self)
-
-        self.vlayout = QVBoxLayout(self)
-        self.viewWidget = FlowViewWidget(self)
-        self.vlayout.addWidget(self.viewWidget)
-
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
-    def setFlow(self, g: PipelineGraph, uri: URIRef):
-        self.flow = Flow(g, uri)
-        self.viewWidget.setFlow(self.flow)
 
 class FlowViewWidget(DockArea):
 
@@ -120,7 +105,7 @@ class FlowViewWidget(DockArea):
         
         self.autoArrange()
     
-    def addFunction(self, fun: Processable):
+    def addFunction(self, fun: Process):
         item = ProcessGraphicsItem(fun)
         item.setZValue(self.nextZVal*2)
         self.nextZVal += 1

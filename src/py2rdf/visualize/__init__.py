@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QTabWidget
 
-from .flowview import FlowCtrlWidget
+from .flowctrl import FlowCtrlWidget
 from .load import ScrollWidget, FunctionPicker
 
 class PY2RDFWindow(QMainWindow):
@@ -16,27 +16,22 @@ class PY2RDFWindow(QMainWindow):
         layout1 = QGridLayout()
         loadTab.setLayout(layout1)
 
-        code_viewer = ScrollWidget()
-        rdf_viewer = ScrollWidget()
-        f_picker = FunctionPicker()
+        codeViewer = ScrollWidget()
+        rdfViewer = ScrollWidget()
+        funPicker = FunctionPicker()
 
-        layout1.addWidget(f_picker, 0, 0, 1, 1)
-        layout1.addWidget(code_viewer, 0, 1, 1, 4)
-        layout1.addWidget(rdf_viewer, 0, 5, 1, 4)
+        layout1.addWidget(funPicker, 0, 0, 1, 1)
+        layout1.addWidget(codeViewer, 0, 1, 1, 4)
+        layout1.addWidget(rdfViewer, 0, 5, 1, 4)
 
         # Tab to view flow
-        viewTab = QWidget()
-        layout2 = QHBoxLayout()
-        viewTab.setLayout(layout2)
-
-        ctrlWidget = FlowCtrlWidget()
-        layout2.addWidget(ctrlWidget)
+        viewTab = FlowCtrlWidget()
 
         # Event handling
-        f_picker.file_loaded.connect(code_viewer.setText)
-        f_picker.function_loaded.connect(code_viewer.setSource)
-        f_picker.function_loaded.connect(rdf_viewer.setGraph)
-        f_picker.function_loaded.connect(ctrlWidget.setFlow)
+        funPicker.file_loaded.connect(codeViewer.setText)
+        funPicker.function_loaded.connect(codeViewer.setSource)
+        funPicker.function_loaded.connect(rdfViewer.setGraph)
+        funPicker.function_loaded.connect(viewTab.setFlow)
 
         # Add Tabs
         tabWidget = QTabWidget()

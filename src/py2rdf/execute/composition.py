@@ -1,5 +1,5 @@
 from ..graph import PipelineGraph, get_name
-from .processable import Function, Constant
+from .process import Function, Constant
 from .store import Mapping, Variable
 from rdflib import URIRef
 

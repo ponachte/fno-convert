@@ -1,5 +1,5 @@
 from ..graph import PipelineGraph
-from .processable import FunctionLink
+from .process import FunctionLink
 from .composition import Composition
 from rdflib import URIRef
 
