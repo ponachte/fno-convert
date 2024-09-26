@@ -1,5 +1,6 @@
 from ..graph import get_name
 from rdflib import URIRef
+from PyQt6.QtCore import pyqtSignal, QObject
 
 class Mapping:
 
@@ -8,9 +9,13 @@ class Mapping:
         self.target = target
         source.connect_to(target, self)
 
-class ValueStore:
+class ValueStore(QObject):
+
+    valueChange = pyqtSignal(bool)
 
     def __init__(self, name, value=None, type=None) -> None:
+        super().__init__()
+        
         self.name = name
         self.value = None
         self.type = type
@@ -23,8 +28,9 @@ class ValueStore:
     def setValue(self, value):
         if value != self.value:
             if self.type is not None and not isinstance(value, self.type):
-                raise Exception(f"Error while setting value of {self.name}: Type of value '{value}' must be '{self.type}', while type is '{type(value)}'")
+                self.valueChange.emit(False)
             self.value = value
+            self.valueChange.emit(True)
     
     def connect_to(self, target: "ValueStore", mapping: "Mapping"):
         self.sends_to.add(target)

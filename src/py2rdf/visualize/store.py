@@ -30,18 +30,21 @@ class TerminalGraphicsItem(StoreGraphicsItem):
     def __init__(self, terminal: Terminal, parent=None):
         StoreGraphicsItem.__init__(self, terminal, parent)
 
+        self.std_brush = fn.mkBrush(0, 0, 0)    # Standard brush is black
+        self.hover_brush = fn.mkBrush('b')      # Hover brush is blue
+        self.accepted_brush = fn.mkBrush('g')   # Accepted brush is green
+        self.error_brush = fn.mkBrush('r')      # Error brush is red
+        self.brush = self.std_brush
+
         self.box = QGraphicsRectItem(0, 0, 10, 10, self)
-        self.setBrush(fn.mkBrush(0, 0, 0))
+        self.box.setBrush(self.brush)
         self.label = QGraphicsTextItem(terminal.name, self)
         self.label.setScale(0.7)
         self.label.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.setFiltersChildEvents(True) # pick up mouse events on rectitem
         self.setZValue(1)
-    
-    def setBrush(self, brush):
-        self.brush = brush
-        self.box.setBrush(brush)
-        self.update()
+
+        terminal.valueChange.connect(self.valueChange)
 
     def boundingRect(self) -> QRectF:
         # Return the smallest rectangle that contains both the label and the box
@@ -69,6 +72,15 @@ class TerminalGraphicsItem(StoreGraphicsItem):
     def targetPoint(self):
         return self.mapToView(self.mapFromItem(self.box, self.box.boundingRect().left(), self.box.boundingRect().center().y()))
     
+    def valueChange(self, accepted):
+        if accepted:
+            self.brush = self.accepted_brush
+        else:
+            self.brush = self.error_brush
+            
+        self.box.setBrush(self.brush)
+        self.update()
+    
     def paint(self, p, *args):
         pass
     
@@ -91,7 +103,7 @@ class TerminalGraphicsItem(StoreGraphicsItem):
         if not event.isExit() and event.acceptDrags(Qt.MouseButton.LeftButton):
             event.acceptClicks(Qt.MouseButton.LeftButton)
             event.acceptClicks(Qt.MouseButton.RightButton)
-            self.box.setBrush(fn.mkBrush('b'))
+            self.box.setBrush(self.hover_brush)
         else:
             self.box.setBrush(self.brush)
         self.update()

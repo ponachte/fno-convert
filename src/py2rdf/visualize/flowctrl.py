@@ -21,7 +21,6 @@ class FlowCtrlWidget(QWidget):
         self.viewWidget = FlowViewWidget(self)
         self.grid.addWidget(self.viewWidget, 0, 1)
 
-        # Set stretch factors (1:3 ratio)
         self.grid.setColumnStretch(0, 1)  # InputWidget takes 1/4 of the space
         self.grid.setColumnStretch(1, 3)  # FlowViewWidget takes 3/4 of the space
 
