@@ -20,7 +20,7 @@ class Composition:
     def __init__(self, flow, g: PipelineGraph, comp: URIRef) -> None:
         self.uri = comp
         flow.compositions[comp] = self
-        self.functions: List[Function] = []
+        self.functions = set()
 
         ### USED FUNCTIONS ###
 
@@ -30,7 +30,7 @@ class Composition:
             if fun != flow.f_uri and call not in flow.functions:
                 flow.functions[call] = Function(g, call, fun, flow.scope)
             if g.in_composition(comp, call):
-                self.functions.append(flow.functions[call])
+                self.functions.add(flow.functions[call])
 
         ### MAPPINGS ###
 
@@ -71,8 +71,8 @@ class Composition:
         
         # Bereken de in-degree (aantal afhankelijkheden) voor elke functie
         for func in self.functions:
-            for dep in func.depends_on():
-                in_degree[dep] += 1
+            for dep in func.depends_on(self.functions):
+                    in_degree[dep] += 1
 
         # Begin met functies die geen afhankelijkheden hebben (in-degree == 0)
         no_dependencies = [func for func in self.functions if in_degree[func] == 0]

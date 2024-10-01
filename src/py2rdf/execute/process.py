@@ -30,8 +30,8 @@ class Process:
     def outputs(self) -> Set[Terminal]:
         return { self.terminals[name] for name in self.terminals if self.terminals[name].is_output }
     
-    def depends_on(self) -> Set["Process"]:
-        return { dep for input in self.inputs() for dep in input.depends_on }
+    def depends_on(self, context: Set["Process"]) -> Set["Process"]:
+        return { dep for input in self.inputs() for dep in input.depends_on if dep in context }
     
     def __hash__(self) -> int:
         return hash(self.fun_uri)
