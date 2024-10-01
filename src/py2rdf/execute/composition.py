@@ -1,4 +1,5 @@
-from ..graph import PipelineGraph, get_name
+from typing import List
+from ..graph import PipelineGraph
 from .process import Function, Constant
 from .store import Mapping, Variable
 from rdflib import URIRef
@@ -19,7 +20,7 @@ class Composition:
     def __init__(self, flow, g: PipelineGraph, comp: URIRef) -> None:
         self.uri = comp
         flow.compositions[comp] = self
-        self.functions = []
+        self.functions: List[Function] = []
 
         ### USED FUNCTIONS ###
 
@@ -59,6 +60,42 @@ class Composition:
             ter1 = flow.get_terminal(f, par)
             ter2 = flow.variables[var]
             self.mappings.add(Mapping(ter1, ter2))
+        
+        ### PROCESSING ORDER ###
+        
+        self.calculate_order()
+    
+    def calculate_order(self):
+        # Maak een dict die bijhoudt hoeveel afhankelijkheden elke functie heeft
+        in_degree = {func: 0 for func in self.functions}
+        
+        # Bereken de in-degree (aantal afhankelijkheden) voor elke functie
+        for func in self.functions:
+            for dep in func.depends_on():
+                in_degree[dep] += 1
+
+        # Begin met functies die geen afhankelijkheden hebben (in-degree == 0)
+        no_dependencies = [func for func in self.functions if in_degree[func] == 0]
+        order = []  # Dit zal de topologische sortering bevatten
+
+        while no_dependencies:
+            # Haal een functie zonder afhankelijkheden
+            func = no_dependencies.pop()
+            order.append(func)
+
+            # Verlaag de in-degree van alle functies die afhankelijk zijn van deze functie
+            for dependent in self.functions:
+                if func in dependent.depends_on():
+                    in_degree[dependent] -= 1
+                    # Als deze functie nu geen afhankelijkheden meer heeft, voeg het toe aan de lijst
+                    if in_degree[dependent] == 0:
+                        no_dependencies.append(dependent)
+
+        # Controleer of alle functies zijn verwerkt
+        if len(order) != len(self.functions):
+            raise ValueError("A circular dependency has been found. No topological sorting can be done.")
+        
+        self.functions = order
     
     def __hash__(self) -> int:
         return hash(self.uri)

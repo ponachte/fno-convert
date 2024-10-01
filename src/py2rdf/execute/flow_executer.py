@@ -31,3 +31,6 @@ class Flow:
             return ter if ter is not None else self.output.terminals.get(par, None)
         else:
             return self.functions[fun].terminals[par]
+    
+    def execute(self):
+        pass
