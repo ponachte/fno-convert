@@ -1,4 +1,4 @@
-from typing import List
+from abc import abstractmethod
 from ..graph import PipelineGraph
 from .process import Function, Constant
 from .store import Mapping, Variable
@@ -85,7 +85,7 @@ class Composition:
 
             # Verlaag de in-degree van alle functies die afhankelijk zijn van deze functie
             for dependent in self.functions:
-                if func in dependent.depends_on():
+                if func in dependent.depends_on(self.functions):
                     in_degree[dependent] -= 1
                     # Als deze functie nu geen afhankelijkheden meer heeft, voeg het toe aan de lijst
                     if in_degree[dependent] == 0:
@@ -97,11 +97,20 @@ class Composition:
         
         self.functions = order
     
+    def execute(self):
+        for function in self.functions:
+            function.execute()
+            function.propagate()
+    
     def __hash__(self) -> int:
         return hash(self.uri)
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Composition) and self.uri == other.uri
+    
+    @abstractmethod
+    def next(self):
+        pass
 
 class LinearComposition(Composition):
         
@@ -113,6 +122,9 @@ class LinearComposition(Composition):
 
         next_comp = g.followed_by(comp)
         self.followed_by = flow.compositions.get(next_comp, Composition.build_composition(flow, g, next_comp))
+    
+    def next(self):
+        return self.followed_by
 
 class IfFlowComposition(Composition):
 
@@ -133,7 +145,12 @@ class IfFlowComposition(Composition):
         ### IF FALSE ###
 
         next_comp = g.if_false(comp)
-        self.if_true = flow.compositions.get(next_comp, Composition.build_composition(flow, g, next_comp))
+        self.if_false = flow.compositions.get(next_comp, Composition.build_composition(flow, g, next_comp))
+    
+    def next(self):
+        if self.condition:
+            return self.if_true
+        return self.if_false
 
 class ForFlowComposition(Composition):
 

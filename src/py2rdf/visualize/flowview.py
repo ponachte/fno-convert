@@ -6,7 +6,7 @@ from pyqtgraph import GraphicsView, ViewBox
 from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
 
-from ..execute.flow_executer import Flow
+from ..execute.flow import Flow
 from ..execute.process import Process
 from ..execute.store import ValueStore, Terminal
 from ..execute.composition import Composition

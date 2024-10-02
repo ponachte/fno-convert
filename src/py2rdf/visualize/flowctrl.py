@@ -4,7 +4,7 @@ from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from rdflib import URIRef
 from pyqtgraph import TreeWidget
 
-from ..execute.flow_executer import Flow
+from ..execute.flow import Flow
 from ..execute.store import Terminal
 from ..graph import PipelineGraph
 from .flowview import FlowViewWidget
@@ -54,6 +54,7 @@ class InputWidget(QWidget):
         self.setLayout(layout)
     
     def setFlow(self, flow: Flow):
+        self.flow = flow
         inputs = { inp for inp in flow.input.outputs() }
         for inp in inputs:
             inp_type = getattr(inp.type, '__name__', str(inp.type))
@@ -66,6 +67,7 @@ class InputWidget(QWidget):
     def execute(self):
         for inp, item in self.items.items():
             inp.setValue(item.getInput())
+        self.flow.execute()
 
 
 class ConvertWidget(QWidget):
