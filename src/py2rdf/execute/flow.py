@@ -1,21 +1,38 @@
 from ..graph import PipelineGraph
-from .process import FunctionLink
+from .process import FunctionLink, Function
 from .composition import Composition
+from .store import Mapping
 from rdflib import URIRef
 
 class Flow:
 
-    def __init__(self, g: PipelineGraph, fun: URIRef) -> None:
+    def __init__(self, g: PipelineGraph, fun: URIRef, internal=False) -> None:
         self.f_uri = g.check_call(fun)
         self.scope = fun
 
-        self.input = FunctionLink(g, self.f_uri, self.scope)
-        self.output = FunctionLink(g, self.f_uri, self.scope, is_output=True)
+        self.input = FunctionLink(g, self.f_uri, self.scope, internal)
+        self.output = FunctionLink(g, self.f_uri, self.scope, internal, is_output=True)
         self.functions = {}
+        self.internal_flows = {}
         self.variables = {}
         self.compositions = {}
 
-        self.start = Composition.build_composition(self, g, g.start_of_flow(fun))
+        self.start = Composition.build_composition(self, g, g.start_of_flow(self.f_uri))
+    
+    def add_internal_flow(self, g, fun):
+        flow = Flow(g, fun.call_uri, internal=True)
+        self.internal_flows[fun] = flow
+    
+    def connect_links(self, fun: Function, comp: Composition):
+        for input in fun.inputs():
+            link = self.input.links[input.uri]
+            for source in input.depends_on:
+                comp.mappings.add(Mapping(source, link))
+        
+        for output in fun.outputs():
+            link = self.output.links[output.uri]
+            for target in output.sends_to:
+                comp.mappings.add(Mapping(link, target))
     
     def get_terminal(self, fun, par):
         if fun == self.f_uri:
@@ -34,6 +51,9 @@ class Flow:
         while next_comp is not None:
             next_comp.execute()
             next_comp = next_comp.next()
+
+        # propagate output node
+        self.output.propagate()
 
         # return the output
         return { out.name: out.value for out in self.output.outputs() }

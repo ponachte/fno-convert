@@ -84,26 +84,39 @@ class FlowViewWidget(DockArea):
     def setFlow(self, flow: Flow):
         self.flow = flow
         self.functions = {}
+        self.internal_flows = {}
         self.terminals = {}
         self.variables = {}
         self.compositions = {}
         self.mappings = set()
 
+        self.addFlow(flow)
+        
+        self.autoArrange()
+    
+    def addFlow(self, flow: Flow, internal=None):
+        function_items = set()
+
         # add input and output
-        self.addFunction(self.flow.input)
-        self.addFunction(self.flow.output)
+        function_items.add(self.addFunction(flow.input))
+        function_items.add(self.addFunction(flow.output))
 
         # add all used functions
-        for fun in self.flow.functions.values():
-            self.addFunction(fun)
+        for fun in flow.functions.values():
+            function_items.add(self.addFunction(fun))
+            if fun in flow.internal_flows:
+                function_items.update(self.addFlow(flow.internal_flows[fun], fun))
 
         # add all mappings
-        for comp in self.flow.compositions.values():
+        for comp in flow.compositions.values():
             self.addComposition(comp)
             for mapping in comp.mappings:
                 self.addMapping(mapping.source, mapping.target)
         
-        self.autoArrange()
+        if internal is not None:
+            self.internal_flows[internal] = function_items
+        
+        return function_items
     
     def addFunction(self, fun: Process):
         item = ProcessGraphicsItem(fun)
@@ -112,12 +125,20 @@ class FlowViewWidget(DockArea):
         self.viewBox().addItem(item)
         self.functions[fun] = item
         self.terminals.update(item.terminals)
+
+        return item
     
     def addComposition(self, comp: Composition):
-        function_items = [ self.functions[fun] for fun in comp.functions ]
+        function_items = { self.functions[fun] for fun in comp.functions }
+        for fun in function_items:
+            if fun in self.internal_flows:
+                function_items += self.internal_flows[fun]
+
         item = CompositionGraphicsItem(comp, function_items)
         self.viewBox().addItem(item)
         self.compositions[comp] = item
+
+        return item
     
     def addVariable(self, name, var):
         item = VariableGraphicsItem(var)
@@ -137,6 +158,8 @@ class FlowViewWidget(DockArea):
         item = MappingGraphicsItem(source, target)
         self.viewBox().addItem(item)
         self.mappings.add(item)
+
+        return item
     
     def selectionChanged(self):
         items = self._scene.selectedItems()

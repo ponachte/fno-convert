@@ -639,6 +639,16 @@ class PipelineGraph(Graph):
         ]
         return result[0] if len(result) > 0 else Any
      
+     def has_flow(self, f):
+         result = self.query(f'''
+                ASK WHERE {{
+                    <{f}> a fno:Function ;
+                          fnoc:composition ?start .
+                }}
+             ''', initNs=PrefixMap.NAMESPACES)
+
+         return True if result else False
+     
      def start_of_flow(self, f):
          """
          Retrieve the URI of the first block of the flow describing a FnO Function.

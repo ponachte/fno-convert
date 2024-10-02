@@ -74,12 +74,11 @@ class ValueStore(QObject):
 
 class Terminal(ValueStore):
 
-    def __init__(self, uri: URIRef, pred: str, fun_uri: URIRef, scope_uri: URIRef, value=None, type=None, is_output=False, param_mapping=None) -> None:
+    def __init__(self, fun, uri: URIRef, pred: str, value=None, type=None, is_output=False, param_mapping=None) -> None:
         super().__init__(get_name(pred), value, type)
+        self.fun = fun
         self.uri = uri
         self.pred = pred
-        self.fun_uri = fun_uri
-        self.scope_uri = scope_uri
         self.is_output = is_output
         self.param_mapping = param_mapping
 
@@ -87,7 +86,7 @@ class Terminal(ValueStore):
         return hash(self.uri)
     
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Terminal) and self.uri == other.uri and self.fun_uri == other.fun_uri and self.scope_uri == other.scope_uri
+        return isinstance(other, Terminal) and self.uri == other.uri and self.fun.call_uri == other.fun.call_uri and self.fun.scope_uri == other.fun.scope_uri
 
 class Variable(ValueStore):
 
