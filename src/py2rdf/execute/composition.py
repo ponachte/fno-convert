@@ -68,7 +68,9 @@ class Composition:
 
         for fun in self.functions:
             if fun in flow.internal_flows:
-                flow.internal_flows[fun].connect_links(fun, self)
+                int_flow = flow.internal_flows[fun]
+                int_flow.connect_links(fun, self)
+                int_flow.close()
         
         ### PROCESSING ORDER ###
         
@@ -106,9 +108,11 @@ class Composition:
         self.functions = order
     
     def execute(self):
-        for function in self.functions:
-            function.execute()
-            function.propagate()
+        for fun in self.functions:
+            if not fun.closed:
+                fun.execute()
+            else:
+                self.flow.internal_flows[fun].execute()
     
     def __hash__(self) -> int:
         return hash(self.uri)

@@ -1,5 +1,5 @@
 from PyQt6.QtGui import QColor, QPen, QBrush
-from PyQt6.QtCore import QRectF, Qt
+from PyQt6.QtCore import QRectF, Qt, pyqtSignal
 from PyQt6.QtWidgets import QGraphicsTextItem
 from pyqtgraph import GraphicsObject
 
@@ -25,7 +25,7 @@ class ProcessGraphicsItem(GraphicsObject):
         self.terminals = {}
         self.inps = self.function.inputs()
         self.outs = self.function.outputs()
-        self.composition = None
+        self.compositions = set()
         self.titleOffset = 25
         self.terminalOffset = 12
 
@@ -43,6 +43,8 @@ class ProcessGraphicsItem(GraphicsObject):
         self.nameItem.moveBy(self.bounds.width()/2. - self.nameItem.boundingRect().width()/2, 0)
 
         self.updateTerminals()
+
+        function.statusChanged.connect(self.statusChanged)
     
     def setColor(self, color: QColor):
         pen_color = color.darker(105)
@@ -90,6 +92,19 @@ class ProcessGraphicsItem(GraphicsObject):
             self.terminals[term] = item
             y += self.terminalOffset
     
+    def statusChanged(self, closed):
+        self.setVisible(not closed)
+
+        for comp in self.compositions:
+            comp.checkVisible(self, closed)
+            comp.updateBounds()
+        
+        for term_item in self.terminals.values():
+            for map_item in term_item.mappings.values():
+                map_item.checkVisible()
+
+        self.update()
+    
     def boundingRect(self) -> QRectF:
         return self.bounds.adjusted(-5, -5, 5, 5)
     
@@ -136,6 +151,6 @@ class ProcessGraphicsItem(GraphicsObject):
         if change == self.GraphicsItemChange.ItemPositionHasChanged:
             for item in self.terminals.values():
                 item.functionMoved()
-            if self.composition is not None:
-                self.composition.updateBounds()
+            for comp in self.compositions:
+                comp.updateBounds()
         return GraphicsObject.itemChange(self, change, value)

@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
-from PyQt6.QtCore import QRectF, Qt, QPoint
+from PyQt6.QtCore import QRectF, Qt, QPoint, pyqtSignal
 from PyQt6.QtGui import QColor, QPen, QBrush
 from pyqtgraph import GraphicsObject
 import pyqtgraph.functions as fn

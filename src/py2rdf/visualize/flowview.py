@@ -85,12 +85,16 @@ class FlowViewWidget(DockArea):
         self.flow = flow
         self.functions = {}
         self.internal_flows = {}
+        self.flow_items = {}
         self.terminals = {}
         self.variables = {}
         self.compositions = {}
         self.mappings = set()
 
         self.addFlow(flow)
+
+        for int_flow in self.internal_flows.values():
+            int_flow.close()
         
         self.autoArrange()
     
@@ -114,7 +118,8 @@ class FlowViewWidget(DockArea):
                 self.addMapping(mapping.source, mapping.target)
         
         if internal is not None:
-            self.internal_flows[internal] = function_items
+            self.internal_flows[internal] = flow
+            self.flow_items[flow] = function_items
         
         return function_items
     
@@ -126,13 +131,17 @@ class FlowViewWidget(DockArea):
         self.functions[fun] = item
         self.terminals.update(item.terminals)
 
+        item.visibleChanged.connect(self.autoArrange)
+
         return item
     
     def addComposition(self, comp: Composition):
-        function_items = { self.functions[fun] for fun in comp.functions }
-        for fun in function_items:
+        function_items = set()
+        for fun in comp.functions:
+            function_items.add(self.functions[fun])
             if fun in self.internal_flows:
-                function_items += self.internal_flows[fun]
+                flow = self.internal_flows[fun]
+                function_items.update(self.flow_items[flow])
 
         item = CompositionGraphicsItem(comp, function_items)
         self.viewBox().addItem(item)
@@ -185,7 +194,7 @@ class FlowViewWidget(DockArea):
             self.hoverText.setPlainText("%s = %s" % (store.name, value))
     
     def autoArrange(self):
-        edges = [(mapping.source.parentItem(), mapping.target.parentItem()) for mapping in self.mappings]
+        edges = [(mapping.source.parentItem(), mapping.target.parentItem()) for mapping in self.mappings if mapping.isVisible()]
 
         if len(edges) > 0:
             positions = sugiyama_algorithm(edges, list(self.functions.values()))

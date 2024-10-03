@@ -15,9 +15,14 @@ class CompositionGraphicsItem(GraphicsObject):
         GraphicsObject.__init__(self)
         self.comp = comp
         self.functions = functions
+        self.child_comps = set()
         for fun in self.functions:
-            fun.composition = self
-            fun.setParentItem(self)
+            if len(fun.compositions) == 0:
+                fun.setParentItem(self)
+            else:
+                for comp in fun.compositions:
+                    self.child_comps.add(comp)
+            fun.compositions.add(self)
 
         self.pen = None
         self.brush = None
@@ -27,7 +32,7 @@ class CompositionGraphicsItem(GraphicsObject):
         self.setFlags(flags)
 
         self.bounds = QRectF(0, 0, 200, 100)
-        self.nameItem = QGraphicsTextItem(comp.name, self)
+        self.nameItem = QGraphicsTextItem("Block", self)
         self.nameItem.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.titleOffset = 25
         self.margin = 10
@@ -45,26 +50,43 @@ class CompositionGraphicsItem(GraphicsObject):
         combined_bounds = None
 
         for item in self.functions:
-            # Map each item's bounding rectangle to the parent (composition) coordinates
-            item_bounds = item.mapRectToParent(item.boundingRect())
-            if combined_bounds is None:
-                combined_bounds = item_bounds
-            else:
-                combined_bounds = combined_bounds.united(item_bounds)
+            if item.isVisible():
+                # Map each item's bounding rectangle to the parent (composition) coordinates
+                item_bounds = item.mapRectToParent(item.boundingRect())
+                if combined_bounds is None:
+                    combined_bounds = item_bounds
+                else:
+                    combined_bounds = combined_bounds.united(item_bounds)
                 
-        # Adjust the combined bounds to add margin
-        combined_bounds.adjust(-self.margin, -self.titleOffset, self.margin, self.margin)
+        for comp in self.child_comps:
+            if comp.isVisible():
+                comp_bounds = comp.boundingRect()
+                if combined_bounds is None:
+                    combined_bounds = item_bounds
+                else:
+                    combined_bounds = combined_bounds.united(comp_bounds)
+        
+        if combined_bounds is not None:
+            # Adjust the combined bounds to add margin
+            combined_bounds.adjust(-self.margin, -self.titleOffset, self.margin, self.margin)
 
-        self.prepareGeometryChange()
-        self.bounds = combined_bounds
+            self.prepareGeometryChange()
+            self.bounds = combined_bounds
 
-        # Center the nameItem at the top of the composition, taking into account the titleOffset
-        self.nameItem.setPos(
-            self.bounds.left() + (self.bounds.width() / 2) - (self.nameItem.boundingRect().width() / 2),
-            self.bounds.top()
-        )
+            # Center the nameItem at the top of the composition, taking into account the titleOffset
+            self.nameItem.setPos(
+                self.bounds.left() + (self.bounds.width() / 2) - (self.nameItem.boundingRect().width() / 2),
+                self.bounds.top()
+            )
 
-        self.update()  # Update the bounding rect
+            self.update()  # Update the bounding rect
+    
+    def checkVisible(self, item, closed):
+        if not closed:
+            self.setVisible(True)
+            item.setVisible(True)
+        else:
+            self.setVisible(any([item.isVisible() for item in self.functions]))
     
     def boundingRect(self) -> QRectF:
         return self.bounds.adjusted(-5, -5, 5, 5)

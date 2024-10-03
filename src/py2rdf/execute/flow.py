@@ -43,7 +43,7 @@ class Flow:
     
     def execute(self):
         # propagate input node
-        self.input.propagate()
+        self.input.execute()
 
         # continuously execute compositions
         next_comp = self.start
@@ -53,7 +53,21 @@ class Flow:
             next_comp = next_comp.next()
 
         # propagate output node
-        self.output.propagate()
+        self.output.execute()
 
         # return the output
         return { out.name: out.value for out in self.output.outputs() }
+    
+    def close(self):
+        self.closed = True
+        self.input.close()
+        for fun in self.functions.values():
+            fun.close()
+        self.output.close()
+    
+    def open(self):
+        self.closed = False
+        self.input.open()
+        for fun in self.functions.values():
+            fun.open()
+        self.output.open()

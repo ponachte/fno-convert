@@ -30,6 +30,9 @@ class MappingGraphicsItem(GraphicsObject):
         
         self.source.mappings[target] = self
         self.target.mappings[source] = self
+
+        self.source.visibleChanged.connect(self.checkVisible)
+        self.target.visibleChanged.connect(self.checkVisible)
         
         self.updateLine()
         self.setZValue(1)
@@ -81,6 +84,9 @@ class MappingGraphicsItem(GraphicsObject):
         path.lineTo(side2)
 
         return path
+    
+    def checkVisible(self):
+        self.setVisible(self.source.isVisible() and self.target.isVisible())
     
     def keyPressEvent(self, ev):
         ev.ignore()

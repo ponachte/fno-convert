@@ -1,18 +1,22 @@
 from datetime import datetime
-from ..graph import PipelineGraph
+from ..graph import PipelineGraph, get_name
 from ..map import ImpMap
 from .store import Terminal, ParameterMapping, MappingType
 from rdflib import URIRef
 from typing import Set
+from PyQt6.QtCore import QObject, pyqtSignal
 
-class Process:
+class Process(QObject):
+
+    statusChanged = pyqtSignal(bool)
 
     def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef, scope: URIRef) -> None:
+        super().__init__()
         self.call_uri = call
         self.fun_uri = fun
         self.scope_uri = scope
         self.map_uri, self.imp_uri = g.get_implementation(fun)
-        self.name = g.get_name(fun)
+        self.name = get_name(fun if call is None else call)
 
         ### FUNCTION OBJECT ###
 
@@ -24,6 +28,10 @@ class Process:
         self.self_input = None
         self.self_output = None
         self.output = None
+
+        ### EXECUTION DETAILS ###
+
+        self.closed = False
 
     def inputs(self) -> Set[Terminal]:
         return { self.terminals[name] for name in self.terminals if not self.terminals[name].is_output }
@@ -37,6 +45,14 @@ class Process:
     def propagate(self):
         for output in self.outputs():
             output.propagate()
+    
+    def open(self):
+        self.closed = False
+        self.statusChanged.emit(False)
+    
+    def close(self):
+        self.closed = True
+        self.statusChanged.emit(True)
     
     def __hash__(self) -> int:
         return hash(self.fun_uri)
@@ -112,7 +128,8 @@ class Function(Process):
             self.output.setValue(ret)
             if self.self_input is not None:
                 self.self_output.setValue(self.self_input.value)
-
+        
+        self.propagate()
     
 class FunctionLink(Process):
 
@@ -165,6 +182,7 @@ class FunctionLink(Process):
     def execute(self):
         for uri, term in self.links.items():
             self.terminals[uri].setValue(term.value)
+        self.propagate()
     
     def inputs(self) -> Set[Terminal]:
         if self.is_output:
