@@ -4,7 +4,7 @@ import inspect
 import importlib
 import sys
 from typing import Any
-from types import FunctionType
+from types import FunctionType, NoneType
 from datetime import datetime, date, time
 from decimal import Decimal
 
@@ -234,8 +234,11 @@ class ImpMap:
         Returns:
             function: The Python function or method.
         """
+        if s is None:
+            return Any
+        
         if s.split('#')[-1] == 'NoneType':
-            return None
+            return NoneType
                 
         result = [
             (x['label'].value, x['module'].value, 
@@ -268,9 +271,9 @@ class ImpMap:
                     return load_function_from_source(file, label)
         except Exception as e:
             print(f"Error while trying to get implementation from {s.split('#')[-1]}: {e}")
-            return
+            return Any
             
-        return
+        return Any
     
     @staticmethod
     def any():

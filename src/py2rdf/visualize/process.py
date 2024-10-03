@@ -1,12 +1,11 @@
 from PyQt6.QtGui import QColor, QPen, QBrush
-from PyQt6.QtCore import QRectF, Qt, pyqtSignal
+from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtWidgets import QGraphicsTextItem
 from pyqtgraph import GraphicsObject
 
 from ..execute.process import Process
 from .store import TerminalGraphicsItem
-
-STD_COLOR = QColor(170, 170, 170)
+from .colors import STD_COLOR
 
 class ProcessGraphicsItem(GraphicsObject):
 

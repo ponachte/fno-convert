@@ -15,6 +15,7 @@ class Flow:
         self.functions = {}
         self.internal_flows = {}
         self.variables = {}
+        self.constants = set()
         self.compositions = {}
 
         self.start = Composition.build_composition(self, g, g.start_of_flow(self.f_uri))

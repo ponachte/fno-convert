@@ -86,9 +86,15 @@ class Terminal(ValueStore):
         return hash(self.uri)
     
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Terminal) and self.uri == other.uri and self.fun.call_uri == other.fun.call_uri and self.fun.scope_uri == other.fun.scope_uri
+        return isinstance(other, Terminal) and self.uri == other.uri and self.fun == other.fun
 
 class Variable(ValueStore):
 
     def __init__(self, name: str) -> None:
         super().__init__(name)
+    
+    def __hash__(self) -> int:
+        return hash(self.name)
+    
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Terminal) and self.name == other.name

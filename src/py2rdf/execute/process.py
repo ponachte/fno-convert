@@ -10,17 +10,9 @@ class Process(QObject):
 
     statusChanged = pyqtSignal(bool)
 
-    def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef, scope: URIRef) -> None:
+    def __init__(self, name='') -> None:
         super().__init__()
-        self.call_uri = call
-        self.fun_uri = fun
-        self.scope_uri = scope
-        self.map_uri, self.imp_uri = g.get_implementation(fun)
-        self.name = get_name(fun if call is None else call)
-
-        ### FUNCTION OBJECT ###
-
-        self.f_object = ImpMap.rdf_to_imp(g, self.imp_uri)
+        self.name = name
 
         ### TERMINALS ###
 
@@ -55,12 +47,30 @@ class Process(QObject):
         self.statusChanged.emit(True)
     
     def __hash__(self) -> int:
+        return hash(self.name)
+    
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Function) and self.name == other.name
+class ObjectProcess(Process):
+
+    def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef, scope: URIRef) -> None:
+        super().__init__(get_name(fun if call is None else call))
+        self.call_uri = call
+        self.fun_uri = fun
+        self.scope_uri = scope
+        self.map_uri, self.imp_uri = g.get_implementation(fun)
+
+        ### FUNCTION OBJECT ###
+
+        self.f_object = ImpMap.rdf_to_imp(g, self.imp_uri)
+    
+    def __hash__(self) -> int:
         return hash(self.fun_uri)
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Function) and self.call_uri == other.call_uri and self.fun_uri == other.fun_uri and self.scope_uri == other.scope_uri
 
-class Function(Process):
+class Function(ObjectProcess):
 
     def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef, scope: URIRef) -> None:
         super().__init__(g, call, fun, scope)
@@ -131,7 +141,7 @@ class Function(Process):
         
         self.propagate()
     
-class FunctionLink(Process):
+class FunctionLink(ObjectProcess):
 
     def __init__(self, g: PipelineGraph, fun: URIRef, scope: URIRef, internal: bool, is_output=False) -> None:
         super().__init__(g, None, fun, scope)
@@ -194,7 +204,21 @@ class FunctionLink(Process):
             return super().outputs()
         return { self.links[term] for term in self.links if self.links[term].is_output }
 
-class Constant:
+class Constant(Process):
 
     def __init__(self, value, type) -> None:
-        self.output = Terminal(self, None, 'value', None, value, type, is_output=False)
+        typename = getattr(type, '__name__', str(type))
+        super().__init__(f"{typename}Constant")
+        self.output = Terminal(self, None, 'value', value, type, is_output=True)
+    
+    def outputs(self) -> Set[Terminal]:
+        return { self.output }
+    
+    def execute(self):
+        self.propagate()
+    
+    def __hash__(self) -> int:
+        return hash(self.output.value)
+    
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Constant) and self.output.value == other.output.value

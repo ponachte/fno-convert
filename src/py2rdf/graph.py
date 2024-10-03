@@ -182,30 +182,40 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-     def in_composition(self, comp, call) -> bool:
+     def in_composition(self, comp, call, full=True) -> bool:
         """
-        Checks if a function call is within a for loop body.
-        
-        :param loop: URIRef
-            The URI of the loop.
+        Checks if a function call is within a composition.
+
+        :param comp: URIRef
+            The URI of the composition.
         :param call: URIRef
             The function call URI to check.
+        :param full: bool
+            If True, checks both mappings (mapFrom and mapTo). 
+            If False, only mapFrom is checked.
         :return: bool
-            True if the function call is within the for loop, False otherwise.
+            True if the function call is within the composition, False otherwise.
         """
-        results = self.query(
-            f'''
+        # Query to check the 'mapTo' part
+        mapto_query = self.query(f'''
             ASK WHERE {{
-                <{comp}> a fnoc:Composition ;
-                      fnoc:composedOf ?mapping1, ?mapping2 .
-                ?mapping1 fnoc:mapFrom ?mapfrom .
-                ?mapfrom fnoc:constituentFunction <{call}> .    
-                ?mapping2 fnoc:mapTo ?mapto .
+                <{comp}> fnoc:composedOf ?mapping .
+                ?mapping fnoc:mapTo ?mapto .
                 ?mapto fnoc:constituentFunction <{call}> .
-            }}''', 
-            initNs=PrefixMap.NAMESPACES
-        )
-        return True if results else False
+            }}''', initNs=PrefixMap.NAMESPACES)
+
+        # If 'full' is True, also check the 'mapFrom' part
+        mapfrom_query = True  # Default to True if full is False
+        if full:
+            mapfrom_query = self.query(f'''
+                ASK WHERE {{
+                    <{comp}> fnoc:composedOf ?mapping .
+                    ?mapping fnoc:mapFrom ?mapfrom .
+                    ?mapfrom fnoc:constituentFunction <{call}> .
+                }}''', initNs=PrefixMap.NAMESPACES)
+
+        # Both queries need to return True if 'full' is True; otherwise, only 'mapTo' matters
+        return (True if mapto_query else False) and (True if mapfrom_query else False)
 
      def has_pipeline(self, s) -> bool:
         """
@@ -792,7 +802,7 @@ class PipelineGraph(Graph):
           ''', initNs=PrefixMap.NAMESPACES)
 
           return [ (m['con'].value,
-                    m['con'].datatype,
+                    ImpMap.rdf_to_imp(self, m['con'].datatype),
                     m['f'], m['par']) 
                     for m in results ]
      

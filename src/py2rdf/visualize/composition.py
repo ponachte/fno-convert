@@ -1,7 +1,7 @@
 from pyqtgraph import GraphicsObject
 from PyQt6.QtGui import QColor, QPen, QBrush
 from PyQt6.QtWidgets import QGraphicsTextItem
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import Qt, QRectF, QPointF
 from typing import List
 
 from ..execute.composition import Composition
@@ -15,6 +15,8 @@ class CompositionGraphicsItem(GraphicsObject):
         GraphicsObject.__init__(self)
         self.comp = comp
         self.functions = functions
+        self.control_flows = {}
+
         self.child_comps = set()
         for fun in self.functions:
             if len(fun.compositions) == 0:
@@ -32,7 +34,7 @@ class CompositionGraphicsItem(GraphicsObject):
         self.setFlags(flags)
 
         self.bounds = QRectF(0, 0, 200, 100)
-        self.nameItem = QGraphicsTextItem("Block", self)
+        self.nameItem = QGraphicsTextItem(self.comp.name, self)
         self.nameItem.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.titleOffset = 25
         self.margin = 10
@@ -80,6 +82,9 @@ class CompositionGraphicsItem(GraphicsObject):
             )
 
             self.update()  # Update the bounding rect
+
+            for control_flow in self.control_flows.values():
+                control_flow.updateLine()
     
     def checkVisible(self, item, closed):
         if not closed:
@@ -87,10 +92,19 @@ class CompositionGraphicsItem(GraphicsObject):
             item.setVisible(True)
         else:
             self.setVisible(any([item.isVisible() for item in self.functions]))
+        
+        for control_flow in self.control_flows.values():
+            control_flow.checkVisible()
     
     def boundingRect(self) -> QRectF:
         return self.bounds.adjusted(-5, -5, 5, 5)
     
+    def sourcePoint(self):
+        return self.mapToView(QPointF(self.boundingRect().right(), self.boundingRect().center().y()))
+    
+    def targetPoint(self):
+        return self.mapToView(QPointF(self.boundingRect().left(), self.boundingRect().center().y()))
+
     def paint(self, p, *args):
         p.setPen(self.pen)
         p.setBrush(self.brush)
@@ -107,8 +121,3 @@ class CompositionGraphicsItem(GraphicsObject):
             
     def keyPressEvent(self, ev):
         ev.ignore()
-    
-    def itemChange(self, change, value):
-        if change == self.GraphicsItemChange.ItemPositionHasChanged:
-            pass
-        return GraphicsObject.itemChange(self, change, value)

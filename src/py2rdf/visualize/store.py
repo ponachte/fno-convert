@@ -1,14 +1,12 @@
 from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
-from PyQt6.QtCore import QRectF, Qt, QPoint, pyqtSignal
+from PyQt6.QtCore import QRectF, Qt, QPoint
 from PyQt6.QtGui import QColor, QPen, QBrush
 from pyqtgraph import GraphicsObject
-import pyqtgraph.functions as fn
 
 from ..execute.store import Terminal, Variable, ValueStore
+from .colors import *
 
 from abc import abstractmethod
-
-STD_COLOR = QColor(170, 170, 170)
 
 class StoreGraphicsItem(GraphicsObject):
 
@@ -30,10 +28,10 @@ class TerminalGraphicsItem(StoreGraphicsItem):
     def __init__(self, terminal: Terminal, parent=None):
         StoreGraphicsItem.__init__(self, terminal, parent)
 
-        self.std_brush = fn.mkBrush(0, 0, 0)    # Standard brush is black
-        self.hover_brush = fn.mkBrush('b')      # Hover brush is blue
-        self.accepted_brush = fn.mkBrush('g')   # Accepted brush is green
-        self.error_brush = fn.mkBrush('r')      # Error brush is red
+        self.std_brush = QBrush(TERMINAL_COLOR)    # Standard brush is black
+        self.hover_brush = QBrush(TERMINAL_HOVER)      # Hover brush is blue
+        self.accepted_brush = QBrush(TERMINAL_ACCEPT)   # Accepted brush is green
+        self.error_brush = QBrush(TERMINAL_ERROR)      # Error brush is red
         self.brush = self.std_brush
 
         self.box = QGraphicsRectItem(0, 0, 10, 10, self)

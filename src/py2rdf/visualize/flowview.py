@@ -8,12 +8,12 @@ from rdflib import URIRef
 
 from ..execute.flow import Flow
 from ..execute.process import Process
-from ..execute.store import ValueStore, Terminal
+from ..execute.store import ValueStore, Terminal, Variable
 from ..execute.composition import Composition
 from ..graph import PipelineGraph
 from .process import ProcessGraphicsItem
 from .store import StoreGraphicsItem, VariableGraphicsItem
-from .mapping import MappingGraphicsItem
+from .mapping import MappingGraphicsItem, ControlFlowGraphicsItem
 from .composition import CompositionGraphicsItem
 from .layout import sugiyama_algorithm
 
@@ -83,13 +83,14 @@ class FlowViewWidget(DockArea):
     
     def setFlow(self, flow: Flow):
         self.flow = flow
-        self.functions = {}
+        self.process = {}
         self.internal_flows = {}
         self.flow_items = {}
         self.terminals = {}
         self.variables = {}
         self.compositions = {}
         self.mappings = set()
+        self.control_flows = set()
 
         self.addFlow(flow)
 
@@ -99,17 +100,21 @@ class FlowViewWidget(DockArea):
         self.autoArrange()
     
     def addFlow(self, flow: Flow, internal=None):
-        function_items = set()
+        process_items = set()
 
         # add input and output
-        function_items.add(self.addFunction(flow.input))
-        function_items.add(self.addFunction(flow.output))
+        process_items.add(self.addProcess(flow.input))
+        process_items.add(self.addProcess(flow.output))
 
         # add all used functions
         for fun in flow.functions.values():
-            function_items.add(self.addFunction(fun))
+            process_items.add(self.addProcess(fun))
             if fun in flow.internal_flows:
-                function_items.update(self.addFlow(flow.internal_flows[fun], fun))
+                process_items.update(self.addFlow(flow.internal_flows[fun], fun))
+        
+        # add all constants
+        for const in flow.constants:
+            process_items.add(self.addProcess(const))
 
         # add all mappings
         for comp in flow.compositions.values():
@@ -117,18 +122,24 @@ class FlowViewWidget(DockArea):
             for mapping in comp.mappings:
                 self.addMapping(mapping.source, mapping.target)
         
+        # add all control flow mappings
+        for comp in self.compositions:
+            for (next, label) in comp.control_flows():
+                if next is not None:
+                    self.addControlFlow(comp, next, label)
+        
         if internal is not None:
             self.internal_flows[internal] = flow
-            self.flow_items[flow] = function_items
+            self.flow_items[flow] = process_items
         
-        return function_items
+        return process_items
     
-    def addFunction(self, fun: Process):
+    def addProcess(self, fun: Process):
         item = ProcessGraphicsItem(fun)
         item.setZValue(self.nextZVal*2)
         self.nextZVal += 1
         self.viewBox().addItem(item)
-        self.functions[fun] = item
+        self.process[fun] = item
         self.terminals.update(item.terminals)
 
         item.visibleChanged.connect(self.autoArrange)
@@ -137,8 +148,8 @@ class FlowViewWidget(DockArea):
     
     def addComposition(self, comp: Composition):
         function_items = set()
-        for fun in comp.functions:
-            function_items.add(self.functions[fun])
+        for fun in comp.process:
+            function_items.add(self.process[fun])
             if fun in self.internal_flows:
                 flow = self.internal_flows[fun]
                 function_items.update(self.flow_items[flow])
@@ -149,26 +160,38 @@ class FlowViewWidget(DockArea):
 
         return item
     
-    def addVariable(self, name, var):
+    def addVariable(self, var):
         item = VariableGraphicsItem(var)
         item.setZValue(self.nextZVal*2)
         self.nextZVal += 1
         self.viewBox().addItem(item)
-        if name not in self.variables:
-            self.variables[name] = []
-        self.variables[name].append((var, item))
+        if var not in self.variables:
+            self.variables[var] = []
+        self.variables[var].append(item)
     
     def addMapping(self, source: ValueStore, target: ValueStore):
         if isinstance(source, Terminal):
             source = self.terminals[source]
+        elif isinstance(source, Variable):
+            source = self.addVariable(source)
         if isinstance(target, Terminal):
             target = self.terminals[target]
+        elif isinstance(source, Variable):
+            target = self.addVariable(target)
         
         item = MappingGraphicsItem(source, target)
         self.viewBox().addItem(item)
         self.mappings.add(item)
 
         return item
+
+    def addControlFlow(self, comp: Composition, next: Composition, label: str):
+        comp = self.compositions[comp]
+        next = self.compositions[next]
+
+        item = ControlFlowGraphicsItem(comp, next, label)
+        self.viewBox().addItem(item)
+        self.control_flows.add(item)
     
     def selectionChanged(self):
         items = self._scene.selectedItems()
@@ -197,7 +220,7 @@ class FlowViewWidget(DockArea):
         edges = [(mapping.source.parentItem(), mapping.target.parentItem()) for mapping in self.mappings if mapping.isVisible()]
 
         if len(edges) > 0:
-            positions = sugiyama_algorithm(edges, list(self.functions.values()))
+            positions = sugiyama_algorithm(edges, list(self.process.values()))
 
             for process in positions:
                 process.setPos(*positions[process])
