@@ -6,12 +6,12 @@ from rdflib import URIRef
 
 class Flow:
 
-    def __init__(self, g: PipelineGraph, fun: URIRef, internal=False) -> None:
+    def __init__(self, g: PipelineGraph, fun: URIRef, outer_fun: Function=None) -> None:
         self.f_uri = g.check_call(fun)
         self.scope = fun
 
-        self.input = FunctionLink(g, self.f_uri, self.scope, internal)
-        self.output = FunctionLink(g, self.f_uri, self.scope, internal, is_output=True)
+        self.input = FunctionLink(g, self.f_uri, self.scope, outer_fun)
+        self.output = FunctionLink(g, self.f_uri, self.scope, outer_fun, is_output=True)
         self.functions = {}
         self.internal_flows = {}
         self.variables = {}
@@ -21,7 +21,7 @@ class Flow:
         self.start = Composition.build_composition(self, g, g.start_of_flow(self.f_uri))
     
     def add_internal_flow(self, g, fun):
-        flow = Flow(g, fun.call_uri, internal=True)
+        flow = Flow(g, fun.call_uri, outer_fun=fun)
         self.internal_flows[fun] = flow
     
     def connect_links(self, fun: Function, comp: Composition):

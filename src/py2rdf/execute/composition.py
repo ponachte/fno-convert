@@ -111,10 +111,10 @@ class Composition:
     
     def execute(self):
         for fun in self.process:
-            if not fun.closed:
-                fun.execute()
-            else:
+            if fun in self.flow.internal_flows:
                 self.flow.internal_flows[fun].execute()
+            else:
+                fun.execute()
     
     def __hash__(self) -> int:
         return hash(self.uri)

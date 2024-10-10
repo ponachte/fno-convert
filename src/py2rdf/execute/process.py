@@ -143,9 +143,10 @@ class Function(ObjectProcess):
     
 class FunctionLink(ObjectProcess):
 
-    def __init__(self, g: PipelineGraph, fun: URIRef, scope: URIRef, internal: bool, is_output=False) -> None:
+    def __init__(self, g: PipelineGraph, fun: URIRef, scope: URIRef, outer_fun: Function=None, is_output=False) -> None:
         super().__init__(g, None, fun, scope)
         self.is_output = is_output
+        self.outer_fun = outer_fun
         self.links = {}
 
         if is_output:
@@ -155,7 +156,7 @@ class FunctionLink(ObjectProcess):
                 self.output = Terminal(self, uri, g.get_output_predicate(fun)[1], type=g.get_output_type(uri))
                 self.terminals[self.output.uri] = self.output
 
-                if internal:
+                if outer_fun is not None:
                     link_uri = URIRef(f"{uri}_link")
                     link = Terminal(self, link_uri, g.get_output_predicate(fun)[1], type=g.get_output_type(uri), is_output=True)
                     self.links[self.output.uri] = link
@@ -165,7 +166,7 @@ class FunctionLink(ObjectProcess):
                 self.self_output = Terminal(self, uri, 'self_output', type=g.get_output_type(uri))
                 self.terminals[self.self_output.uri] = self.self_output
 
-                if internal:
+                if outer_fun is not None:
                     link_uri = URIRef(f"{uri}_link")
                     link = Terminal(self, link_uri, 'self_output', type=g.get_output_type(uri), is_output=True)
                     self.links[self.self_output.uri] = link
@@ -174,7 +175,7 @@ class FunctionLink(ObjectProcess):
             for par in g.get_parameters(fun):
                 self.terminals[par] = Terminal(self, par, g.get_param_predicate(par), type=g.get_param_type(par), is_output=True)
 
-                if internal:
+                if outer_fun is not None:
                     link_uri = URIRef(f"{par}_link")
                     link = Terminal(self, link_uri, g.get_param_predicate(par), type=g.get_param_type(par))
                     self.links[par] = link
@@ -184,14 +185,19 @@ class FunctionLink(ObjectProcess):
                 self.self_input = Terminal(self, uri, 'self', type=g.get_param_type(uri), is_output=True)
                 self.terminals[self.self_input.uri] = self.self_input
 
-                if internal:
+                if outer_fun is not None:
                     link_uri = URIRef(f"{uri}_link")
                     link = Terminal(self, link_uri, 'self', type=g.get_param_type(uri))
                     self.links[self.self_input.uri] = link
     
     def execute(self):
         for uri, term in self.links.items():
-            self.terminals[uri].setValue(term.value)
+            if self.is_output:
+                term.setValue(self.terminals[uri].value)
+                if self.outer_fun is not None:
+                    self.outer_fun.output.setValue(term.value)
+            else:
+                self.terminals[uri].setValue(term.value)
         self.propagate()
     
     def inputs(self) -> Set[Terminal]:
