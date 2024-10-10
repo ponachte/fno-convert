@@ -29,11 +29,11 @@ class Composition:
         # Get all functions used inside the composition
         # TODO IfFlowComposition without mappings but with a composition !!
         for (call, fun) in g.get_used_functions(self.uri):
-            if fun != flow.f_uri and call not in flow.functions:
+            if fun != call and call not in flow.functions:
                 flow.functions[call] = Function(g, call, fun, flow.scope)
             if g.in_composition(comp, call):
                 self.process.add(flow.functions[call])
-            if g.has_flow(fun):
+            if fun != flow.f_uri and g.has_flow(fun):
                 flow.add_internal_flow(g, flow.functions[call])
 
         ### MAPPINGS ###

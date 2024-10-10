@@ -212,10 +212,16 @@ class FunctionLink(ObjectProcess):
 
 class Constant(Process):
 
+    count = 0
+
     def __init__(self, value, type) -> None:
         typename = getattr(type, '__name__', str(type))
         super().__init__(f"{typename}Constant")
         self.output = Terminal(self, None, 'value', value, type, is_output=True)
+
+        # Unique identifier
+        self.count = Constant.count
+        Constant.count += 1
     
     def outputs(self) -> Set[Terminal]:
         return { self.output }
@@ -224,7 +230,7 @@ class Constant(Process):
         self.propagate()
     
     def __hash__(self) -> int:
-        return hash(self.output.value)
+        return hash(self.count)
     
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Constant) and self.output.value == other.output.value
+        return isinstance(other, Constant) and self.count == other.count

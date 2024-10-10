@@ -27,7 +27,6 @@ class CompositionGraphicsItem(GraphicsObject):
             fun.compositions.add(self)
 
         self.pen = None
-        self.brush = None
         self.setColor(STD_COLOR)
 
         flags = self.GraphicsItemFlag.ItemSendsGeometryChanges
@@ -44,9 +43,7 @@ class CompositionGraphicsItem(GraphicsObject):
 
     def setColor(self, color: QColor):
         pen_color = color.darker(105)
-        brush_color = color.lighter(105)
-        self.pen = QPen(pen_color, 3)
-        self.brush = QBrush(brush_color)
+        self.pen = QPen(pen_color, 4)
 
     def updateBounds(self):
         combined_bounds = None
@@ -107,7 +104,6 @@ class CompositionGraphicsItem(GraphicsObject):
 
     def paint(self, p, *args):
         p.setPen(self.pen)
-        p.setBrush(self.brush)
         p.drawRect(self.bounds)
 
     def mousePressEvent(self, ev):
