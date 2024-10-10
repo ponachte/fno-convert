@@ -16,6 +16,7 @@ from .store import StoreGraphicsItem, VariableGraphicsItem
 from .mapping import MappingGraphicsItem, ControlFlowGraphicsItem
 from .composition import CompositionGraphicsItem
 from .layout import sugiyama_algorithm
+from .new_layout import layout_flow
 
 class FlowGraphicsView(GraphicsView):
 
@@ -91,6 +92,7 @@ class FlowViewWidget(DockArea):
         self.compositions = {}
         self.mappings = set()
         self.control_flows = set()
+        self.viewBox().clear()
 
         self.addFlow(flow)
 
@@ -217,13 +219,21 @@ class FlowViewWidget(DockArea):
             self.hoverText.setPlainText("%s = %s" % (store.name, value))
     
     def autoArrange(self):
+        """mapping_edges = [(mapping.source.parentItem(), mapping.target.parentItem()) for mapping in self.mappings if mapping.isVisible()]
+        control_edges = [(control.source, control.target) for control in self.control_flows if control.isVisible()]
+        layout_flow(self.process[self.flow.input], self.process[self.flow.output],
+                    self.compositions.values(), mapping_edges, control_edges)
+        
+        self.viewBox().autoRange()"""
+        
         edges = [(mapping.source.parentItem(), mapping.target.parentItem()) for mapping in self.mappings if mapping.isVisible()]
 
         if len(edges) > 0:
-            positions = sugiyama_algorithm(edges, list(self.process.values()))
+            start = self.process[self.flow.input]
+            end = self.process[self.flow.output]
+            positions = sugiyama_algorithm(edges, list(self.compositions.values()))
 
             for process in positions:
                 process.setPos(*positions[process])
         
         self.viewBox().autoRange()
-            

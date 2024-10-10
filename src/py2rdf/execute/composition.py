@@ -156,7 +156,7 @@ class IfFlowComposition(Composition):
         ### CONDITION ###
 
         f, par = g.get_condition(comp)
-        self.condition = flow.functions[f].terminals[par]
+        self.condition = flow.get_terminal(f, par)
         if g.in_composition(comp, f, full=False):
             self.process.append(flow.functions[f])
 
@@ -187,7 +187,7 @@ class ForFlowComposition(Composition):
         ### ITERATOR ###
 
         f, par = g.get_iterator(comp)
-        self.iterator = flow.functions[f].terminals[par]
+        self.iterator = flow.get_terminal(f, par)
         if g.in_composition(comp, f):
             self.process.add(flow.functions[f])
 

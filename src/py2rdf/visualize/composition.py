@@ -117,3 +117,12 @@ class CompositionGraphicsItem(GraphicsObject):
             
     def keyPressEvent(self, ev):
         ev.ignore()
+    
+    def itemChange(self, change, value):
+        if change == self.GraphicsItemChange.ItemPositionHasChanged:
+            for function in self.functions:
+                for item in function.terminals.values():
+                    item.functionMoved()
+            for control_flow in self.control_flows.values():
+                control_flow.updateLine()
+        return GraphicsObject.itemChange(self, change, value)

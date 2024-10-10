@@ -59,6 +59,7 @@ class InputWidget(QWidget):
         self.setLayout(layout)
     
     def setFlow(self, flow: Flow):
+        self.inputList.clear()
         self.flow = flow
         inputs = { inp for inp in flow.input.outputs() }
         for inp in inputs:
@@ -116,6 +117,7 @@ class FunctionList(QWidget):
         self.setLayout(layout)
     
     def setFlow(self, flow: Flow):
+        self.list.clear()
         self.flow = flow
 
         for fun, int_flow in flow.internal_flows.items():
