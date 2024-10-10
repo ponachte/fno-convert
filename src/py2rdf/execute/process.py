@@ -215,8 +215,7 @@ class Constant(Process):
     count = 0
 
     def __init__(self, value, type) -> None:
-        typename = getattr(type, '__name__', str(type))
-        super().__init__(f"{typename}Constant")
+        super().__init__("const")
         self.output = Terminal(self, None, 'value', value, type, is_output=True)
 
         # Unique identifier

@@ -134,7 +134,7 @@ class ControlFlowGraphicsItem(GraphicsObject):
         self.shapePath = None
         self.style = {
             'shape': 'line',
-            'color': (100, 100, 250),
+            'color': (250, 175, 100),
             'width': 2.0
         }
 
