@@ -29,7 +29,7 @@ class CompositionGraphicsItem(GraphicsObject):
         self.pen = None
         self.setColor(STD_COLOR)
 
-        flags = self.GraphicsItemFlag.ItemSendsGeometryChanges
+        flags = self.GraphicsItemFlag.ItemSendsGeometryChanges | self.GraphicsItemFlag.ItemIsMovable | self.GraphicsItemFlag.ItemIsFocusable
         self.setFlags(flags)
 
         self.bounds = QRectF(0, 0, 200, 100)
@@ -113,8 +113,14 @@ class CompositionGraphicsItem(GraphicsObject):
         ev.ignore()
             
     def mouseDragEvent(self, ev):
-        ev.ignore()
-            
+        if ev.button() == Qt.MouseButton.LeftButton:
+            ev.accept()
+            self.setPos(self.pos() + self.mapToParent(ev.pos()) - self.mapToParent(ev.lastPos()))
+
+    def hoverEvent(self, ev):
+        if not ev.isExit() and ev.acceptClicks(Qt.MouseButton.LeftButton):
+            ev.acceptDrags(Qt.MouseButton.LeftButton)
+
     def keyPressEvent(self, ev):
         ev.ignore()
     
