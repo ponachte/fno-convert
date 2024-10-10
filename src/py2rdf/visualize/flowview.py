@@ -40,6 +40,9 @@ class FlowViewBox(ViewBox):
 
         # Set the background of the viewbox
         self.setBackgroundColor('white')
+    
+    def items(self):
+        return self.addedItems
 
 class FlowViewWidget(DockArea):
 
@@ -181,7 +184,7 @@ class FlowViewWidget(DockArea):
         elif isinstance(source, Variable):
             target = self.addVariable(target)
         
-        item = MappingGraphicsItem(source, target)
+        item = MappingGraphicsItem(source, target, self)
         self.viewBox().addItem(item)
         self.mappings.add(item)
 

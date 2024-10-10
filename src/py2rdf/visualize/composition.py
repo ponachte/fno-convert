@@ -24,6 +24,7 @@ class CompositionGraphicsItem(GraphicsObject):
             else:
                 for comp in fun.compositions:
                     self.child_comps.add(comp)
+                    comp.setParentItem(self)
             fun.compositions.add(self)
 
         self.pen = None
