@@ -140,7 +140,7 @@ class FlowViewWidget(DockArea):
         return process_items
     
     def addProcess(self, fun: Process):
-        item = ProcessGraphicsItem(fun)
+        item = ProcessGraphicsItem(fun, self)
         item.setZValue(self.nextZVal*2)
         self.nextZVal += 1
         self.viewBox().addItem(item)
@@ -194,7 +194,7 @@ class FlowViewWidget(DockArea):
         comp = self.compositions[comp]
         next = self.compositions[next]
 
-        item = ControlFlowGraphicsItem(comp, next, label)
+        item = ControlFlowGraphicsItem(comp, next, label, self)
         self.viewBox().addItem(item)
         self.control_flows.add(item)
     

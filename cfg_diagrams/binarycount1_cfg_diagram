@@ -7,14 +7,14 @@ count = 0
 for i, bit in enumerate(bits):
 "]
 	5 [label="#5
-if bit == 0:
+if bit == 1:
 "]
 	7 [label="#7
 count = count + 2 ** i
 "]
 	7 -> 4 [label=""]
-	5 -> 7 [label="bit == 0"]
-	5 -> 4 [label="(bit != 0)"]
+	5 -> 7 [label="bit == 1"]
+	5 -> 4 [label="(bit != 1)"]
 	4 -> 5 [label="enumerate(bits)"]
 	6 [label="#6
 return count

@@ -189,7 +189,7 @@ class ForFlowComposition(Composition):
         f, par = g.get_iterator(comp)
         self.iterator = flow.get_terminal(f, par)
         if g.in_composition(comp, f):
-            self.process.add(flow.functions[f])
+            self.process.append(flow.functions[f])
 
         ### IF NEXT ###
 

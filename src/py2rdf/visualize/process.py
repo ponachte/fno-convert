@@ -9,8 +9,9 @@ from .colors import STD_COLOR
 
 class ProcessGraphicsItem(GraphicsObject):
 
-    def __init__(self, function: Process):
+    def __init__(self, function: Process, flow_view):
         GraphicsObject.__init__(self)
+        self.flow_view = flow_view
 
         self.hovered = False
         self.pen = None
@@ -148,8 +149,8 @@ class ProcessGraphicsItem(GraphicsObject):
 
     def itemChange(self, change, value):
         if change == self.GraphicsItemChange.ItemPositionHasChanged:
-            for item in self.terminals.values():
-                item.functionMoved()
+            for mapping in self.flow_view.mappings:
+                mapping.updateLine()
             for comp in self.compositions:
                 comp.updateBounds()
         return GraphicsObject.itemChange(self, change, value)
