@@ -1441,9 +1441,10 @@ class FlowDescriptor:
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'IterParameter'))
         FunctionDescriptor.describe_composition(self.g, self.block_id, [Mapping(mapfrom, mapto)])
 
+        iter_out = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput'))
         if_next = URIRef(f"{self.scope}_Block{self.block.exits[0].target.id}")
         followed_by = URIRef(f"{self.scope}_Block{self.block.exits[1].target.id}")
-        FunctionDescriptor.link_with_iterator(self.g, mapfrom, self.block_id, if_next, followed_by)
+        FunctionDescriptor.link_with_iterator(self.g, iter_out, self.block_id, if_next, followed_by)
     
     def handle_if(self, test):
         condition = self.handle_stmt(test)

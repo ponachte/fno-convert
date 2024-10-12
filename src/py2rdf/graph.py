@@ -1,3 +1,4 @@
+from enum import Enum, auto
 from rdflib import Graph, BNode, Literal, URIRef
 from rdflib.container import Container
 from .map import PrefixMap, FnODescriptionMap, ImpMap
@@ -63,14 +64,19 @@ def to_uri(prefix, s):
     """
     return URIRef(f"{prefix}#{s}")
 
+class CompMappingType(Enum):
+    
+    FunctionMapping = auto()
+    TermMapping = auto()
+    VarMapping = auto()
 
 class PipelineGraph(Graph):
-     """
-     A subclass of rdflib.Graph tailored for handling pipeline graphs
-     with specific functionalities for managing function descriptions.
-     """
-     @staticmethod
-     def from_std(name):
+    """
+    A subclass of rdflib.Graph tailored for handling pipeline graphs
+    with specific functionalities for managing function descriptions.
+    """
+    @staticmethod
+    def from_std(name):
         """
         Creates a PipelineGraph from a standard description.
         
@@ -85,8 +91,8 @@ class PipelineGraph(Graph):
             return s, PipelineGraph(desc).get_function_description(s)
         return
 
-     @staticmethod
-     def from_dict(name):
+    @staticmethod
+    def from_dict(name):
         """
         Creates a PipelineGraph from a dictionary description.
         
@@ -101,7 +107,7 @@ class PipelineGraph(Graph):
             return s, PipelineGraph(desc).get_function_description(s)
         return
 
-     def __init__(self, graph=None):
+    def __init__(self, graph=None):
         """
         Initializes a PipelineGraph.
         
@@ -112,7 +118,7 @@ class PipelineGraph(Graph):
         if graph:
             self += graph
 
-     def check_call(self, f):
+    def check_call(self, f):
         """
         Checks if a function call is applied in the graph and returns the function it applies.
         
@@ -129,7 +135,7 @@ class PipelineGraph(Graph):
             return result[0]
         return f
 
-     def get_name(self, f):
+    def get_name(self, f):
         """
         Retrieves the context-free name of a function.
         
@@ -150,7 +156,7 @@ class PipelineGraph(Graph):
         )]
         return result[0] if len(result) > 0 else None
 
-     def is_parameter(self, s) -> bool:
+    def is_parameter(self, s) -> bool:
         """
         Checks if a URI is a parameter.
         
@@ -166,7 +172,7 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-     def is_output(self, s) -> bool:
+    def is_output(self, s) -> bool:
         """
         Checks if a URI is an output.
         
@@ -182,7 +188,7 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-     def in_composition(self, comp, call, full=True) -> bool:
+    def in_composition(self, comp, call, full=True) -> bool:
         """
         Checks if a function call is within a composition.
 
@@ -217,7 +223,7 @@ class PipelineGraph(Graph):
         # Both queries need to return True if 'full' is True; otherwise, only 'mapTo' matters
         return (True if mapto_query else False) and (True if mapfrom_query else False)
 
-     def has_pipeline(self, s) -> bool:
+    def has_pipeline(self, s) -> bool:
         """
         Checks if a function has an associated pipeline.
         
@@ -233,7 +239,7 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-     def get_function(self, name):
+    def get_function(self, name):
         """
         Retrieves the function URI for a given name.
 
@@ -258,7 +264,7 @@ class PipelineGraph(Graph):
             print(f"Error while querying function from name {name}: <{e}>")
             return
 
-     def get_pipeline(self, call):
+    def get_pipeline(self, call):
         """
         Retrieves the pipeline URI associated with a function call.
 
@@ -285,7 +291,7 @@ class PipelineGraph(Graph):
 
         return result[0] if len(result) > 0 else None
 
-     def get_parameters(self, f) -> list[str]:
+    def get_parameters(self, f) -> list[str]:
         """
         Retrieves the list of parameters for a function, excluding 'self' parameters.
 
@@ -307,7 +313,7 @@ class PipelineGraph(Graph):
             ''', initNs=PrefixMap.NAMESPACES)
         ])
 
-     def get_parameter_at(self, f, i) -> list[str]:
+    def get_parameter_at(self, f, i) -> list[str]:
         """
         Retrieves the parameter at a given position for a function.
 
@@ -332,7 +338,7 @@ class PipelineGraph(Graph):
         ]
         return result[0] if len(result) == 1 else None
 
-     def get_parameter_index(self, f, param) -> list[str]:
+    def get_parameter_index(self, f, param) -> list[str]:
         """
         Retrieves the position index of a given parameter for a function.
 
@@ -358,7 +364,7 @@ class PipelineGraph(Graph):
         ]
         return result[0] if len(result) == 1 else None
 
-     def get_param_predicates(self, f) -> list[str]:
+    def get_param_predicates(self, f) -> list[str]:
         """
         Retrieves the predicates for all parameters of a function.
 
@@ -380,7 +386,7 @@ class PipelineGraph(Graph):
             ''', initNs=PrefixMap.NAMESPACES)
         ]
 
-     def get_param_predicate(self, param) -> str:
+    def get_param_predicate(self, param) -> str:
         """
         Retrieves the predicate of a given parameter.
 
@@ -399,7 +405,7 @@ class PipelineGraph(Graph):
             ''', initNs=PrefixMap.NAMESPACES)
         ][0]
 
-     def get_predicate_param(self, f, pred) -> str:
+    def get_predicate_param(self, f, pred) -> str:
         """
         Retrieves the parameter corresponding to a given predicate for a function.
 
@@ -426,7 +432,7 @@ class PipelineGraph(Graph):
         ]
         return result[0] if len(result) > 0 else None
 
-     def get_param_type(self, param) -> str:
+    def get_param_type(self, param) -> str:
         """
         Retrieves the type of a given parameter.
 
@@ -446,7 +452,7 @@ class PipelineGraph(Graph):
         ]
         return result[0] if len(result) > 0 else Any
 
-     def get_self(self, f) -> str:
+    def get_self(self, f) -> str:
         """
         Retrieves the 'self' parameter of a function.
 
@@ -472,7 +478,7 @@ class PipelineGraph(Graph):
 
         return result[0] if len(result) > 0 else None
      
-     def has_self(self, f: URIRef) -> bool:
+    def has_self(self, f: URIRef) -> bool:
         """
         Check if a FnO Function has a `self` parameter.
 
@@ -493,7 +499,7 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-     def get_output(self, f) -> str:
+    def get_output(self, f) -> str:
         """
         Retrieves the output of a function.
 
@@ -519,7 +525,7 @@ class PipelineGraph(Graph):
 
         return result[0] if len(result) > 0 else None
      
-     def has_output(self, f: URIRef) -> bool:
+    def has_output(self, f: URIRef) -> bool:
         """
         Check if a FnO Function has an output which is not a `self` output.
 
@@ -540,7 +546,7 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-     def get_self_output(self, f) -> str:
+    def get_self_output(self, f) -> str:
         """
         Retrieves the 'self_output' of a function.
 
@@ -566,7 +572,7 @@ class PipelineGraph(Graph):
 
         return result[0] if len(result) > 0 else None
      
-     def has_self_output(self, f: URIRef) -> bool:
+    def has_self_output(self, f: URIRef) -> bool:
         """
         Check if a FnO Function has a `self` output.
 
@@ -587,7 +593,7 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-     def get_predicate(self, s):
+    def get_predicate(self, s):
         """
         Retrieves the predicate of a given parameter or output.
 
@@ -607,7 +613,7 @@ class PipelineGraph(Graph):
             ''', initNs=PrefixMap.NAMESPACES)
         ][0]
 
-     def get_output_predicate(self, f) -> str:
+    def get_output_predicate(self, f) -> str:
         """
         Retrieves the predicate for the output of a function.
 
@@ -629,7 +635,7 @@ class PipelineGraph(Graph):
             ''', initNs=PrefixMap.NAMESPACES)
         ][0]
 
-     def get_output_type(self, out) -> str:
+    def get_output_type(self, out) -> str:
         """
         Retrieves the type of a given output.
 
@@ -649,7 +655,7 @@ class PipelineGraph(Graph):
         ]
         return result[0] if len(result) > 0 else Any
      
-     def has_flow(self, f):
+    def has_flow(self, f):
          result = self.query(f'''
                 ASK WHERE {{
                     <{f}> a fno:Function ;
@@ -659,7 +665,7 @@ class PipelineGraph(Graph):
 
          return True if result else False
      
-     def start_of_flow(self, f):
+    def start_of_flow(self, f):
          """
          Retrieve the URI of the first block of the flow describing a FnO Function.
 
@@ -684,46 +690,46 @@ class PipelineGraph(Graph):
              raise Exception(f"{f} has no flow defined.")
          return result[0]
      
-     def is_composition(self, c: URIRef) -> bool:
+    def is_composition(self, c: URIRef) -> bool:
          result = self.query(f'''
             ASK WHERE {{ <{c}> a fnoc:Composition . }}
          ''', initNs=PrefixMap.NAMESPACES)
          return True if result else False
      
-     def is_if_composition(self, c: URIRef) -> bool:
+    def is_if_composition(self, c: URIRef) -> bool:
          result = self.query(f'''
             ASK WHERE {{ <{c}> a fnoc:IfFlowComposition . }}
          ''', initNs=PrefixMap.NAMESPACES)
          return True if result else False
      
-     def is_for_composition(self, c: URIRef) -> bool:
+    def is_for_composition(self, c: URIRef) -> bool:
          result = self.query(f'''
             ASK WHERE {{ <{c}> a fnoc:ForFlowComposition . }}
          ''', initNs=PrefixMap.NAMESPACES)
          return True if result else False
      
-     def followed_by(self, c: URIRef) -> URIRef:
+    def followed_by(self, c: URIRef) -> URIRef:
          result = [x['next'] for x in self.query(f'''
             SELECT ?next WHERE {{
                 <{c}> fnoc:followedBy ?next .
             }}''', initNs=PrefixMap.NAMESPACES)]
          return result[0] if len(result) == 1 else None
      
-     def if_true(self, c: URIRef) -> URIRef:
+    def if_true(self, c: URIRef) -> URIRef:
          result = [x['next'] for x in self.query(f'''
             SELECT ?next WHERE {{
                 <{c}> fnoc:ifTrue ?next .
             }}''', initNs=PrefixMap.NAMESPACES)]
          return result[0] if len(result) == 1 else None
      
-     def if_false(self, c: URIRef) -> URIRef:
+    def if_false(self, c: URIRef) -> URIRef:
          result = [x['next'] for x in self.query(f'''
             SELECT ?next WHERE {{
                 <{c}> fnoc:ifFalse ?next .
             }}''', initNs=PrefixMap.NAMESPACES)]
          return result[0] if len(result) == 1 else None
      
-     def get_condition(self, c: URIRef):
+    def get_condition(self, c: URIRef):
          result = [(x['f'], x['par']) for x in self.query(f'''
             SELECT ?f ?par WHERE {{
                 <{c}> fnoc:condition ?cond .
@@ -732,14 +738,14 @@ class PipelineGraph(Graph):
             }}''', initNs=PrefixMap.NAMESPACES)]
          return result[0] if len(result) == 1 else None
      
-     def if_next(self, c: URIRef) -> URIRef:
+    def if_next(self, c: URIRef) -> URIRef:
          result = [x['next'] for x in self.query(f'''
             SELECT ?next WHERE {{
                 <{c}> fnoc:ifNext ?next .
             }}''', initNs=PrefixMap.NAMESPACES)]
          return result[0] if len(result) == 1 else None
      
-     def get_iterator(self, c: URIRef):
+    def get_iterator(self, c: URIRef):
          result = [(x['f'], x['par']) for x in self.query(f'''
             SELECT ?f ?par WHERE {{
                 <{c}> fnoc:iterator ?iter .
@@ -748,115 +754,42 @@ class PipelineGraph(Graph):
             }}''', initNs=PrefixMap.NAMESPACES)]
          return result[0] if len(result) == 1 else None
      
-     def get_mappings(self, c):
-          """
-          Get all mappings inside a composition block.
+    def get_mappings(self, c):
+        results = self.query(f'''
+            SELECT ?mapfrom ?mapto WHERE {{
+                <{c}> fnoc:composedOf ?mapping .
+                ?mapping fnoc:mapFrom | fnoc:mapFromTerm | fnoc:mapFromVariable ?mapfrom ;
+                         fnoc:mapTo | fnoc:mapToVariable ?mapto .
+            }}
+        ''', initNs=PrefixMap.NAMESPACES)
 
-          :param c: rdflib.URIRef
-            The URI of the composition block.
-        
-          :return: 
-            Set of tuples containing the mappings:
-                    - The URI of the first function
-                    - The URI of the parameter of the first function
-                    - The URI of the second function
-                    - The URI of the parameter of the second function
-          """
-          results = self.query(f'''
-               SELECT ?f1 ?par1 ?f2 ?par2 WHERE {{
-                    <{c}> fnoc:composedOf ?mapping .
-                    ?mapping fnoc:mapFrom ?mapfrom ;
-                             fnoc:mapTo ?mapto .
-                    ?mapfrom fnoc:constituentFunction ?f1 ;
-                             fnoc:functionParameter | fnoc:functionOutput ?par1 .
-                    ?mapto fnoc:constituentFunction ?f2 ;
-                           fnoc:functionParameter | fnoc:functionOutput ?par2 .
-               }}
-          ''', initNs=PrefixMap.NAMESPACES)
-
-          # Return the distinct set of mappings
-          return set([ (m['f1'], m['par1'], m['f2'], m['par2']) for m in results ])
+        # Return the distinct set of mappings
+        return set([ (m['mapfrom'], m['mapto']) for m in results ])
+    
+    def is_function_mapping(self, endpoint):
+        results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFrom | fnoc:mapTo ?endpoint }}''',
+                             initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
+        return True if results else False
+    
+    def get_function_mapping(self, endpoint):
+        result = [ (x['f'], x['ter']) for x in self.query(f'''
+            SELECT ?f ?ter WHERE {{
+               ?endpoint fnoc:constituentFunction ?f ;
+                            fnoc:functionParameter | fnoc:functionOutput ?ter . 
+            }}''', initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})][0]
+        return result
+    
+    def is_term_mapping(self, endpoint):
+        results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFromTerm ?endpoint }}''',
+                             initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
+        return True if results else False
+    
+    def is_var_mapping(self, endpoint):
+        results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFromVariable | fnoc:mapToVariable ?endpoint }}''',
+                             initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
+        return True if results else False
      
-     def get_term_mappings(self, c):
-          """
-          Get all term mappings inside a composition block.
-
-          :param c: rdflib.URIRef
-            The URI of the composition block.
-        
-          :return: 
-            List of tuples containing the term mappings:
-                    - The URI of the constant
-                    - The datatype URI of the constant
-                    - The URI of the function
-                    - The parameter of the function
-          """
-          results = self.query(f'''
-               SELECT ?con ?f ?par WHERE {{
-                    <{c}> fnoc:composedOf ?mapping .
-                    ?mapping fnoc:mapFromTerm ?con ;
-                         fnoc:mapTo ?mapto .
-                    ?mapto fnoc:constituentFunction ?f ;
-                         fnoc:functionParameter | fnoc:functionOutput ?par .
-               }}
-          ''', initNs=PrefixMap.NAMESPACES)
-
-          return [ (m['con'].value,
-                    ImpMap.rdf_to_imp(self, m['con'].datatype),
-                    m['f'], m['par']) 
-                    for m in results ]
-     
-     def get_fromvar_mappings(self, c):
-          """
-          Get all from var mappings inside a composition block.
-
-          :param c: rdflib.URIRef
-            The URI of the composition block.
-        
-          :return: 
-            List of tuples containing the from var mappings:
-                    - The variable name
-                    - The URI of the function
-                    - The parameter of the function
-          """
-          results = self.query(f'''
-               SELECT ?var ?f ?par WHERE {{
-                    <{c}> fnoc:composedOf ?mapping .
-                    ?mapping fnoc:mapFromVar ?var ;
-                         fnoc:mapTo ?mapto .
-                    ?mapto fnoc:constituentFunction ?f ;
-                         fnoc:functionParameter | fnoc:functionOutput ?par .
-               }}
-          ''', initNs=PrefixMap.NAMESPACES)
-
-          return [ (m['var'].value, m['f'], m['par']) for m in results ]
-     
-     def get_tovar_mappings(self, c):
-          """
-          Get all to var mappings inside a composition block.
-
-          :param c: rdflib.URIRef
-            The URI of the composition block.
-        
-          :return: 
-            List of tuples containing the to var mappings:
-                    - The URI of the function
-                    - The parameter of the function
-                    - The variable name
-          """
-          results = self.query(f'''
-               SELECT ?var ?f ?par WHERE {{
-                    <{c}> fnoc:composedOf ?mapping .
-                    ?mapping fnoc:mapFrom ?mapfrom ;
-                         fnoc:mapToVar ?var .
-                    ?mapfrom fnoc:constituentFunction ?f ;
-                         fnoc:functionParameter | fnoc:functionOutput ?par .
-               }}
-          ''', initNs=PrefixMap.NAMESPACES)
-
-          return [ (m['f'], m['par'], m['var'].value) for m in results ]
-     
-     def get_strategy(self, f, f1, par1, f2, par2):
+    def get_strategy(self, f, f1, par1, f2, par2):
           """
           Retrieve the mapping strategy employed between two functions within the pipeline.
 
@@ -892,7 +825,7 @@ class PipelineGraph(Graph):
           ''', initNs=PrefixMap.NAMESPACES)
           ]
      
-     def get_term_strategy(self, c, const, datatype, f, par):
+    def get_term_strategy(self, c, const, datatype, f, par):
           """
           Retrieve the strategy for mapping a term to a function within the pipeline.
 
@@ -921,7 +854,7 @@ class PipelineGraph(Graph):
           ''', initNs=PrefixMap.NAMESPACES)
           ]
      
-     def get_implementation(self, f):
+    def get_implementation(self, f):
           """
           Retrieve the implementation details of a function.
 
@@ -949,7 +882,7 @@ class PipelineGraph(Graph):
                print(f"Error while parsing query when fetching implementation for <{get_name(f)}>: <{e}>")
                return (None, None)
      
-     def is_function_implementation(self, s):
+    def is_function_implementation(self, s):
           """
           Check if a given function is implemented in Python.
 
@@ -961,7 +894,7 @@ class PipelineGraph(Graph):
           """
           return self.query(f'''ASK WHERE {{ <{s}> a fnoi:PythonFunction . }}''')
      
-     def get_positional(self, f):
+    def get_positional(self, f):
           """
           Get positional parameters of a function.
 
@@ -991,7 +924,7 @@ class PipelineGraph(Graph):
                print(f"Error while parsing query when fetching positional parameters for <{get_name(f)}>: <{e}>")
                return []
 
-     def get_keyword(self, f):
+    def get_keyword(self, f):
           """
           Get keyword parameters of a function.
 
@@ -1018,7 +951,7 @@ class PipelineGraph(Graph):
                print(f"Error while parsing query when fetching keyword parameters for <{get_name(f)}>: <{e}>")
                return []
 
-     def get_varpositional(self, f):
+    def get_varpositional(self, f):
           """
           Get variable positional parameters of a function.
 
@@ -1046,7 +979,7 @@ class PipelineGraph(Graph):
                print(f"Error while parsing query when fetching variable positional parameters for <{get_name(f)}>: <{e}>")
                return None
 
-     def is_varpositional(self, f, param):
+    def is_varpositional(self, f, param):
           """
           Check if a parameter of a function is a variable positional parameter.
 
@@ -1072,7 +1005,7 @@ class PipelineGraph(Graph):
                print(f"Error while parsing query when fetching variable positional parameters for <{get_name(f)}>: <{e}>")
                return False
 
-     def get_varkeyword(self, f):
+    def get_varkeyword(self, f):
           """
           Get variable keyword parameters of a function.
 
@@ -1100,7 +1033,7 @@ class PipelineGraph(Graph):
                print(f"Error while parsing query when fetching variable keyword parameters for <{get_name(f)}>: <{e}>")
                return None
 
-     def is_varkeyword(self, f, param):
+    def is_varkeyword(self, f, param):
           """
           Check if a parameter of a function is a variable keyword parameter.
 
@@ -1127,7 +1060,7 @@ class PipelineGraph(Graph):
                return False
      
           
-     def get_param_mapping(self, f, param):
+    def get_param_mapping(self, f, param):
           """
           Retrieve mapping information for a specified parameter of a function.
 
@@ -1169,7 +1102,7 @@ class PipelineGraph(Graph):
                print(f"Error while parsing query when fetching imp mapping for <{get_name(f)}>: <{e}>")
                return
      
-     def get_used_functions(self, c: URIRef):
+    def get_used_functions(self, c: URIRef):
         """
         Get all used functions inside a composition
 
@@ -1190,7 +1123,7 @@ class PipelineGraph(Graph):
 
         return  { (x['call'], x['func']) for x in results }
      
-     def get_function_description(self, name) -> "PipelineGraph":
+    def get_function_description(self, name) -> "PipelineGraph":
           """
           Retrieve the description of a function, including its parameters, outputs, implementation, and other related information.
 

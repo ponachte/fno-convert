@@ -51,6 +51,7 @@ class Process(QObject):
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Function) and self.name == other.name
+    
 class ObjectProcess(Process):
 
     def __init__(self, g: PipelineGraph, call: URIRef, fun: URIRef, scope: URIRef) -> None:
@@ -233,3 +234,9 @@ class Constant(Process):
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Constant) and self.count == other.count
+
+class ForLoop(ObjectProcess):
+
+    def __init__(self, name='') -> None:
+        super().__init__("for-loop")
+        self.iterator = Terminal(self, None)

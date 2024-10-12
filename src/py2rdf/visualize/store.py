@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
+from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem, QGraphicsEllipseItem
 from PyQt6.QtCore import QRectF, Qt, QPoint
 from PyQt6.QtGui import QColor, QPen, QBrush
 from pyqtgraph import GraphicsObject
@@ -111,6 +111,7 @@ class VariableGraphicsItem(StoreGraphicsItem):
     def __init__(self, var: Variable, parent=None):
         StoreGraphicsItem.__init__(self, var, parent)
 
+        self.hovered = False
         self.pen = None
         self.brush = None
         self.hoverBrush = None
@@ -127,7 +128,13 @@ class VariableGraphicsItem(StoreGraphicsItem):
         name_width = self.nameItem.boundingRect().width()
         name_height = self.nameItem.boundingRect().height()
         radius = max(name_width + 10, name_height + 10)
-        self.bounds = QRectF(0, 0, radius, radius)
+        self.circle = QGraphicsEllipseItem(0, 0, radius, radius, self)
+        self.circle.setBrush(self.brush)
+        
+        circle_center = self.circle.mapToParent(self.circle.boundingRect().center())      
+        self.nameItem.setPos(circle_center.x() - name_width/2, circle_center.y() - name_height/2)
+        self.nameItem.setZValue(1)
+        self.circle.setZValue(0)
     
     def setColor(self, color: QColor):
         pen_color = color.darker(105)
@@ -157,13 +164,13 @@ class VariableGraphicsItem(StoreGraphicsItem):
         self.update()
     
     def boundingRect(self) -> QRectF:
-        return self.bounds.adjusted(-5, -5, 5, 5)
+        return self.circle.mapRectToParent(self.circle.boundingRect()).adjusted(-5, -5, 5, 5)
     
     def sourcePoint(self):
-        return self.mapToView(self.mapFromItem(self.box, self.bounds.right(), self.bounds.center().y()))
+        return self.mapToView(self.mapFromItem(self.circle, self.circle.boundingRect().right(), self.circle.boundingRect().center().y()))
     
     def targetPoint(self):
-        return self.mapToView(self.mapFromItem(self.box, self.bounds.left(), self.bounds.center().y()))
+        return self.mapToView(self.mapFromItem(self.circle, self.circle.boundingRect().left(), self.circle.boundingRect().center().y()))
     
     def paint(self, p, *args):
         if self.isSelected():
@@ -175,7 +182,7 @@ class VariableGraphicsItem(StoreGraphicsItem):
                 p.setBrush(self.hoverBrush)
             else:
                 p.setBrush(self.brush)
-        p.drawEllipse(self.bounds)
+        p.drawEllipse(self.circle.boundingRect())
     
     def mousePressEvent(self, event):
         event.ignore()

@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from ..graph import PipelineGraph, get_name
+from ..map import ImpMap
 from .process import Function, Constant
 from .store import Mapping, Variable
 from rdflib import URIRef
@@ -39,32 +40,30 @@ class Composition:
         ### MAPPINGS ###
 
         self.mappings = set()
-
-        for f1, par1, f2, par2 in g.get_mappings(comp):
-            ter1 = flow.get_terminal(f1, par1)
-            ter2 = flow.get_terminal(f2, par2)
-            self.mappings.add(Mapping(ter1, ter2))
         
-        for const_value, const_type, f, par in g.get_term_mappings(comp):
-            const = Constant(const_value, const_type)
-            flow.constants.add(const)
-            self.process.add(const)
-            ter2 = flow.get_terminal(f, par)
-            self.mappings.add(Mapping(const.output, ter2))
-        
-        for var, f, par in g.get_fromvar_mappings(comp):
-            if var not in flow.variables:
-                flow.variables[var] = Variable(var)
-            ter1 = flow.variables[var]
-            ter2 = flow.get_terminal(f, par)
-            self.mappings.add(Mapping(ter1, ter2))
-        
-        for f, par, var in g.get_tovar_mappings(comp):
-            if var not in flow.variables:
-                flow.variables[var] = Variable(var)
-            ter1 = flow.get_terminal(f, par)
-            ter2 = flow.variables[var]
-            self.mappings.add(Mapping(ter1, ter2))
+        for mapfrom, mapto in g.get_mappings(comp):
+            # Handle mapfrom
+            if g.is_function_mapping(mapfrom):
+                source = flow.get_terminal(*g.get_function_mapping(mapfrom))
+            elif g.is_term_mapping(mapfrom):
+                const = Constant(mapfrom.value, ImpMap.rdf_to_imp(g, mapfrom.datatype))
+                flow.constants.add(const)
+                self.process.add(const)
+                source = const.output
+            elif g.is_var_mapping(mapfrom):
+                if mapfrom not in flow.variables:
+                    flow.variables[mapfrom] = Variable(mapfrom)
+                source = flow.variables[mapfrom]
+            
+            # Handle mapto
+            if g.is_function_mapping(mapto):
+                target = flow.get_terminal(*g.get_function_mapping(mapto))
+            elif g.is_var_mapping(mapto):
+                if mapto not in flow.variables:
+                    flow.variables[mapto] = Variable(mapto)
+                target = flow.variables[mapto]
+            
+            self.mappings.add(Mapping(source, target))
 
         ### INTERNAL FLOWS ###
 
@@ -139,7 +138,11 @@ class LinearComposition(Composition):
         ### FOLLOWED BY ###
 
         next_comp = g.followed_by(comp)
-        self.followed_by = flow.compositions.get(next_comp, Composition.build_composition(flow, g, next_comp))
+        if next_comp in flow.compositions:
+            next_comp = flow.compositions[next_comp]
+        else:
+            next_comp = Composition.build_composition(flow, g, next_comp)
+        self.followed_by = next_comp
     
     def next(self):
         return self.followed_by
@@ -163,12 +166,20 @@ class IfFlowComposition(Composition):
         ### IF TRUE ###
 
         next_comp = g.if_true(comp)
-        self.if_true = flow.compositions.get(next_comp, Composition.build_composition(flow, g, next_comp))
+        if next_comp in flow.compositions:
+            next_comp = flow.compositions[next_comp]
+        else:
+            next_comp = Composition.build_composition(flow, g, next_comp)
+        self.if_true = next_comp
 
         ### IF FALSE ###
 
         next_comp = g.if_false(comp)
-        self.if_false = flow.compositions.get(next_comp, Composition.build_composition(flow, g, next_comp))
+        if next_comp in flow.compositions:
+            next_comp = flow.compositions[next_comp]
+        else:
+            next_comp = Composition.build_composition(flow, g, next_comp)
+        self.if_false = next_comp
     
     def next(self):
         if self.condition.value:
@@ -187,19 +198,33 @@ class ForFlowComposition(Composition):
         ### ITERATOR ###
 
         f, par = g.get_iterator(comp)
-        self.iterator = flow.get_terminal(f, par)
-        if g.in_composition(comp, f):
+        self.iterator_value = flow.get_terminal(f, par)
+        self.iterator = None
+        if g.in_composition(comp, f, full=False):
             self.process.append(flow.functions[f])
 
         ### IF NEXT ###
 
         next_comp = g.if_next(comp)
-        self.if_next = flow.compositions.get(next_comp, Composition.build_composition(flow, g, next_comp))
+        if next_comp in flow.compositions:
+            next_comp = flow.compositions[next_comp]
+        else:
+            next_comp = Composition.build_composition(flow, g, next_comp)
+        self.if_next = next_comp
 
         ### FOLLOWED BY ###
 
         next_comp = g.followed_by(comp)
-        self.followed_by = flow.compositions.get(next_comp, Composition.build_composition(flow, g, next_comp))
+        if next_comp in flow.compositions:
+            next_comp = flow.compositions[next_comp]
+        else:
+            next_comp = Composition.build_composition(flow, g, next_comp)
+        self.followed_by = next_comp
+    def next(self):
+        if self.iterator is None:
+            self.iterator = iter(self.iterator_value.value)
+        
+
     
     def control_flows(self):
         return [(self.if_next, 'IF NEXT'), (self.followed_by, 'FOLLOWED BY')]

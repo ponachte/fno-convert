@@ -4,7 +4,7 @@ import pyqtgraph.functions as fn
 from PyQt6.QtCore import QPointF, QLineF
 from PyQt6.QtGui import QPainterPath, QPainterPathStroker
 
-from .store import StoreGraphicsItem
+from .store import StoreGraphicsItem, VariableGraphicsItem, TerminalGraphicsItem
 from .composition import CompositionGraphicsItem
 from .process import ProcessGraphicsItem
 from ..execute.process import FunctionLink
@@ -23,10 +23,7 @@ class MappingGraphicsItem(GraphicsObject):
         self.length = 0
         self.path = None
         self.shapePath = None
-        if isinstance(source.parentItem().function, FunctionLink) or isinstance(target.parentItem().function, FunctionLink):
-            color = LINK_COLOR
-        else:
-            color = STD_COLOR
+        color = STD_COLOR
         self.style = {
             'shape': 'line',
             'color': color,
@@ -141,6 +138,13 @@ class MappingGraphicsItem(GraphicsObject):
         path.lineTo(side1)
         path.moveTo(stop)
         path.lineTo(side2)
+    
+    def edge(self):
+        if isinstance(self.source, VariableGraphicsItem):
+            return (self.source, self.target.parentItem())
+        if isinstance(self.target, VariableGraphicsItem):
+            return (self.source.parentItem(), self.target)
+        return (self.source.parentItem(), self.target.parentItem())
     
     def checkVisible(self):
         self.setVisible(self.source.isVisible() and self.target.isVisible())

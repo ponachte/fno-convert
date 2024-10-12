@@ -165,23 +165,30 @@ class FlowViewWidget(DockArea):
 
         return item
     
-    def addVariable(self, var):
+    def addVariable(self, var: Variable):
+        print("creating var", var.name)
         item = VariableGraphicsItem(var)
         item.setZValue(self.nextZVal*2)
         self.nextZVal += 1
         self.viewBox().addItem(item)
         if var not in self.variables:
-            self.variables[var] = []
-        self.variables[var].append(item)
+            self.variables[var] = set()
+        self.variables[var].add(item)
+        
+        item.visibleChanged.connect(self.autoArrange)
+
+        return item
     
     def addMapping(self, source: ValueStore, target: ValueStore):
         if isinstance(source, Terminal):
             source = self.terminals[source]
         elif isinstance(source, Variable):
+            print("source variable: ", source)
             source = self.addVariable(source)
         if isinstance(target, Terminal):
             target = self.terminals[target]
-        elif isinstance(source, Variable):
+        elif isinstance(target, Variable):
+            print("target variable: ", target)
             target = self.addVariable(target)
         
         item = MappingGraphicsItem(source, target, self)
@@ -229,7 +236,7 @@ class FlowViewWidget(DockArea):
         
         self.viewBox().autoRange()"""
         
-        edges = [(mapping.source.parentItem(), mapping.target.parentItem()) for mapping in self.mappings if mapping.isVisible()]
+        edges = [mapping.edge() for mapping in self.mappings if mapping.isVisible()]
 
         if len(edges) > 0:
             start = self.process[self.flow.input]
