@@ -1,10 +1,11 @@
-from PyQt6.QtGui import QPainter
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QSizePolicy
-from PyQt6.QtCore import QPoint, QPointF
+from PyQt6.QtGui import QPainter, QColor
+from PyQt6.QtWidgets import QTextEdit, QGraphicsRectItem
+from PyQt6.QtCore import QRectF
 
-from pyqtgraph import GraphicsView, ViewBox
+from pyqtgraph import GraphicsView, ViewBox, mkBrush, mkPen
 from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
+import numpy as np
 
 from ..execute.flow import Flow
 from ..execute.process import Process
@@ -33,14 +34,13 @@ class FlowGraphicsView(GraphicsView):
         return self._viewbox
 
 class FlowViewBox(ViewBox):
-
     def __init__(self, widget, *args, **kwargs):
-        ViewBox.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.widget = widget
 
         # Set the background of the viewbox
         self.setBackgroundColor('white')
-    
+
     def items(self):
         return self.addedItems
 

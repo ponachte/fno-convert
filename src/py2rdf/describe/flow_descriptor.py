@@ -712,7 +712,8 @@ class FlowDescriptor:
         context = 'attribute'
         if name not in self.f_counter:
             self.f_counter[context] = 1
-            self.std_to_rdf(name)
+            _, desc = PipelineGraph.from_std(name)
+            self.g += desc
         else:
             self.f_counter[context] += 1
 
@@ -783,7 +784,8 @@ class FlowDescriptor:
 
         if f_name not in self.f_counter:
             self.f_counter[f_name] = 1
-            self.std_to_rdf(f_name)
+            _, desc = PipelineGraph.from_std(f_name)
+            self.g += desc
         else:
             self.f_counter[f_name] += 1
 
@@ -884,7 +886,8 @@ class FlowDescriptor:
         # Check if the "list" function has been encountered before and update its counter
         if "list" not in self.f_counter:
             self.f_counter["list"] = 1
-            self.std_to_rdf('list')
+            _, desc = PipelineGraph.from_std('list')
+            self.g += desc
         else:
             self.f_counter["list"] += 1
 
@@ -942,7 +945,8 @@ class FlowDescriptor:
         """
         if "tuple" not in self.f_counter:
             self.f_counter["tuple"] = 1
-            self.std_to_rdf('tuple')
+            _, desc = PipelineGraph.from_std('tuple')
+            self.g += desc
         else:
             self.f_counter["tuple"] += 1
         
@@ -998,7 +1002,8 @@ class FlowDescriptor:
         """
         if "dict" not in self.f_counter:
             self.f_counter["dict"] = 1
-            self.std_to_rdf('dict')
+            _, desc = PipelineGraph.from_std('dict')
+            self.g += desc
         else:
             self.f_counter["dict"] += 1
 
@@ -1053,7 +1058,8 @@ class FlowDescriptor:
         name = "strjoin"
         if name not in self.f_counter:
             self.f_counter[name] = 1
-            self.std_to_rdf('strjoin')
+            _, desc = PipelineGraph.from_std('strjoin')
+            self.g += desc
         else:
             self.f_counter[name] += 1
 
