@@ -1,2 +1,12 @@
 VARIABLES
     - internal function uses same variable name
+
+FOR LOOP
+    - not implementation independent 
+        --> composition should abstract how the iteration is done
+        --> composition also becomes a function ??
+
+COMPOSITION
+    - empty compositions
+        --> if-composition where the condition is calculated in a previous block
+        --> return a variable
