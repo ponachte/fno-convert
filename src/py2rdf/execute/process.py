@@ -1,7 +1,7 @@
 from datetime import datetime
 from ..graph import PipelineGraph, get_name
 from ..map import ImpMap
-from .store import Terminal, ParameterMapping, MappingType
+from .store import Terminal, ParameterMapping, MappingType, Variable
 from rdflib import URIRef
 from typing import Set
 from PyQt6.QtCore import QObject, pyqtSignal
@@ -31,8 +31,11 @@ class Process(QObject):
     def outputs(self) -> Set[Terminal]:
         return { self.terminals[name] for name in self.terminals if self.terminals[name].is_output }
     
-    def depends_on(self, context) -> Set[Terminal]:
-        return { dep.fun for input in self.inputs() for dep in input.depends_on if dep.fun in context }
+    def depends_on(self, context) -> Set["Process"]:
+        return { dep.fun for input in self.inputs() for dep in input.depends_on if isinstance(dep, Process) and dep.fun in context }
+    
+    def execute(self):
+        { input.setValue(dep.value) for input in self.inputs() for dep in input.depends_on if isinstance(dep, Variable) }
     
     def propagate(self):
         for output in self.outputs():
@@ -95,6 +98,8 @@ class Function(ObjectProcess):
             self.terminals[self.self_output.uri] = self.self_output
     
     def execute(self):
+        super().execute()
+        
         # If there is a self input, use the function object from that terminal's value
         if self.self_input is not None:
             self.f_object = getattr(self.self_input.value, self.name, None)
@@ -192,6 +197,8 @@ class FunctionLink(ObjectProcess):
                     self.links[self.self_input.uri] = link
     
     def execute(self):
+        super().execute()
+        
         for uri, term in self.links.items():
             if self.is_output:
                 term.setValue(self.terminals[uri].value)
