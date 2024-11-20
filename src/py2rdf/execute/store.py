@@ -50,11 +50,13 @@ class ValueStore(QObject):
         self.name = name
         self.value = None
         self.type = type
-        self.setValue(value)
 
         self.sends_to = set()
         self.depends_on = set()
         self.mappings = {}
+        
+        if value is not None:
+            self.setValue(value)
 
     def setValue(self, value):
         if value != self.value:
@@ -65,7 +67,8 @@ class ValueStore(QObject):
     
     def connect_to(self, target: "ValueStore", mapping: "Mapping"):
         self.sends_to.add(target)
-        target.depends_on.add(self)
+        if isinstance(self, Terminal):
+            target.depends_on.add(self)
         self.mappings[target] = mapping
     
     def propagate(self):
@@ -92,6 +95,10 @@ class Variable(ValueStore):
 
     def __init__(self, name: str) -> None:
         super().__init__(name)
+    
+    def setValue(self, value):
+        super().setValue(value)
+        self.propagate()
     
     def __hash__(self) -> int:
         return hash(self.name)

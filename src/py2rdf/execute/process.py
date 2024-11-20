@@ -234,9 +234,3 @@ class Constant(Process):
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Constant) and self.count == other.count
-
-class ForLoop(ObjectProcess):
-
-    def __init__(self, name='') -> None:
-        super().__init__("for-loop")
-        self.iterator = Terminal(self, None)

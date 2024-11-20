@@ -1,8 +1,7 @@
 from sys import getrecursionlimit, setrecursionlimit
 from grandalf.layouts import SugiyamaLayout
 from grandalf.graphs import Vertex, Edge, Graph
-from .process import ProcessGraphicsItem
-from .composition import CompositionGraphicsItem
+from ...visualize.process import ProcessGraphicsItem
 
 class HorizontalSugiyamaLayout(SugiyamaLayout):
     """
@@ -145,110 +144,17 @@ class HorizontalSugiyamaLayout(SugiyamaLayout):
                 if w is v:
                     break
 
-class ClusteredSugiyamaLayout(HorizontalSugiyamaLayout):
-    """
-    Horizontal version of the Sugiyama Layout that supports clusters.
-    The layout places clusters and vertices in a horizontal flow.
-    """
+def sugiyama_algorithm(edges, nodes):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def setxy(self):
-        """Override to support clusters in addition to regular vertices."""
-        self._edge_inverter()
-        self._detect_alignment_conflicts()
-        inf = float("infinity")
-
-        # Initialize vertex and cluster attributes:
-        for l in self.layers:
-            for v in l:
-                self.grx[v].root = v
-                self.grx[v].align = v
-                self.grx[v].sink = v
-                self.grx[v].shift = inf
-                self.grx[v].X = None
-                self.grx[v].x = [0.0] * 4
-
-        # Layout for the rest of the vertices
-        curvh = self.dirvh  # Save current dirvh value
-        for dirvh in range(4):
-            self.dirvh = dirvh
-            self._coord_horizontal_alignment()  # Modified for horizontal alignment
-            self._coord_vertical_compact()  # Modified for horizontal stacking
-        self.dirvh = curvh  # Restore it
+    class nodeview(object):
         
-        # Layout for clusters (treat clusters like super-nodes)
-        self._layout_remaining_vertices()
-
-        self._edge_inverter()
-
-    def _layout_remaining_vertices(self):
-        """Layout the remaining vertices and clusters."""
-        X = 0
-        for l in self.layers:
-            dX = max([self._get_item_width(v) for v in l])  # Space between vertices/clusters
-            for v in l:
-                vy = sorted(self.grx[v].x)
-                avgm = (vy[1] + vy[2]) / 2.0
-                # Set xy-coordinates:
-                v.view.xy = (X + dX, avgm)
-                self._layout_cluster_horizontal(v)  # Recursively layout clusters horizontally
-            X += 2 * dX + self.xspace  # Increment X for horizontal layout
-
-    def _layout_cluster_horizontal(self, v):
-        """
-        Recursively layouts clusters and their children in horizontal orientation.
-        """
-        if isinstance(v.view, CompositionGraphicsItem):
-            cluster_item = v.view
-            cluster_item.updateBounds()  # Compute bounds based on child vertices or clusters
-
-            # Start horizontal layout for the cluster's child items
-            X = cluster_item.bounds.left() + self.xspace
-            max_height = 0
-            for child in cluster_item.functions:
-                child_v = self.grx[child]
-                if child_v is not None:
-                    # Set position for each child, placing them horizontally within the cluster
-                    child_v.view.setPos(X, cluster_item.bounds.top() + self.yspace)
-                    X += child_v.view.boundingRect().width() + self.xspace
-                    max_height = max(max_height, child_v.view.boundingRect().height())
-
-            # Handle child clusters inside the current cluster
-            for child_comp in cluster_item.child_comps:
-                comp_v = self.grx[child_comp]
-                if comp_v is not None:
-                    comp_v.view.setPos(X, cluster_item.bounds.top() + self.yspace)
-                    X += comp_v.view.boundingRect().width() + self.xspace
-                    max_height = max(max_height, comp_v.view.boundingRect().height())
-
-            # Update the cluster bounds based on its children
-            cluster_item.bounds.setWidth(X - cluster_item.bounds.left() + self.xspace)
-            cluster_item.bounds.setHeight(max_height + 2 * self.yspace)
-            cluster_item.update()  # Repaint the cluster
-
-    def _get_item_width(self, v):
-        """
-        Get the width of a vertex or cluster. This is used to determine how much horizontal space 
-        to allocate for a node in the layout.
-        """
-        if isinstance(v.view, CompositionGraphicsItem):
-            return v.view.boundingRect().width()  # Return the width of the cluster
-        return v.view.w / 2.0  # Regular vertices width
-    
-class nodeview(object):
         def __init__(self, node: ProcessGraphicsItem):
-            self.node = node
             self.w = node.boundingRect().width()
             self.h = node.boundingRect().height()
             self.xy = None
 
-def sugiyama_algorithm(edges, compositions):
-
     v = {}
     e = []
-
     for src, dest in edges:
         if src not in v:
             v[src] = Vertex(src)
@@ -257,15 +163,11 @@ def sugiyama_algorithm(edges, compositions):
             v[dest] = Vertex(dest)
             v[dest].view = nodeview(dest)
         e.append(Edge(v[src], v[dest]))
-
-    for comp in compositions:
-        if comp not in v:
-            v[comp] = Vertex(comp)
-            v[comp].view = nodeview(comp)
-
+    
     g = Graph(v.values(), e)
-    sugiyama_layout = ClusteredSugiyamaLayout(g.C[0])
-    sugiyama_layout.init_all()
-    sugiyama_layout.draw()
+
+    sug = HorizontalSugiyamaLayout(g.C[0])
+    sug.init_all()
+    sug.draw()
 
     return {vertex.data: (vertex.view.xy[0], vertex.view.xy[1]) for vertex in g.C[0].sV}

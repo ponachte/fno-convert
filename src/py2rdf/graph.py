@@ -155,6 +155,21 @@ class PipelineGraph(Graph):
             initNs=PrefixMap.NAMESPACES
         )]
         return result[0] if len(result) > 0 else None
+    
+    def is_iterator(self, s) -> bool:
+        """
+        Checks if a URI is an iterator
+        
+        :param s: URIRef
+            The URI to check
+        :return: bool
+            True if the URI is an iterator, False otherwise
+        """
+        results = self.query(
+            f'''ASK WhERE {{ ?comp fnoc:iterator <{s}> . }}''',
+            initNs=PrefixMap.NAMESPACES
+        )
+        return True if results else False
 
     def is_parameter(self, s) -> bool:
         """
@@ -746,11 +761,11 @@ class PipelineGraph(Graph):
          return result[0] if len(result) == 1 else None
      
     def get_iterator(self, c: URIRef):
-         result = [(x['f'], x['par']) for x in self.query(f'''
-            SELECT ?f ?par WHERE {{
-                <{c}> fnoc:iterator ?iter .
-                ?iter fnoc:constituentFunction ?f ;
-                      fnoc:functionOutput | fnoc:functionParameter ?par .
+         result = [(x['f'], x['target']) for x in self.query(f'''
+            SELECT ?f ?target WHERE {{
+                <{c}> fnoc:iterator ?node .
+                ?node fnoc:constituentFunction ?f ;
+                    fnoc:functionOutput | fnoc:functionParameter ?target .
             }}''', initNs=PrefixMap.NAMESPACES)]
          return result[0] if len(result) == 1 else None
      

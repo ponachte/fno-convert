@@ -1,0 +1,2 @@
+VARIABLES
+    - internal function uses same variable name

@@ -281,13 +281,13 @@ class FlowDescriptor:
         """
         # Check if the variable is assigned to a function output
         if id in self.assigned:
-            """if id in self.being_assigned:
+            if id in self.being_assigned:
                 varmap = self.assigned[id]
                 if not varmap.is_variable():
                     mapto = MappingNode().set_variable(id)
                     block_id = self.used_vars.get(id, self.block_id)
                     FunctionDescriptor.describe_composition(self.g, block_id, [Mapping(varmap, mapto)])
-                    self.assigned[id] = mapto"""
+                    self.assigned[id] = mapto
             return self.assigned[id]
         
         # Check if it references an imported object
@@ -338,15 +338,14 @@ class FlowDescriptor:
             if isinstance(target, ast.Name):
                 # Handle assignment to variable
                 target = get_name(target.id)
-                value_output = self.handle_stmt(value)
 
                 # Indicate which variable is getting assigned to handle augmented assignments
-                """self.being_assigned[target] = self.being_assigned.get(target, 0) + 1
+                self.being_assigned[target] = self.being_assigned.get(target, 0) + 1
                 value_output = self.handle_stmt(value)
                 if self.being_assigned[target] == 1:
                     del self.being_assigned[target]
                 else:
-                    self.being_assigned[target] -= 1"""
+                    self.being_assigned[target] -= 1
 
                 if target not in self.used_vars:
                     self.assigned[target] = value_output
@@ -1419,8 +1418,8 @@ class FlowDescriptor:
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'IfExprOutput'))
     
-    def handle_for(self, target, iter):
-        if "for" not in self.f_counter:
+    def handle_for(self, target, iterator):
+        """if "for" not in self.f_counter:
             self.f_counter["for"] = 1
             _, desc = PipelineGraph.from_std("for")
             self.g += desc
@@ -1429,28 +1428,40 @@ class FlowDescriptor:
         
         f = to_uri(PrefixMap.pf(), 'for')
         call = URIRef(f"{f}_{self.f_counter['for']}")
-        self.g += FunctionDescriptor.apply(call, f)
+        self.g += FunctionDescriptor.apply(call, f)"""
+        
+        # Create the iterator
+        mapfrom = self.handle_stmt(iterator)
+        name = iter.__name__
+        context = "iter"
+        iter_output = self.handle_func(name, context, iter, [mapfrom])
+        
+        # Create the next call
+        name = next.__name__
+        context = "next"
+        next_output = self.handle_func(name, context, next, [iter_output])
 
         # Create a variable for the targets
         if isinstance(target, ast.Tuple):
             for i, elt in enumerate(target.elts):
                 elt_output = self.handle_stmt(elt)
-                mapto = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput')).set_strategy(i)
-                self.handle_assignment(mapto, [self.name_node(elt_output.get_value())])
+                # mapto = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput')).set_strategy(i)
+                self.handle_assignment(next_output.set_strategy(i), [self.name_node(elt_output.get_value())])
+                next_output.set_strategy(None)
         else:
             target_output = self.handle_stmt(target)
-            mapto = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput'))
-            self.handle_assignment(mapto, [self.name_node(target_output.get_value())])
+            # mapto = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput'))
+            self.handle_assignment(next_output, [self.name_node(target_output.get_value())])
         
         # Link the iter parameter
-        mapfrom = self.handle_stmt(iter)
-        mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'IterParameter'))
-        FunctionDescriptor.describe_composition(self.g, self.block_id, [Mapping(mapfrom, mapto)])
+        # mapfrom = self.handle_stmt(iter)
+        # mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'IterParameter'))
+        # FunctionDescriptor.describe_composition(self.g, self.block_id, [Mapping(mapfrom, mapto)])
 
-        iter_out = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput'))
+        # iter_out = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput'))
         if_next = URIRef(f"{self.scope}_Block{self.block.exits[0].target.id}")
         followed_by = URIRef(f"{self.scope}_Block{self.block.exits[1].target.id}")
-        FunctionDescriptor.link_with_iterator(self.g, iter_out, self.block_id, if_next, followed_by)
+        FunctionDescriptor.link_with_iterator(self.g, next_output, self.block_id, if_next, followed_by)
     
     def handle_if(self, test):
         condition = self.handle_stmt(test)

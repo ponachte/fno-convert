@@ -197,9 +197,9 @@ class ForFlowComposition(Composition):
 
         ### ITERATOR ###
 
-        f, par = g.get_iterator(comp)
-        self.iterator_value = flow.get_terminal(f, par)
-        self.iterator = None
+        f, _ = g.get_iterator(comp)
+        self.iterator = flow.functions[f]
+        self.hasNext = None
         if g.in_composition(comp, f, full=False):
             self.process.append(flow.functions[f])
 
@@ -220,11 +220,21 @@ class ForFlowComposition(Composition):
         else:
             next_comp = Composition.build_composition(flow, g, next_comp)
         self.followed_by = next_comp
-    def next(self):
-        if self.iterator is None:
-            self.iterator = iter(self.iterator_value.value)
-        
-
     
+    def execute(self):
+        try:
+            if self.hasNext is None:
+                super().execute()
+            else:
+                self.iterator.execute()
+            self.hasNext = True
+        except StopIteration:
+            self.hasNext = False
+           
+    def next(self):        
+        if self.hasNext:
+            return self.if_next
+        return self.followed_by
+        
     def control_flows(self):
         return [(self.if_next, 'IF NEXT'), (self.followed_by, 'FOLLOWED BY')]
