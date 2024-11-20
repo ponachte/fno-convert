@@ -122,9 +122,13 @@ class FlowViewWidget(DockArea):
 
         # add all mappings
         for comp in flow.compositions.values():
-            self.addComposition(comp)
+            comp_item = self.addComposition(comp)
             for mapping in comp.mappings:
-                self.addMapping(mapping.source, mapping.target)
+                _, source_item, target_item = self.addMapping(mapping.source, mapping.target)
+                if isinstance(source_item, VariableGraphicsItem):
+                    comp_item.addItem(source_item)
+                elif isinstance(target_item, VariableGraphicsItem):
+                    comp_item.addItem(target_item)
         
         # add all control flow mappings
         for comp in self.compositions:
@@ -194,7 +198,7 @@ class FlowViewWidget(DockArea):
         self.viewBox().addItem(item)
         self.mappings.add(item)
 
-        return item
+        return item, source, target
 
     def addControlFlow(self, comp: Composition, next: Composition, label: str):
         comp = self.compositions[comp]

@@ -2,23 +2,24 @@ from pyqtgraph import GraphicsObject
 from PyQt6.QtGui import QColor, QPen, QBrush
 from PyQt6.QtWidgets import QGraphicsTextItem
 from PyQt6.QtCore import Qt, QRectF, QPointF
-from typing import List
+from typing import Set
 
 from ..execute.composition import Composition
 from .process import ProcessGraphicsItem
+from .store import VariableGraphicsItem
 
 STD_COLOR = QColor(200, 200, 200, 100)
 
 class CompositionGraphicsItem(GraphicsObject):
 
-    def __init__(self, comp: Composition, functions: List[ProcessGraphicsItem]):
+    def __init__(self, comp: Composition, functions):
         GraphicsObject.__init__(self)
         self.comp = comp
-        self.functions = functions
+        self.items = functions
         self.control_flows = {}
 
         self.child_comps = set()
-        for fun in self.functions:
+        for fun in self.items:
             if len(fun.compositions) == 0:
                 fun.setParentItem(self)
             else:
@@ -45,11 +46,17 @@ class CompositionGraphicsItem(GraphicsObject):
     def setColor(self, color: QColor):
         pen_color = color.darker(105)
         self.pen = QPen(pen_color, 4)
+    
+    def addItem(self, item):
+        item.setParentItem(self)
+        item.compositions.add(self)
+        self.items.add(item)
+        self.updateBounds()
 
     def updateBounds(self):
         combined_bounds = None
 
-        for item in self.functions:
+        for item in self.items:
             if item.isVisible():
                 # Map each item's bounding rectangle to the parent (composition) coordinates
                 item_bounds = item.mapRectToParent(item.boundingRect())
@@ -89,7 +96,7 @@ class CompositionGraphicsItem(GraphicsObject):
             self.setVisible(True)
             item.setVisible(True)
         else:
-            self.setVisible(any([item.isVisible() for item in self.functions]))
+            self.setVisible(any([item.isVisible() for item in self.items]))
         
         for control_flow in self.control_flows.values():
             control_flow.checkVisible()
@@ -127,9 +134,13 @@ class CompositionGraphicsItem(GraphicsObject):
     
     def itemChange(self, change, value):
         if change == self.GraphicsItemChange.ItemPositionHasChanged:
-            for function in self.functions:
-                for item in function.terminals.values():
-                    item.functionMoved()
+            for item in self.items:
+                if isinstance(item, ProcessGraphicsItem):
+                    for term in item.terminals.values():
+                        term.functionMoved()
+                elif isinstance(item, VariableGraphicsItem):
+                    for mapping in item.mappings.values():
+                        mapping.updateLine()
             for control_flow in self.control_flows.values():
                 control_flow.updateLine()
         return GraphicsObject.itemChange(self, change, value)

@@ -135,6 +135,8 @@ class VariableGraphicsItem(StoreGraphicsItem):
         self.nameItem.setPos(circle_center.x() - name_width/2, circle_center.y() - name_height/2)
         self.nameItem.setZValue(1)
         self.circle.setZValue(0)
+        
+        self.compositions = set()
     
     def setColor(self, color: QColor):
         pen_color = color.darker(105)
@@ -215,4 +217,6 @@ class VariableGraphicsItem(StoreGraphicsItem):
         if change == self.GraphicsItemChange.ItemPositionHasChanged:
             for mapping in self.mappings.values():
                 mapping.updateLine()
+            for comp in self.compositions:
+                comp.updateBounds()
         return GraphicsObject.itemChange(self, change, value)
