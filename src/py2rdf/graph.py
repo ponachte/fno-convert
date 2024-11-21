@@ -166,8 +166,10 @@ class PipelineGraph(Graph):
             True if the URI is an iterator, False otherwise
         """
         results = self.query(
-            f'''ASK WhERE {{ ?comp fnoc:iterator <{s}> . }}''',
-            initNs=PrefixMap.NAMESPACES
+            f'''ASK WhERE {{ 
+                ?comp fnoc:iterator ?iter .
+                ?iter fnoc:constituentFunction <{s}> .
+            }}''', initNs=PrefixMap.NAMESPACES
         )
         return True if results else False
 
@@ -203,67 +205,6 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-    def in_composition(self, comp, call, full=True) -> bool:
-        """
-        Checks if a function call is within a composition.
-
-        :param comp: URIRef
-            The URI of the composition.
-        :param call: URIRef
-            The function call URI to check.
-        :param full: bool
-            If True, checks both mappings (mapFrom and mapTo). 
-            If False, only mapFrom is checked.
-        :return: bool
-            True if the function call is within the composition, False otherwise.
-        """
-        # Query to check the 'mapTo' part
-        mapto_query = self.query(f'''
-            ASK WHERE {{
-                <{comp}> fnoc:composedOf ?mapping .
-                ?mapping fnoc:mapTo ?mapto .
-                ?mapto fnoc:constituentFunction <{call}> .
-            }}''', initNs=PrefixMap.NAMESPACES)
-
-        # If 'full' is True, also check the 'mapFrom' part
-        mapfrom_query = True  # Default to True if full is False
-        if full:
-            mapfrom_query = self.query(f'''
-                ASK WHERE {{
-                    <{comp}> fnoc:composedOf ?mapping .
-                    ?mapping fnoc:mapFrom ?mapfrom .
-                    ?mapfrom fnoc:constituentFunction <{call}> .
-                }}''', initNs=PrefixMap.NAMESPACES)
-            
-            mapfrom_flow_query = self.query(f'''
-                ASK WHERE {{
-                    ?comp a fnoc:ForFlowComposition ;
-                        fnoc:composedOf ?mapping .
-                    ?mapping fnoc:mapFrom ?mapfrom .
-                    ?mapfrom fnoc:constituentFunction <{call}> .
-                }}''', initNs=PrefixMap.NAMESPACES)
-            
-            mapfrom_query = (True if mapfrom_query else False) or (True if mapfrom_flow_query else False)
-
-        # Both queries need to return True if 'full' is True; otherwise, only 'mapTo' matters
-        return (True if mapto_query else False) and (True if mapfrom_query else False)
-
-    def has_pipeline(self, s) -> bool:
-        """
-        Checks if a function has an associated pipeline.
-        
-        :param s: URIRef
-            The function URI to check.
-        :return: bool
-            True if the function has an associated pipeline, False otherwise.
-        """
-        p = to_uri(PrefixMap.base(), f"{self.get_name(s)}Pipeline")
-        results = self.query(
-            f'''ASK WHERE {{ <{p}> a fnoc:Composition . }}''', 
-            initNs=PrefixMap.NAMESPACES
-        )
-        return True if results else False
-
     def get_function(self, name):
         """
         Retrieves the function URI for a given name.
@@ -288,33 +229,6 @@ class PipelineGraph(Graph):
         except Exception as e:
             print(f"Error while querying function from name {name}: <{e}>")
             return
-
-    def get_pipeline(self, call):
-        """
-        Retrieves the pipeline URI associated with a function call.
-
-        :param call: URIRef
-            The function call URI to check.
-        :return: URIRef or None
-            The pipeline URI or None if not found.
-        """
-        result = [
-            x['p'] for x in self.query(f'''
-                SELECT ?p WHERE {{
-                    <{call}> fno:composition ?p .
-                }}''', initNs=PrefixMap.NAMESPACES)
-        ]
-        if len(result) > 0:
-          return result[0]
-        
-        result = [
-            x['p'] for x in self.query(f'''
-                SELECT ?p WHERE {{
-                    <{self.check_call(call)}> fno:composition ?p .
-                }}''', initNs=PrefixMap.NAMESPACES)
-        ]
-
-        return result[0] if len(result) > 0 else None
 
     def get_parameters(self, f) -> list[str]:
         """
@@ -411,21 +325,22 @@ class PipelineGraph(Graph):
             ''', initNs=PrefixMap.NAMESPACES)
         ]
 
-    def get_param_predicate(self, param) -> str:
+    def get_predicate(self, s):
         """
-        Retrieves the predicate of a given parameter.
+        Retrieves the predicate of a given parameter or output.
 
-        :param param: URIRef
-            The parameter URI to retrieve the predicate for.
-        :return: str
-            The predicate of the parameter.
+        :param s: URIRef
+            The parameter or output URI to retrieve the predicate for.
+        :return: URIRef
+            The predicate of the parameter or output.
         """
         return [
             x['pred']
             for x in self.query(f'''
                 SELECT ?pred WHERE {{
-                    <{param}> a fno:Parameter ;
-                              fno:predicate ?pred .
+                    VALUES ?type {{ fno:Parameter fno:Output }}
+                    <{s}> a ?type ;
+                          fno:predicate ?pred .
                 }}
             ''', initNs=PrefixMap.NAMESPACES)
         ][0]
@@ -618,26 +533,6 @@ class PipelineGraph(Graph):
         )
         return True if results else False
 
-    def get_predicate(self, s):
-        """
-        Retrieves the predicate of a given parameter or output.
-
-        :param s: URIRef
-            The parameter or output URI to retrieve the predicate for.
-        :return: str
-            The predicate of the parameter or output.
-        """
-        return [
-            x['pred']
-            for x in self.query(f'''
-                SELECT ?pred WHERE {{
-                    VALUES ?type {{ fno:Parameter fno:Output }}
-                    <{s}> a ?type ;
-                          fno:predicate ?pred .
-                }}
-            ''', initNs=PrefixMap.NAMESPACES)
-        ][0]
-
     def get_output_predicate(self, f) -> str:
         """
         Retrieves the predicate for the output of a function.
@@ -680,7 +575,7 @@ class PipelineGraph(Graph):
         ]
         return result[0] if len(result) > 0 else Any
      
-    def has_flow(self, f):
+    def has_composition(self, f):
          result = self.query(f'''
                 ASK WHERE {{
                     <{f}> a fno:Function ;
@@ -690,7 +585,7 @@ class PipelineGraph(Graph):
 
          return True if result else False
      
-    def start_of_flow(self, f):
+    def start_composition(self, f):
          """
          Retrieve the URI of the first block of the flow describing a FnO Function.
 
@@ -778,8 +673,61 @@ class PipelineGraph(Graph):
                     fnoc:functionOutput | fnoc:functionParameter ?target .
             }}''', initNs=PrefixMap.NAMESPACES)]
          return result[0] if len(result) == 1 else None
+    
+    def in_composition(self, comp, call, full=True) -> bool:
+        """
+        Checks if a function call is within a composition.
+
+        :param comp: URIRef
+            The URI of the composition.
+        :param call: URIRef
+            The function call URI to check.
+        :param full: bool
+            If True, checks both mappings (mapFrom and mapTo). 
+            If False, only mapFrom is checked.
+        :return: bool
+            True if the function call is within the composition, False otherwise.
+        """
+        # Query to check the 'mapTo' part
+        mapto_query = self.query(f'''
+            ASK WHERE {{
+                <{comp}> fnoc:composedOf ?mapping .
+                ?mapping fnoc:mapTo ?mapto .
+                ?mapto fnoc:constituentFunction <{call}> .
+            }}''', initNs=PrefixMap.NAMESPACES)
+
+        # If 'full' is True, also check the 'mapFrom' part
+        mapfrom_query = True  # Default to True if full is False
+        if full:
+            mapfrom_query = self.query(f'''
+                ASK WHERE {{
+                    <{comp}> fnoc:composedOf ?mapping .
+                    ?mapping fnoc:mapFrom ?mapfrom .
+                    ?mapfrom fnoc:constituentFunction <{call}> .
+                }}''', initNs=PrefixMap.NAMESPACES)
+            
+            mapfrom_flow_query = self.query(f'''
+                ASK WHERE {{
+                    ?comp a fnoc:ForFlowComposition ;
+                        fnoc:composedOf ?mapping .
+                    ?mapping fnoc:mapFrom ?mapfrom .
+                    ?mapfrom fnoc:constituentFunction <{call}> .
+                }}''', initNs=PrefixMap.NAMESPACES)
+            
+            mapfrom_query = (True if mapfrom_query else False) or (True if mapfrom_flow_query else False)
+
+        # Both queries need to return True if 'full' is True; otherwise, only 'mapTo' matters
+        return (True if mapto_query else False) and (True if mapfrom_query else False)
      
     def get_mappings(self, c):
+        """
+        Get all the mappings from a given composition
+        
+        :param c: URIRef
+            The URI of the composition
+        :return:
+            A set of tuples where the first element is the 'mapfrom' node and the second element is the 'mapto' node
+        """
         results = self.query(f'''
             SELECT ?mapfrom ?mapto WHERE {{
                 <{c}> fnoc:composedOf ?mapping .
@@ -792,11 +740,29 @@ class PipelineGraph(Graph):
         return set([ (m['mapfrom'], m['mapto']) for m in results ])
     
     def is_function_mapping(self, endpoint):
+        """
+        Check if a mapping endpoint is 'function mapping'. In other words it maps the parameter/output of a function.
+        
+        :param endpoint:
+        The URI of the mapping endpoint (blank node)
+        
+        :return: bool
+        True if the endpoint is a 'function mapping'. False otherwise.
+        """
         results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFrom | fnoc:mapTo ?endpoint }}''',
                              initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
         return True if results else False
     
     def get_function_mapping(self, endpoint):
+        """
+        Get the URI of the function and the parameter used in a 'function mapping'.
+        
+        :param URIRef endpoint:
+        The URI of the mapping endpoint (blank node)
+        
+        :return:
+        A tuple where the first element is the function URI and the second element is the parameter URI.
+        """
         result = [ (x['f'], x['ter']) for x in self.query(f'''
             SELECT ?f ?ter WHERE {{
                ?endpoint fnoc:constituentFunction ?f ;
@@ -805,11 +771,29 @@ class PipelineGraph(Graph):
         return result
     
     def is_term_mapping(self, endpoint):
+        """
+        Check if a mapping endpoint is 'term mapping'. In other words it maps a constant.
+        
+        :param URIRef endpoint:
+        The URI of the mapping endpoint (blank node)
+        
+        :return:
+        True if the endpoint is a 'term mapping'. False otherwise.
+        """
         results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFromTerm ?endpoint }}''',
                              initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
         return True if results else False
     
     def is_var_mapping(self, endpoint):
+        """
+        Check if a mapping endpoint is 'var mapping'. In other words it maps a variable.
+        
+        :param URIRef endpoint:
+        The URI of the mapping endpoint (blank node)
+        
+        :return:
+        True if the endpoint is a 'variable mapping'. False otherwise.
+        """
         results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFromVariable | fnoc:mapToVariable ?endpoint }}''',
                              initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
         return True if results else False
@@ -818,19 +802,18 @@ class PipelineGraph(Graph):
           """
           Retrieve the mapping strategy employed between two functions within the pipeline.
 
-          Args:
-               f (str): The function URI of the pipeline.
-               f1 (str): The URI of the first constituent function.
-               par1 (str): The parameter of the first constituent function.
-               f2 (str): The URI of the second constituent function.
-               par2 (str): The parameter of the second constituent function.
+          :param rdflib.URIRef f: The function URI of the pipeline.
+          :param rdflib.URIRef f1: The URI of the first constituent function.
+          :param rdflib.URIRef par1: The parameter of the first constituent function.
+          :param rdflib.URIRef f2: The URI of the second constituent function.
+          :param rdflib.URIRef par2: The parameter of the second constituent function.
 
-          Returns:
-               list: A list of tuples representing the mapping strategy, each tuple containing:
-                    - The index or property of the source function (fromindex)
-                    - The index or property of the target function (toindex)
+          :return list:
+            A list of tuples representing the mapping strategy, each tuple containing:
+                - The index or property of the source function (fromindex)
+                - The index or property of the target function (toindex)
           """
-          p = self.get_pipeline(f)
+          p = self.get_composition(f)
           return [
                (x['fromindex'].value if x['fromindex'] is not None else None, 
                 x['toindex'].value if x['toindex'] is not None else None) 
@@ -864,7 +847,7 @@ class PipelineGraph(Graph):
           Returns:
                list: A list of strategy values for mapping the term, representing the index or property.
           """
-          p = self.get_pipeline(c)
+          p = self.get_composition(c)
           return [
                x['index'].value for x in self.query(f'''
                SELECT ?strategy ?index WHERE {{

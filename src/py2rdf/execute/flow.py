@@ -18,7 +18,7 @@ class Flow:
         self.constants = set()
         self.compositions = {}
 
-        self.start = Composition.build_composition(self, g, g.start_of_flow(self.f_uri))
+        self.start = Composition.build_composition(self, g, g.start_composition(self.f_uri))
     
     def add_internal_flow(self, g, fun):
         flow = Flow(g, fun.call_uri, outer_fun=fun)

@@ -34,7 +34,7 @@ class Composition:
                 flow.functions[call] = Function(g, call, fun, flow.scope)
             if g.in_composition(comp, call):
                 self.process.add(flow.functions[call])
-            if fun != flow.f_uri and g.has_flow(fun):
+            if fun != flow.f_uri and g.has_composition(fun):
                 flow.add_internal_flow(g, flow.functions[call])
 
         ### MAPPINGS ###
