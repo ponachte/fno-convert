@@ -234,6 +234,16 @@ class PipelineGraph(Graph):
                     ?mapping fnoc:mapFrom ?mapfrom .
                     ?mapfrom fnoc:constituentFunction <{call}> .
                 }}''', initNs=PrefixMap.NAMESPACES)
+            
+            mapfrom_flow_query = self.query(f'''
+                ASK WHERE {{
+                    ?comp a fnoc:ForFlowComposition ;
+                        fnoc:composedOf ?mapping .
+                    ?mapping fnoc:mapFrom ?mapfrom .
+                    ?mapfrom fnoc:constituentFunction <{call}> .
+                }}''', initNs=PrefixMap.NAMESPACES)
+            
+            mapfrom_query = (True if mapfrom_query else False) or (True if mapfrom_flow_query else False)
 
         # Both queries need to return True if 'full' is True; otherwise, only 'mapTo' matters
         return (True if mapto_query else False) and (True if mapfrom_query else False)

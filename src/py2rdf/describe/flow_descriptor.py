@@ -42,6 +42,7 @@ class FlowDescriptor:
         self.default_map = {}
         self.var_types = {}
         self.returns = []
+        self.for_loops = {}
 
         self.depth = 0
         self.max_depth = max_depth
@@ -119,6 +120,7 @@ class FlowDescriptor:
                     prev_returns = self.returns
                     prev_used = self.used_vars
                     prev_types = self.var_types
+                    prev_loops = self.for_loops
 
                     # Enter scope of function
                     self.scope = s
@@ -126,6 +128,7 @@ class FlowDescriptor:
                     self.returns = []
                     self.used_vars = {}
                     self.var_types = {}
+                    self.for_loops = {}
 
                     # Assign parameters to function arguments
                     parameters = self.g.get_param_predicates(s)
@@ -149,6 +152,7 @@ class FlowDescriptor:
                     self.returns = prev_returns
                     self.used_vars = prev_used
                     self.var_types = prev_types
+                    self.for_loops = prev_loops
                     
         except TypeError as e:
             print("Error: Unable to describe flow of builtin functions.")
@@ -177,6 +181,8 @@ class FlowDescriptor:
             FunctionDescriptor.set_comp_type(self.g, self.block_id)
             for link in block.exits:
                 target_id = URIRef(f"{self.scope}_Block{link.target.id}")
+                if target_id in self.for_loops:
+                    target_id = self.for_loops[target_id]
                 FunctionDescriptor.link(self.g, self.block_id, target_id)
         
         # Variables used in previous blocks need to be explictly mapped
@@ -1418,25 +1424,18 @@ class FlowDescriptor:
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'IfExprOutput'))
     
-    def handle_for(self, target, iterator):
-        """if "for" not in self.f_counter:
-            self.f_counter["for"] = 1
-            _, desc = PipelineGraph.from_std("for")
-            self.g += desc
-        else:
-            self.f_counter["for"] += 1
-        
-        f = to_uri(PrefixMap.pf(), 'for')
-        call = URIRef(f"{f}_{self.f_counter['for']}")
-        self.g += FunctionDescriptor.apply(call, f)"""
-        
-        # Create the iterator
+    def handle_for(self, target, iterator):    
+        # Create the iterator      
         mapfrom = self.handle_stmt(iterator)
         name = iter.__name__
         context = "iter"
         iter_output = self.handle_func(name, context, iter, [mapfrom])
         
-        # Create the next call
+        # Create the next call in a separate composition
+        self.for_loops[self.block_id] = URIRef(f"{self.scope}_For_{len(self.for_loops)}")
+        prev_block_id = self.block_id
+        self.block_id = self.for_loops[prev_block_id]
+        
         name = next.__name__
         context = "next"
         next_output = self.handle_func(name, context, next, [iter_output])
@@ -1445,28 +1444,30 @@ class FlowDescriptor:
         if isinstance(target, ast.Tuple):
             for i, elt in enumerate(target.elts):
                 elt_output = self.handle_stmt(elt)
-                # mapto = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput')).set_strategy(i)
                 self.handle_assignment(next_output.set_strategy(i), [self.name_node(elt_output.get_value())])
                 next_output.set_strategy(None)
         else:
             target_output = self.handle_stmt(target)
-            # mapto = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput'))
             self.handle_assignment(next_output, [self.name_node(target_output.get_value())])
         
-        # Link the iter parameter
-        # mapfrom = self.handle_stmt(iter)
-        # mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'IterParameter'))
-        # FunctionDescriptor.describe_composition(self.g, self.block_id, [Mapping(mapfrom, mapto)])
-
-        # iter_out = MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TargetOutput'))
         if_next = URIRef(f"{self.scope}_Block{self.block.exits[0].target.id}")
         followed_by = URIRef(f"{self.scope}_Block{self.block.exits[1].target.id}")
         FunctionDescriptor.link_with_iterator(self.g, next_output, self.block_id, if_next, followed_by)
+        
+        # Link iterator composition and next composition
+        FunctionDescriptor.set_comp_type(self.g, prev_block_id)
+        FunctionDescriptor.link(self.g, prev_block_id, self.block_id)
+        
+        self.block_id = prev_block_id
     
     def handle_if(self, test):
         condition = self.handle_stmt(test)
         is_true = URIRef(f"{self.scope}_Block{self.block.exits[0].target.id}")
+        if is_true in self.for_loops:
+            is_true = self.for_loops[is_true]
         is_false = URIRef(f"{self.scope}_Block{self.block.exits[1].target.id}")
+        if is_false in self.for_loops:
+            is_false = self.for_loops[is_false]
         FunctionDescriptor.link_with_condition(self.g, condition, self.block_id, is_true, is_false)
     
     def function_to_rdf(self, fun_name, context, fun, num, keywords, self_class=None, static=None):
