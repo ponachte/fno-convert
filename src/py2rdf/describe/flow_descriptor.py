@@ -653,7 +653,7 @@ class FlowDescriptor:
         
         # Map all parameters that were not mapped to its default values
         for par in defaults:
-            pred = get_name(self.g.get_param_predicate(par))
+            pred = get_name(self.g.get_predicate(par))
             if context in self.default_map and pred in self.default_map[context]:
                 default = self.default_map[context][pred]
                 mapfrom = MappingNode().set_constant(default)
