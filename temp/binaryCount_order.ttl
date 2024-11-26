@@ -1,0 +1,64 @@
+:binarycount_Composition a prov:Entity, fnoc:Composition ;
+    fnoc:represents :binarycount
+    fnoc:composedOf
+        [ fnoc:mapFrom [ fnoc:constituentFunction :binarycount ;
+                    fnoc:functionParameter :binarycountParameter0 ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :enumerate_1 ;
+                    fnoc:functionParameter :enumerateParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction :enumerate_1 ;
+                    fnoc:functionOutput :enumerateOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :iter_1 ;
+                    fnoc:functionParameter :iterParameter0 ] ] ;
+        [ fnoc:mapFrom [ fnoc:constituentFunction :next_1 ;
+                    fnoc:functionOutput :nextOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :op_eq_1 ;
+                    fnoc:functionParameter :op_eqParameter0 ] ],
+        [ fnoc:mapFromTerm 1 ;
+            fnoc:mapTo [ fnoc:constituentFunction :op_eq_1 ;
+                    fnoc:functionParameter :op_eqParameter1 ] ] ;
+        [ fnoc:mapFrom [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionOutput :op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :binarycount ;
+                    fnoc:functionParameter :binarycountOutput ] ] .
+        [ fnoc:mapFrom [ fnoc:constituentFunction :next_1 ;
+                    fnoc:functionOutput :nextOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :op_pow_1 ;
+                    fnoc:functionParameter :op_powParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction :op_pow_1 ;
+                    fnoc:functionOutput :op_powOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionParameter :op_addParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionOutput :op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionParameter :op_addParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionOutput :op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionParameter :op_addParameter0 ] ],
+        [ fnoc:mapFromTerm 2 ;
+            fnoc:mapTo [ fnoc:constituentFunction :op_pow_1 ;
+                    fnoc:functionParameter :op_powParameter0 ] ] ;
+        [ fnoc:mapFrom [ fnoc:constituentFunction :iter_1 ;
+                    fnoc:functionOutput :iterOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :next_1 ;
+                    fnoc:functionParameter :nextParameter0 ] ] .
+
+:enumerate_1 fnoc:applies :enumerate ;
+    fnoc:next :iter_1 .
+
+:iter_1 fnoc:applies :iter ;
+    fnoc:next :next_1 .
+
+:next_1 fnoc:applies :next ;
+    fnoc:iterate :op_eq_1 .
+
+:op_eq_1 fnoc:applies :op_eq ;
+    fnoc:false :next_1 ;
+    fnoc:true :op_pow_1 .
+
+:op_pow_1 fnoc:applies :op_pow ;
+    fnoc:next :op_add_1 .
+
+:op_add_1 fnoc:applies :op_add ;
+    fnoc:next :next_1

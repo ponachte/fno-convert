@@ -81,7 +81,7 @@ class Function(ObjectProcess):
 
         ### TERMINALS ###
 
-        self.terminals.update({ par: Terminal(self, par, g.get_param_predicate(par), 
+        self.terminals.update({ par: Terminal(self, par, g.get_predicate(par), 
                                               type=g.get_param_type(par), 
                                               param_mapping=ParameterMapping(g, fun, par)) for par in g.get_parameters(fun) })
         if g.has_self(fun):
@@ -179,11 +179,11 @@ class FunctionLink(ObjectProcess):
         else:
             # Input terminals as output
             for par in g.get_parameters(fun):
-                self.terminals[par] = Terminal(self, par, g.get_param_predicate(par), type=g.get_param_type(par), is_output=True)
+                self.terminals[par] = Terminal(self, par, g.get_predicate(par), type=g.get_param_type(par), is_output=True)
 
                 if outer_fun is not None:
                     link_uri = URIRef(f"{par}_link")
-                    link = Terminal(self, link_uri, g.get_param_predicate(par), type=g.get_param_type(par))
+                    link = Terminal(self, link_uri, g.get_predicate(par), type=g.get_param_type(par))
                     self.links[par] = link
 
             if g.has_self(fun):

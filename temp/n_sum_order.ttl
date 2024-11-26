@@ -1,0 +1,44 @@
+:n_sum_Composition a prov:Entity,
+        fnoc:Composition ;
+    fnoc:represents :n_sum
+    fnoc:start range_1 ;
+    fnoc:composedOf 
+        [ fnoc:mapFromTerm 0 ;
+           fnoc:mapTo [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionParameter :op_addParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction :range_1 ;
+                    fnoc:functionOutput :rangeOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :iter_1 ;
+                    fnoc:functionParameter :iterParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction :n_sum ;
+                    fnoc:functionParameter :n_sumParameter0 ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :range_1 ;
+                    fnoc:functionParameter :rangeParameter0 ] ] ;
+        [ fnoc:mapFrom [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionOutput :op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionParameter :op_addParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction :next_1 ;
+                    fnoc:functionOutput :nextOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionParameter :op_addParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction :iter_1 ;
+                    fnoc:functionOutput :iterOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :next_1 ;
+                    fnoc:functionParameter :nextParameter0 ] ] ;
+        [ fnoc:mapFrom [ fnoc:constituentFunction :op_add_1 ;
+                    fnoc:functionOutput :op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction :n_sum ;
+                    fnoc:functionParameter :n_sumOutput ] ] .
+
+:range_1 fnoc:applies :range ;
+    fnoc:next :iter_1 .
+
+:iter_1 fnoc:applies :iter ;
+    fnoc:next :next_1 .
+
+:next_1 fnoc:applies :next ;
+    fnoc:iterate :op_add_1 .
+
+:op_add_1 fnoc:applies :op_add ;
+    fnoc:next :next_1
