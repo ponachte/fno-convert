@@ -1,6 +1,5 @@
 from ..graph import get_name, PipelineGraph
 from rdflib import URIRef
-from PyQt6.QtCore import pyqtSignal, QObject
 from enum import Enum, auto
 
 class MappingType(Enum):
@@ -35,49 +34,41 @@ class ParameterMapping:
 
 class Mapping:
 
-    def __init__(self, source: "ValueStore", target: "ValueStore") -> None:
-        self.source = source
+    def __init__(self, sources, target: "ValueStore") -> None:
+        self.priority = None
+        self.sources = { priority: source for priority, source in sources }
         self.target = target
-        source.connect_to(target, self)
+    
+    def set_priority(self, priority):
+        self.priority = priority
+    
+    def execute(self):
+        self.target.set_value(self.sources[self.priority].value)
 
-class ValueStore(QObject):
+class ValueStore:
 
-    valueChange = pyqtSignal(bool)
-
-    def __init__(self, name, value=None, type=None) -> None:
-        super().__init__()
-        
-        self.name = name
+    def __init__(self, value=None, type=None) -> None:        
         self.value = None
         self.type = type
-
-        self.sends_to = set()
-        self.depends_on = set()
-        self.mappings = {}
         
         if value is not None:
-            self.setValue(value)
+            self.set_value(value)
 
-    def setValue(self, value):
+    def set_value(self, value):
         if value != self.value:
-            if self.type is not None and not type(value) == self.type:
-                self.valueChange.emit(False)
             self.value = value
-            self.valueChange.emit(True)
     
-    def connect_to(self, target: "ValueStore", mapping: "Mapping"):
-        self.sends_to.add(target)
-        target.depends_on.add(self)
-        self.mappings[target] = mapping
+    def __hash__(self) -> int:
+        return hash(self.value)
     
-    def propagate(self):
-        for target in self.sends_to:
-            target.setValue(self.value)
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, ValueStore) and self.value == other.value
 
 class Terminal(ValueStore):
 
     def __init__(self, fun, uri: URIRef, pred: str, value=None, type=None, is_output=False, param_mapping=None) -> None:
-        super().__init__(get_name(pred), value, type)
+        super().__init__(value, type)
+        self.name = get_name(pred)
         self.fun = fun
         self.uri = uri
         self.pred = pred
@@ -89,14 +80,3 @@ class Terminal(ValueStore):
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Terminal) and self.uri == other.uri and self.fun == other.fun
-
-class Variable(ValueStore):
-
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
-    
-    def __hash__(self) -> int:
-        return hash(self.name)
-    
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, Terminal) and self.name == other.name

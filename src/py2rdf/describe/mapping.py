@@ -1,11 +1,12 @@
 from typing import List
-import copy
+from rdflib import URIRef
 
 class Mapping:
 
-    def __init__(self, mapfrom: "MappingNode" | List["MappingNode"], mapto: "MappingNode") -> None:
+    def __init__(self, mapfrom: "MappingNode" | List["MappingNode"], mapto: "MappingNode", priority: URIRef | None = None) -> None:
         self.mapfrom = mapfrom
         self.mapto = mapto
+        self.priority = priority
 
 class MappingNode:
 

@@ -65,6 +65,8 @@ class FnOBuilder():
             mapto = mapping.mapto
 
             g.add((comp, PrefixMap.ns('fnoc')["composedOf"], mapping_node))
+            if mapping.priority:
+                g.add((mapping_node, PrefixMap.ns('fnoc')["priority"], mapping.priority))
                 
             if mapfrom.from_term():
                 # map from term

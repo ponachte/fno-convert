@@ -7,10 +7,10 @@ from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
 import numpy as np
 
-from ..execute.flow import FnOExecutable
+from ..execute.flow import FnOFlow
 from ..execute.process import Process
 from ..execute.store import ValueStore, Terminal, Variable
-from ..execute.composition import Composition
+from ..execute.executeable import Composition
 from ..graph import PipelineGraph
 from .process import ProcessGraphicsItem
 from .store import StoreGraphicsItem, VariableGraphicsItem
@@ -84,7 +84,7 @@ class FlowViewWidget(DockArea):
     def viewBox(self):
         return self._viewBox
     
-    def setFlow(self, flow: FnOExecutable):
+    def setFlow(self, flow: FnOFlow):
         self.flow = flow
         self.process = {}
         self.internal_flows = {}
@@ -103,7 +103,7 @@ class FlowViewWidget(DockArea):
         
         self.autoArrange()
     
-    def addFlow(self, flow: FnOExecutable, internal=None):
+    def addFlow(self, flow: FnOFlow, internal=None):
         process_items = set()
 
         # add input and output

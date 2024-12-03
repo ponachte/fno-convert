@@ -4,7 +4,7 @@ from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from rdflib import URIRef
 from pyqtgraph import TreeWidget
 
-from ..execute.flow import FnOExecutable
+from ..execute.flow import FnOFlow
 from ..execute.store import Terminal
 from ..graph import PipelineGraph
 from .flowview import FlowViewWidget
@@ -33,7 +33,7 @@ class FlowCtrlWidget(QWidget):
         self.viewWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def setFlow(self, g: PipelineGraph, uri: URIRef):
-        self.flow = FnOExecutable(g, uri)
+        self.flow = FnOFlow(g, uri)
         self.viewWidget.setFlow(self.flow)
         self.inputWidget.setFlow(self.flow)
         self.functionList.setFlow(self.flow)
@@ -58,7 +58,7 @@ class InputWidget(QWidget):
         layout.addWidget(execute)
         self.setLayout(layout)
     
-    def setFlow(self, flow: FnOExecutable):
+    def setFlow(self, flow: FnOFlow):
         self.inputList.clear()
         self.flow = flow
         inputs = { inp for inp in flow.input.outputs() }
@@ -116,7 +116,7 @@ class FunctionList(QWidget):
         layout.addWidget(self.list)
         self.setLayout(layout)
     
-    def setFlow(self, flow: FnOExecutable):
+    def setFlow(self, flow: FnOFlow):
         self.list.clear()
         self.flow = flow
 

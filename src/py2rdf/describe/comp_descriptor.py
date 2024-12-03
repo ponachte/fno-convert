@@ -390,7 +390,8 @@ class CompositionDescriptor:
                 # If this variable is used by other inputs in another block, create new mappings that use the new value
                 if target in self.used_by:
                     for used_by in self.used_by[target]:
-                        self.mappings.append(Mapping(value_output, used_by))    
+                        mapping = Mapping(value_output, used_by, value_output.context)
+                        self.mappings.append(mapping)    
 
                 # Copy the type if the assigned value has a type
                 val_type = self.get_type(value_output.get_value())
@@ -817,9 +818,9 @@ class CompositionDescriptor:
         self.g += FnOBuilder.apply(call, f)
 
         # Handle the lower, upper, and step components of the slice
-        lower_name = self.handle_stmt(lower) if lower else [MappingNode().set_constant(None)]
-        upper_name = self.handle_stmt(upper) if upper else [MappingNode().set_constant(None)]
-        step_name = self.handle_stmt(step) if step else [MappingNode().set_constant(None)]
+        lower_name = self.handle_stmt(lower) if lower else MappingNode().set_constant(None)
+        upper_name = self.handle_stmt(upper) if upper else MappingNode().set_constant(None)
+        step_name = self.handle_stmt(step) if step else MappingNode().set_constant(None)
 
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'LowerIndexParameter'))
         self.handle_mapping(lower_name, mapto)

@@ -134,6 +134,42 @@ class PipelineGraph(Graph):
         if len(result) == 1:
             return result[0]
         return f
+    
+    def get_order(self, f):
+        next = [x['next'] for x in self.query(
+            f'''SELECT ?f WHERE {{ <{f}> fnoc:next ?next . }}''', 
+            initNs=PrefixMap.NAMESPACES
+        )]
+        if len(next) > 1:
+            raise Exception(f"Applied function has ambigous next order: {next}")
+        
+        iterate = [x['iterate'] for x in self.query(
+            f'''SELECT ?f WHERE {{ <{f}> fnoc:iterate ?iterate . }}''', 
+            initNs=PrefixMap.NAMESPACES
+        )]
+        if len(iterate) > 1:
+            raise Exception(f"Applied function has ambigous iterate order: {iterate}")
+        
+        iftrue = [x['iftrue'] for x in self.query(
+            f'''SELECT ?f WHERE {{ <{f}> fnoc:true ?iftrue . }}''', 
+            initNs=PrefixMap.NAMESPACES
+        )]
+        if len(iftrue) > 1:
+            raise Exception(f"Applied function has ambigous iftrue order: {iftrue}")
+        
+        iffalse = [x['iffalse'] for x in self.query(
+            f'''SELECT ?f WHERE {{ <{f}> fnoc:false ?iffalse . }}''', 
+            initNs=PrefixMap.NAMESPACES
+        )]
+        if len(iffalse) > 1:
+            raise Exception(f"Applied function has ambigous iftrue order: {iffalse}")
+        
+        return (
+            next[0] if next else None,
+            iterate[0] if iterate else None,
+            iftrue[0] if iftrue else None,
+            iffalse[0] if iffalse else None
+        )
 
     def get_name(self, f):
         """
@@ -610,6 +646,21 @@ class PipelineGraph(Graph):
          ''', initNs=PrefixMap.NAMESPACES)
          return True if result else False
      
+    def get_start(self, c: URIRef) -> bool:
+        result = [
+            x['start']
+            for x in self.query(f'''
+                SELECT ?start WHERE {{
+                    <{c}> fnoc:start ?start .
+                }}
+            ''', initNs=PrefixMap.NAMESPACES)
+        ]
+        
+        if len(result) > 1:
+            raise Exception(f"Composition has multiple starts: {result}")
+        if len(result) == 1:
+            return result[0]
+     
     def get_representations(self, c: URIRef) -> URIRef:
         result = [
             x['f']
@@ -631,15 +682,19 @@ class PipelineGraph(Graph):
             A set of tuples where the first element is the 'mapfrom' node and the second element is the 'mapto' node
         """
         results = self.query(f'''
-            SELECT ?mapfrom ?mapto WHERE {{
+            SELECT ?mapfrom ?mapto ?priority WHERE {{
                 <{c}> fnoc:composedOf ?mapping .
-                ?mapping fnoc:mapFrom | fnoc:mapFromTerm | fnoc:mapFromVariable ?mapfrom ;
+                ?mapping fnoc:mapFrom | fnoc:mapFromTerm ?mapfrom ;
                          fnoc:mapTo | fnoc:mapToVariable ?mapto .
+                
+                OPTIONAL {{
+                    ?mapping fnoc:priority ?priority
+                }}
             }}
         ''', initNs=PrefixMap.NAMESPACES)
 
         # Return the distinct set of mappings
-        return set([ (m['mapfrom'], m['mapto']) for m in results ])
+        return set([ (m['mapfrom'], m['mapto'], m['priority']) for m in results ])
     
     def is_function_mapping(self, endpoint):
         """
@@ -1009,15 +1064,14 @@ class PipelineGraph(Graph):
             A list containing the URIs of all the functions used inside the composition.
         """
         results = self.query(f'''
-            SELECT ?call ?func WHERE {{
-                ?call fnoc:applies ?func .
+            SELECT ?call WHERE {{
                 <{c}> fnoc:composedOf ?mapping .
                 ?mapping ?map ?node .
                 ?node fnoc:constituentFunction ?call .
             }}
             ''', initNs=PrefixMap.NAMESPACES) 
 
-        return  { (x['call'], x['func']) for x in results }
+        return  { x['call'] for x in results }
     
     def depends_on(self, c: URIRef, f: URIRef):
         """
