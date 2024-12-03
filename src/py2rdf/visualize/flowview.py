@@ -7,7 +7,7 @@ from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
 import numpy as np
 
-from ..execute.flow import Flow
+from ..execute.flow import FnOExecutable
 from ..execute.process import Process
 from ..execute.store import ValueStore, Terminal, Variable
 from ..execute.composition import Composition
@@ -84,7 +84,7 @@ class FlowViewWidget(DockArea):
     def viewBox(self):
         return self._viewBox
     
-    def setFlow(self, flow: Flow):
+    def setFlow(self, flow: FnOExecutable):
         self.flow = flow
         self.process = {}
         self.internal_flows = {}
@@ -103,7 +103,7 @@ class FlowViewWidget(DockArea):
         
         self.autoArrange()
     
-    def addFlow(self, flow: Flow, internal=None):
+    def addFlow(self, flow: FnOExecutable, internal=None):
         process_items = set()
 
         # add input and output
@@ -113,8 +113,8 @@ class FlowViewWidget(DockArea):
         # add all used functions
         for fun in flow.functions.values():
             process_items.add(self.addProcess(fun))
-            if fun in flow.internal_flows:
-                process_items.update(self.addFlow(flow.internal_flows[fun], fun))
+            if fun in flow.internals:
+                process_items.update(self.addFlow(flow.internals[fun], fun))
         
         # add all constants
         for const in flow.constants:
@@ -156,7 +156,7 @@ class FlowViewWidget(DockArea):
     
     def addComposition(self, comp: Composition):
         function_items = set()
-        for fun in comp.process:
+        for fun in comp.used_functions:
             function_items.add(self.process[fun])
             if fun in self.internal_flows:
                 flow = self.internal_flows[fun]

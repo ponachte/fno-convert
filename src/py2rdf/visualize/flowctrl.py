@@ -4,7 +4,7 @@ from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from rdflib import URIRef
 from pyqtgraph import TreeWidget
 
-from ..execute.flow import Flow
+from ..execute.flow import FnOExecutable
 from ..execute.store import Terminal
 from ..graph import PipelineGraph
 from .flowview import FlowViewWidget
@@ -33,7 +33,7 @@ class FlowCtrlWidget(QWidget):
         self.viewWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def setFlow(self, g: PipelineGraph, uri: URIRef):
-        self.flow = Flow(g, uri)
+        self.flow = FnOExecutable(g, uri)
         self.viewWidget.setFlow(self.flow)
         self.inputWidget.setFlow(self.flow)
         self.functionList.setFlow(self.flow)
@@ -58,7 +58,7 @@ class InputWidget(QWidget):
         layout.addWidget(execute)
         self.setLayout(layout)
     
-    def setFlow(self, flow: Flow):
+    def setFlow(self, flow: FnOExecutable):
         self.inputList.clear()
         self.flow = flow
         inputs = { inp for inp in flow.input.outputs() }
@@ -116,11 +116,11 @@ class FunctionList(QWidget):
         layout.addWidget(self.list)
         self.setLayout(layout)
     
-    def setFlow(self, flow: Flow):
+    def setFlow(self, flow: FnOExecutable):
         self.list.clear()
         self.flow = flow
 
-        for fun, int_flow in flow.internal_flows.items():
+        for fun, int_flow in flow.internals.items():
             item = QTreeWidgetItem([fun.name, ''])
             self.list.addTopLevelItem(item)
 

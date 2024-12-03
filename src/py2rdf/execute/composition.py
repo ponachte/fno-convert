@@ -7,35 +7,29 @@ from rdflib import URIRef
 
 class Composition:
 
-    @staticmethod
-    def build_composition(flow, g: PipelineGraph, comp: URIRef) -> "Composition":
-        if comp is None:
-            return
-        if g.is_composition(comp):
-            return LinearComposition(flow, g, comp)
-        if g.is_if_composition(comp):
-            return IfFlowComposition(flow, g, comp)
-        if g.is_for_composition(comp):
-            return ForFlowComposition(flow, g, comp)
-
-    def __init__(self, flow, g: PipelineGraph, comp: URIRef) -> None:
+    def __init__(self, g: PipelineGraph, comp: URIRef, exe) -> None:
         self.uri = comp
-        self.flow = flow
-        flow.compositions[comp] = self
-        self.process = set()
+        
+        reps = g.get_representations(comp)
+        if len(reps) > 1:
+            raise Exception(f"Composition has multiple representaitons {reps}")
+        elif len(reps) == 1:
+            self.scope = reps[0]
+        else:
+            self.scope = comp
+
+        self.functions = set()
         self.name = get_name(comp)
 
         ### USED FUNCTIONS ###
 
-        # Get all functions used inside the composition
-        # TODO IfFlowComposition without mappings but with a composition !!
+        # Get all the used functions
         for (call, fun) in g.get_used_functions(self.uri):
-            if fun != call and call not in flow.functions:
-                flow.functions[call] = Function(g, call, fun, flow.scope)
-            if g.in_composition(comp, call):
-                self.process.add(flow.functions[call])
-            if fun != flow.f_uri and g.has_composition(fun):
-                flow.add_internal_flow(g, flow.functions[call])
+            if fun != call and call not in exe.functions:
+                exe.functions[call] = Function(g, call, fun, self.scope)
+                self.functions.add(exe.functions[call])
+            if fun != self.scope and g.has_composition(fun):
+                exe.add_internal_flow(g, exe.functions[call])
 
         ### MAPPINGS ###
 
@@ -44,32 +38,24 @@ class Composition:
         for mapfrom, mapto in g.get_mappings(comp):
             # Handle mapfrom
             if g.is_function_mapping(mapfrom):
-                source = flow.get_terminal(*g.get_function_mapping(mapfrom))
+                source = exe.get_terminal(*g.get_function_mapping(mapfrom))
             elif g.is_term_mapping(mapfrom):
                 const = Constant(mapfrom.value, ImpMap.rdf_to_imp(g, mapfrom.datatype))
-                flow.constants.add(const)
-                self.process.add(const)
+                exe.constants.add(const)
+                self.functions.add(const)
                 source = const.output
-            elif g.is_var_mapping(mapfrom):
-                if mapfrom not in flow.variables:
-                    flow.variables[mapfrom] = Variable(mapfrom)
-                source = flow.variables[mapfrom]
             
             # Handle mapto
             if g.is_function_mapping(mapto):
-                target = flow.get_terminal(*g.get_function_mapping(mapto))
-            elif g.is_var_mapping(mapto):
-                if mapto not in flow.variables:
-                    flow.variables[mapto] = Variable(mapto)
-                target = flow.variables[mapto]
+                target = exe.get_terminal(*g.get_function_mapping(mapto))
             
             self.mappings.add(Mapping(source, target))
 
         ### INTERNAL FLOWS ###
 
-        for fun in self.process:
-            if fun in flow.internal_flows:
-                int_flow = flow.internal_flows[fun]
+        for fun in self.used_functions:
+            if fun in exe.internal_flows:
+                int_flow = exe.internal_flows[fun]
                 int_flow.connect_links(fun, self)
                 int_flow.close()
         
@@ -79,14 +65,14 @@ class Composition:
     
     def calculate_order(self):
         # Maak een dict die bijhoudt hoeveel afhankelijkheden elke functie heeft
-        in_degree = {func: 0 for func in self.process}
+        in_degree = {func: 0 for func in self.used_functions}
         
         # Bereken de in-degree (aantal afhankelijkheden) voor elke functie
-        for func in self.process:
-            in_degree[func] = len(func.depends_on(self.process))
+        for func in self.used_functions:
+            in_degree[func] = len(func.depends_on(self.used_functions))
 
         # Begin met functies die geen afhankelijkheden hebben (in-degree == 0)
-        no_dependencies = [func for func in self.process if in_degree[func] == 0]
+        no_dependencies = [func for func in self.used_functions if in_degree[func] == 0]
         order = []  # Dit zal de topologische sortering bevatten
 
         while no_dependencies:
@@ -95,21 +81,21 @@ class Composition:
             order.append(func)
 
             # Verlaag de in-degree van alle functies die afhankelijk zijn van deze functie
-            for dependent in self.process:
-                if func in dependent.depends_on(self.process):
+            for dependent in self.used_functions:
+                if func in dependent.depends_on(self.used_functions):
                     in_degree[dependent] -= 1
                     # Als deze functie nu geen afhankelijkheden meer heeft, voeg het toe aan de lijst
                     if in_degree[dependent] == 0:
                         no_dependencies.append(dependent)
 
         # Controleer of alle functies zijn verwerkt
-        if len(order) != len(self.process):
+        if len(order) != len(self.used_functions):
             raise ValueError("A circular dependency has been found. No topological sorting can be done.")
         
-        self.process = order
+        self.used_functions = order
     
     def execute(self):
-        for fun in self.process:
+        for fun in self.used_functions:
             if fun in self.flow.internal_flows:
                 self.flow.internal_flows[fun].execute()
             else:
@@ -161,7 +147,7 @@ class IfFlowComposition(Composition):
         f, par = g.get_condition(comp)
         self.condition = flow.get_terminal(f, par)
         if g.in_composition(comp, f, full=False):
-            self.process.append(flow.functions[f])
+            self.used_functions.append(flow.functions[f])
 
         ### IF TRUE ###
 
@@ -201,7 +187,7 @@ class ForFlowComposition(Composition):
         self.iterator = flow.functions[f]
         self.hasNext = None
         if g.in_composition(comp, f, full=False):
-            self.process.append(flow.functions[f])
+            self.used_functions.append(flow.functions[f])
 
         ### IF NEXT ###
 

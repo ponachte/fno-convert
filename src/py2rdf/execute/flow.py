@@ -4,25 +4,50 @@ from .composition import Composition
 from .store import Mapping
 from rdflib import URIRef
 
-class Flow:
+class FnOExecutable:
 
-    def __init__(self, g: PipelineGraph, fun: URIRef, outer_fun: Function=None) -> None:
-        self.f_uri = g.check_call(fun)
-        self.scope = fun
+    def __init__(self, g: PipelineGraph, executeable: URIRef, outer_fun: Function=None) -> None:
+        # get the executable composition
+        if not g.is_composition(executeable):
+            # Executable is an FnO Function(call)
+            self.f_uri = g.check_call(executeable)
+            
+            comps = g.get_compositions(self.f_uri)
+            if len(comps) == 0:
+                raise Exception(f"No executable compositions found")
+            elif len(comps) > 1:
+                raise Exception(f"Choose from one composition: {comps}")
+            self.comp = comps[0]
+            
+            # determine the scope
+            self.scope = executeable
+        else:
+            # Executable is a FnO Composition
+            self.comp = executeable
+        
+            # determine the scope
+            reps = g.get_representations(self.comp)
+            if len(reps) > 1:
+                raise Exception(f"Composition has multiple representaitons {reps}")
+            elif len(reps) == 1:
+                self.f_uri = reps[0]
+                self.scope = reps[0]
+            else:
+                self.f_uri = None
+                self.scope = self.comp 
 
+        # Create inputs and outputs
         self.input = FunctionLink(g, self.f_uri, self.scope, outer_fun)
         self.output = FunctionLink(g, self.f_uri, self.scope, outer_fun, is_output=True)
+        
         self.functions = {}
-        self.internal_flows = {}
-        self.variables = {}
-        self.constants = set()
-        self.compositions = {}
+        self.internals = {}
 
-        self.start = Composition.build_composition(self, g, g.start_composition(self.f_uri))
+        self.start = Composition(g, self.comp, self)
     
     def add_internal_flow(self, g, fun):
-        flow = Flow(g, fun.call_uri, outer_fun=fun)
-        self.internal_flows[fun] = flow
+        flow = FnOExecutable(g, fun.call_uri, outer_fun=fun)
+        self.internals[fun] = flow
     
     def connect_links(self, fun: Function, comp: Composition):
         for input in fun.inputs():

@@ -578,14 +578,13 @@ class PipelineGraph(Graph):
     def has_composition(self, f):
          result = self.query(f'''
                 ASK WHERE {{
-                    <{f}> a fno:Function ;
-                          fnoc:composition ?start .
+                    ?comp fnoc:represents <{f}> .
                 }}
              ''', initNs=PrefixMap.NAMESPACES)
 
          return True if result else False
      
-    def start_composition(self, f):
+    def get_compositions(self, f):
          """
          Retrieve the URI of the first block of the flow describing a FnO Function.
 
@@ -595,20 +594,15 @@ class PipelineGraph(Graph):
             The Uri of the first composition in the flow.
          """
          result = [
-             x['start']
+             x['comp']
              for x in self.query(f'''
-                SELECT ?start WHERE {{
-                    <{f}> a fno:Function ;
-                          fnoc:composition ?start .
+                SELECT ?comp WHERE {{
+                    ?comp fnoc:represents <{f}> .
                 }}
              ''', initNs=PrefixMap.NAMESPACES)
          ]
 
-         if len(result) > 1:
-             raise Exception(f"{f} has more then one defined starting points.")
-         elif len(result) == 0:
-             raise Exception(f"{f} has no flow defined.")
-         return result[0]
+         return result
      
     def is_composition(self, c: URIRef) -> bool:
          result = self.query(f'''
@@ -616,108 +610,16 @@ class PipelineGraph(Graph):
          ''', initNs=PrefixMap.NAMESPACES)
          return True if result else False
      
-    def is_if_composition(self, c: URIRef) -> bool:
-         result = self.query(f'''
-            ASK WHERE {{ <{c}> a fnoc:IfFlowComposition . }}
-         ''', initNs=PrefixMap.NAMESPACES)
-         return True if result else False
-     
-    def is_for_composition(self, c: URIRef) -> bool:
-         result = self.query(f'''
-            ASK WHERE {{ <{c}> a fnoc:ForFlowComposition . }}
-         ''', initNs=PrefixMap.NAMESPACES)
-         return True if result else False
-     
-    def followed_by(self, c: URIRef) -> URIRef:
-         result = [x['next'] for x in self.query(f'''
-            SELECT ?next WHERE {{
-                <{c}> fnoc:followedBy ?next .
-            }}''', initNs=PrefixMap.NAMESPACES)]
-         return result[0] if len(result) == 1 else None
-     
-    def if_true(self, c: URIRef) -> URIRef:
-         result = [x['next'] for x in self.query(f'''
-            SELECT ?next WHERE {{
-                <{c}> fnoc:ifTrue ?next .
-            }}''', initNs=PrefixMap.NAMESPACES)]
-         return result[0] if len(result) == 1 else None
-     
-    def if_false(self, c: URIRef) -> URIRef:
-         result = [x['next'] for x in self.query(f'''
-            SELECT ?next WHERE {{
-                <{c}> fnoc:ifFalse ?next .
-            }}''', initNs=PrefixMap.NAMESPACES)]
-         return result[0] if len(result) == 1 else None
-     
-    def get_condition(self, c: URIRef):
-         result = [(x['f'], x['par']) for x in self.query(f'''
-            SELECT ?f ?par WHERE {{
-                <{c}> fnoc:condition ?cond .
-                ?cond fnoc:constituentFunction ?f ;
-                      fnoc:functionOutput | fnoc:functionParameter ?par .
-            }}''', initNs=PrefixMap.NAMESPACES)]
-         return result[0] if len(result) == 1 else None
-     
-    def if_next(self, c: URIRef) -> URIRef:
-         result = [x['next'] for x in self.query(f'''
-            SELECT ?next WHERE {{
-                <{c}> fnoc:ifNext ?next .
-            }}''', initNs=PrefixMap.NAMESPACES)]
-         return result[0] if len(result) == 1 else None
-     
-    def get_iterator(self, c: URIRef):
-         result = [(x['f'], x['target']) for x in self.query(f'''
-            SELECT ?f ?target WHERE {{
-                <{c}> fnoc:iterator ?node .
-                ?node fnoc:constituentFunction ?f ;
-                    fnoc:functionOutput | fnoc:functionParameter ?target .
-            }}''', initNs=PrefixMap.NAMESPACES)]
-         return result[0] if len(result) == 1 else None
-    
-    def in_composition(self, comp, call, full=True) -> bool:
-        """
-        Checks if a function call is within a composition.
-
-        :param comp: URIRef
-            The URI of the composition.
-        :param call: URIRef
-            The function call URI to check.
-        :param full: bool
-            If True, checks both mappings (mapFrom and mapTo). 
-            If False, only mapFrom is checked.
-        :return: bool
-            True if the function call is within the composition, False otherwise.
-        """
-        # Query to check the 'mapTo' part
-        mapto_query = self.query(f'''
-            ASK WHERE {{
-                <{comp}> fnoc:composedOf ?mapping .
-                ?mapping fnoc:mapTo ?mapto .
-                ?mapto fnoc:constituentFunction <{call}> .
-            }}''', initNs=PrefixMap.NAMESPACES)
-
-        # If 'full' is True, also check the 'mapFrom' part
-        mapfrom_query = True  # Default to True if full is False
-        if full:
-            mapfrom_query = self.query(f'''
-                ASK WHERE {{
-                    <{comp}> fnoc:composedOf ?mapping .
-                    ?mapping fnoc:mapFrom ?mapfrom .
-                    ?mapfrom fnoc:constituentFunction <{call}> .
-                }}''', initNs=PrefixMap.NAMESPACES)
-            
-            mapfrom_flow_query = self.query(f'''
-                ASK WHERE {{
-                    ?comp a fnoc:ForFlowComposition ;
-                        fnoc:composedOf ?mapping .
-                    ?mapping fnoc:mapFrom ?mapfrom .
-                    ?mapfrom fnoc:constituentFunction <{call}> .
-                }}''', initNs=PrefixMap.NAMESPACES)
-            
-            mapfrom_query = (True if mapfrom_query else False) or (True if mapfrom_flow_query else False)
-
-        # Both queries need to return True if 'full' is True; otherwise, only 'mapTo' matters
-        return (True if mapto_query else False) and (True if mapfrom_query else False)
+    def get_representations(self, c: URIRef) -> URIRef:
+        result = [
+            x['f']
+            for x in self.query(f'''
+                SELECT ?f WHERE {{
+                    <{c}> fnoc:represents ?f .
+                }}
+            ''', initNs=PrefixMap.NAMESPACES)
+        ]
+        return result
      
     def get_mappings(self, c):
         """
@@ -781,20 +683,6 @@ class PipelineGraph(Graph):
         True if the endpoint is a 'term mapping'. False otherwise.
         """
         results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFromTerm ?endpoint }}''',
-                             initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
-        return True if results else False
-    
-    def is_var_mapping(self, endpoint):
-        """
-        Check if a mapping endpoint is 'var mapping'. In other words it maps a variable.
-        
-        :param URIRef endpoint:
-        The URI of the mapping endpoint (blank node)
-        
-        :return:
-        True if the endpoint is a 'variable mapping'. False otherwise.
-        """
-        results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFromVariable | fnoc:mapToVariable ?endpoint }}''',
                              initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
         return True if results else False
      

@@ -33,6 +33,11 @@ class FnOBuilder():
         return g
     
     @staticmethod
+    def start(comp, call) -> PipelineGraph:
+        g = PrefixMap.bind_namespaces(PipelineGraph())
+        g.add((comp, PrefixMap.ns('fnoc')["start"], call))
+        return g
+    @staticmethod
     def link_composition(g: PipelineGraph, function, composition):
         g.add((function, PrefixMap.ns('fnoc')['composition'], composition))
 

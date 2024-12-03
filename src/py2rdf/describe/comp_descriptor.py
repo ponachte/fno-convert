@@ -44,6 +44,7 @@ class CompositionDescriptor:
         self.iterators = {}
         self.conditions = {}
         self.prev_function = (None, None)
+        self.start = None
 
         self.depth = 0
         self.max_depth = max_depth
@@ -125,6 +126,7 @@ class CompositionDescriptor:
                     prev_iterators = self.iterators
                     prev_conditions = self.conditions
                     prev_prev_function = self.prev_function
+                    prev_start = self.start
 
                     # Enter scope of function
                     self.scope = s
@@ -136,6 +138,7 @@ class CompositionDescriptor:
                     self.iterators = {}
                     self.conditions = {}
                     self.prev_function = (None, None)
+                    self.start = None
 
                     # Assign parameters to function arguments
                     parameters = self.g.get_param_predicates(s)
@@ -144,7 +147,7 @@ class CompositionDescriptor:
 
                     # Iterate blocks
                     for block in fun_cfg:
-                        self.block_to_comp(block)
+                        self.handle_block(block)
                 
                     # Handle returns
                     self.handle_returns()
@@ -152,6 +155,9 @@ class CompositionDescriptor:
                     # Create composition
                     comp_uri = URIRef(f"{s}Composition")
                     FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=self.scope)
+                    
+                    # Set starting point
+                    self.g += FnOBuilder.start(comp_uri, self.start)
                     
                     # Reset to previous scope
                     self.scope = prev_scope
@@ -163,13 +169,14 @@ class CompositionDescriptor:
                     self.iterators = prev_iterators
                     self.conditions = prev_conditions
                     self.prev_function = prev_prev_function
+                    self.start = prev_start
                     
         except TypeError as e:
             print("Error: Unable to describe flow of builtin functions.")
             traceback.print_exc()
         return s
     
-    def block_to_comp(self, block: Block):
+    def handle_block(self, block: Block):
         """
         Describes a block as a sequential composition of function executions
 
@@ -225,6 +232,13 @@ class CompositionDescriptor:
                 self.used_by[var].add(mapto)
         
         self.mappings.append(Mapping(mapfrom, mapto))
+    
+    def order(self, call):
+        if self.prev_function[0] is None:
+            self.start = call
+        else:
+            self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
 
     def handle_stmt(self, stmt):
         if isinstance(stmt, ast.Constant):
@@ -683,8 +697,7 @@ class CompositionDescriptor:
                 if value_type != True:
                     self.var_types[self_output.get_value()] = value_type
 
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+        self.order(call)
         
         return f_output
     
@@ -753,8 +766,7 @@ class CompositionDescriptor:
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'AttributeParameter'))
         self.handle_mapping(mapfrom, mapto)
 
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+        self.order(call)
         
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'AttributeOutput'))
     
@@ -818,8 +830,7 @@ class CompositionDescriptor:
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'StepParameter'))
         self.handle_mapping(step_name, mapto)
         
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+        self.order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'SliceOutput'))
     
@@ -915,9 +926,7 @@ class CompositionDescriptor:
         self.var_types[to_uri(PrefixMap.pf(), "ListOutput")] = list
 
         # Return the URI of the list call and the list output
-        
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+        self.order(call)
         
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'ListOutput'))
     
@@ -971,8 +980,7 @@ class CompositionDescriptor:
         # TupleOutput has type tuple
         self.var_types[to_uri(PrefixMap.pf(), "TupleOutput")] = tuple
         
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+        self.order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TupleOutput'))
     
@@ -1028,8 +1036,7 @@ class CompositionDescriptor:
         # DictOutput has type dict
         self.var_types[to_uri(PrefixMap.pf(), "DictOutput")] = dict
         
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+        self.order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'DictOutput'))
     
@@ -1084,8 +1091,7 @@ class CompositionDescriptor:
         # StrJoinOutput has type str
         self.var_types[to_uri(PrefixMap.pf(), "StrJoinOutput")] = str
         
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+        self.order(call)
 
         return MappingNode().set_function_out((call, to_uri(PrefixMap.pf(), 'StrJoinOutput')))
     
@@ -1360,8 +1366,7 @@ class CompositionDescriptor:
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'ObjectParameter2'))
         self.handle_mapping(mapfrom, mapto)
         
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+        self.order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'BoolOutput'))
     
@@ -1423,8 +1428,7 @@ class CompositionDescriptor:
             mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'IfFalseParameter'))
             self.handle_mapping(mapfrom, mapto)
         
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+        self.order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'IfExprOutput'))
     
@@ -1467,10 +1471,9 @@ class CompositionDescriptor:
         if_input = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'TestParameter')) 
         self.handle_mapping(condition, if_input)
         
-        self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (None, None)
-        
         self.conditions[self.block] = call
+        
+        self.order(call)
     
     def function_to_rdf(self, fun_name, context, fun, num, keywords, self_class=None, static=None):
         """
