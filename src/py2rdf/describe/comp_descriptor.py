@@ -1,7 +1,7 @@
 import inspect
 import builtins
 import traceback
-import ast, astpretty
+import ast
 
 from operator import (__add__, __and__, __contains__, __eq__, __floordiv__, __ge__, __getitem__, __gt__, 
                       __iadd__, __iand__, __ifloordiv__, __ilshift__, __imatmul__, __imod__, __imul__, __invert__, 
@@ -16,38 +16,39 @@ from rdflib import URIRef
 
 from .mapping import Mapping, MappingNode
 from .importer import Importer
-from .function_descriptor import FunctionDescriptor
+from .fno_builder import FnOBuilder
 from ..graph import PipelineGraph, to_uri, get_name
 from ..map import ImpMap, PrefixMap
 
-class FlowDescriptor:
+class CompositionDescriptor:
 
     @staticmethod
     def name_node(name: str):
         return ast.Name(id=name, ctx=ast.Load())
 
-    def describe_function(self, fun, max_depth=3):
+    def from_function(self, fun, max_depth=3):
         self.g = PrefixMap.bind_namespaces(PipelineGraph())
         self.importer = Importer()
 
         self.scope = None
-        self.block_id = None
         self.block = None
 
-        self.used_vars = {}
         self.fun_cfgs = {}
         self.f_counter = {}
         self.assigned = {}
-        self.being_assigned = {}
+        self.used_by = {}
         self.default_map = {}
         self.var_types = {}
         self.returns = []
-        self.for_loops = {}
+        self.mappings = []
+        self.iterators = {}
+        self.conditions = {}
+        self.prev_function = (None, None)
 
         self.depth = 0
         self.max_depth = max_depth
 
-        self.uri = self.describe_flow(fun.__name__, fun.__name__, fun)
+        self.uri = self.describe_composition(fun.__name__, fun.__name__, fun)
 
         return self.g, self.uri
     
@@ -82,13 +83,13 @@ class FlowDescriptor:
             return self.var_types[var]
         
         # Check if the variable is assigned to the output of a function with a stored type
-        if var in self.assigned and not self.assigned[var].is_variable():
+        if var in self.assigned:
             return self.get_type(self.assigned[var].get_value())
         
         # Return None if no type information is found
         return None
 
-    def describe_flow(self, name, context, fun, num=0, keywords=[]):
+    def describe_composition(self, name, context, fun, num=0, keywords=[]):
 
         ### IMPORTS ###
 
@@ -117,18 +118,24 @@ class FlowDescriptor:
                     # Store current scope
                     prev_scope = self.scope
                     prev_assigned = self.assigned
+                    prev_used = self.used_by
                     prev_returns = self.returns
-                    prev_used = self.used_vars
                     prev_types = self.var_types
-                    prev_loops = self.for_loops
+                    prev_mappings = self.mappings
+                    prev_iterators = self.iterators
+                    prev_conditions = self.conditions
+                    prev_prev_function = self.prev_function
 
                     # Enter scope of function
                     self.scope = s
                     self.assigned = {}
+                    self.used_by = {}
                     self.returns = []
-                    self.used_vars = {}
                     self.var_types = {}
-                    self.for_loops = {}
+                    self.mappings = []
+                    self.iterators = {}
+                    self.conditions = {}
+                    self.prev_function = (None, None)
 
                     # Assign parameters to function arguments
                     parameters = self.g.get_param_predicates(s)
@@ -142,21 +149,24 @@ class FlowDescriptor:
                     # Handle returns
                     self.handle_returns()
 
-                    # Connect FnO Function to composition of first block
-                    block_id = URIRef(f"{self.scope}_Block{fun_cfg.entryblock.id}")
-                    FunctionDescriptor.link_composition(self.g, self.scope, block_id)
+                    # Create composition
+                    comp_uri = URIRef(f"{s}Composition")
+                    FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=self.scope)
                     
                     # Reset to previous scope
                     self.scope = prev_scope
                     self.assigned = prev_assigned
+                    self.used_by = prev_used
                     self.returns = prev_returns
-                    self.used_vars = prev_used
                     self.var_types = prev_types
-                    self.for_loops = prev_loops
+                    self.mappings = prev_mappings
+                    self.iterators = prev_iterators
+                    self.conditions = prev_conditions
+                    self.prev_function = prev_prev_function
                     
         except TypeError as e:
             print("Error: Unable to describe flow of builtin functions.")
-        
+            traceback.print_exc()
         return s
     
     def block_to_comp(self, block: Block):
@@ -170,28 +180,51 @@ class FlowDescriptor:
         """
 
         prev_block = self.block
-        prev_block_id = self.block_id
         self.block = block
-        self.block_id = URIRef(f"{self.scope}_Block{block.id}")
-
+        
+        for predecessor in block.predecessors:
+            # Check if input block is an iterator
+            if predecessor.source in self.iterators:
+                if predecessor.exitcase is not None:
+                    self.prev_function = (self.iterators[predecessor.source], "iterate")
+                else: 
+                    self.prev_function = (self.iterators[predecessor.source], "next")
+            # Check if input block is a conditional
+            if predecessor.source in self.conditions:
+                if predecessor == predecessor.source.exits[0]:
+                    self.prev_function = (self.conditions[predecessor.source], "true")
+                else:
+                    self.prev_function = (self.conditions[predecessor.source], "false")
+        
         for stmt in block.statements:
             self.handle_stmt(stmt)
         
-        if not (isinstance(stmt, ast.For) or isinstance(stmt, ast.If)):
-            FunctionDescriptor.set_comp_type(self.g, self.block_id)
-            for link in block.exits:
-                target_id = URIRef(f"{self.scope}_Block{link.target.id}")
-                if target_id in self.for_loops:
-                    target_id = self.for_loops[target_id]
-                FunctionDescriptor.link(self.g, self.block_id, target_id)
+        for i, exit in enumerate(block.exits):
+            # Check if output block is an iterator
+            if exit.target in self.iterators:
+                # Check if this block is a conditional
+                if self.block in self.conditions:
+                    if i == 0:
+                        self.g += FnOBuilder.link(self.conditions[self.block], "true", self.iterators[exit.target])
+                    else:
+                        self.g += FnOBuilder.link(self.conditions[self.block], "false", self.iterators[exit.target])
+                else:
+                    self.g += FnOBuilder.link(*self.prev_function, self.iterators[exit.target])
         
-        # Variables used in previous blocks need to be explictly mapped
+        # Variables used in previous blocks have ambiguos mapping
         for var in self.assigned:
-            if var not in self.used_vars:
-                self.used_vars[var] = self.block_id
+            if var not in self.used_by:
+                self.used_by[var] = set()
 
-        self.block_id = prev_block_id
         self.block = prev_block
+    
+    def handle_mapping(self, mapfrom, mapto):
+        if mapfrom.from_variable():
+            var = mapfrom.get_variable()
+            if var in self.used_by:
+                self.used_by[var].add(mapto)
+        
+        self.mappings.append(Mapping(mapfrom, mapto))
 
     def handle_stmt(self, stmt):
         if isinstance(stmt, ast.Constant):
@@ -287,13 +320,6 @@ class FlowDescriptor:
         """
         # Check if the variable is assigned to a function output
         if id in self.assigned:
-            if id in self.being_assigned:
-                varmap = self.assigned[id]
-                if not varmap.is_variable():
-                    mapto = MappingNode().set_variable(id)
-                    block_id = self.used_vars.get(id, self.block_id)
-                    FunctionDescriptor.describe_composition(self.g, block_id, [Mapping(varmap, mapto)])
-                    self.assigned[id] = mapto
             return self.assigned[id]
         
         # Check if it references an imported object
@@ -301,7 +327,7 @@ class FlowDescriptor:
         if callable(obj):
             # Add full description for extra provenance
             if obj.__name__ not in self.f_counter:
-                self.describe_flow(obj)
+                self.describe_composition(obj)
             # Return the object without context
             return MappingNode().set_constant(obj)
         
@@ -339,29 +365,18 @@ class FlowDescriptor:
         """
 
         # TODO Handle binary operations within the value
-        
         for target in targets:
             if isinstance(target, ast.Name):
                 # Handle assignment to variable
                 target = get_name(target.id)
-
-                # Indicate which variable is getting assigned to handle augmented assignments
-                self.being_assigned[target] = self.being_assigned.get(target, 0) + 1
                 value_output = self.handle_stmt(value)
-                if self.being_assigned[target] == 1:
-                    del self.being_assigned[target]
-                else:
-                    self.being_assigned[target] -= 1
-
-                if target not in self.used_vars:
-                    self.assigned[target] = value_output
-                else:
-                    varmap = self.assigned[target]
-                    if not varmap.is_variable():
-                        mapto = MappingNode().set_variable(target)
-                        FunctionDescriptor.describe_composition(self.g, self.used_vars[target], [Mapping(varmap, mapto)])
-                        self.assigned[target] = varmap = mapto
-                    FunctionDescriptor.describe_composition(self.g, self.block_id, [Mapping(value_output, varmap)])
+                self.assigned[target] = value_output
+                value_output.set_variable(target)
+                
+                # If this variable is used by other inputs in another block, create new mappings that use the new value
+                if target in self.used_by:
+                    for used_by in self.used_by[target]:
+                        self.mappings.append(Mapping(value_output, used_by))    
 
                 # Copy the type if the assigned value has a type
                 val_type = self.get_type(value_output.get_value())
@@ -382,7 +397,7 @@ class FlowDescriptor:
                     self.handle_assignment(subscript_output, [el])
     
     def handle_return(self, value):
-        self.returns.append((value, self.scope, self.block_id))
+        self.returns.append((value, self.block, self.scope))
         
     def handle_returns(self):
         """
@@ -407,14 +422,12 @@ class FlowDescriptor:
         5. Propagate the type of the value output to the outer scope output if available.
         6. Describe the composition in the RDF graph using `FnODescriptor`.
         """
-        for value, scope, block_id in self.returns:
+        for value, block, scope in self.returns:
             # Store current scope
             prev_scope = self.scope
-            prev_block_id = self.block_id
 
             # Change scope
             self.scope = scope
-            self.block_id = block_id
 
             # Retrieve the output node of the outer scope
             output = self.g.get_output(scope)
@@ -422,19 +435,15 @@ class FlowDescriptor:
             # Handle the value node
             mapfrom = self.handle_stmt(value)
             mapto = MappingNode().set_function_par(scope, output)
-            mappings = [Mapping(mapfrom, mapto)]
+            self.handle_mapping(mapfrom, mapto)
 
             # Propagate the type of the value output to the outer scope output if available
             out_type = self.get_type(mapfrom.get_value())
             if out_type:
                 self.var_types[output] = out_type
 
-            # Describe the composition in the RDF graph using FnODescriptor
-            FunctionDescriptor.describe_composition(self.g, block_id, mappings)
-
             # Restore previous scope
             self.scope = prev_scope
-            self.block_id = prev_block_id
     
     def handle_call(self, func, args, kargs):
         """
@@ -594,7 +603,7 @@ class FlowDescriptor:
                 # Do not go deeper then necesary
                 elif self.depth < self.max_depth:
                     self.depth += 1
-                    self.describe_flow(name, context, func_object, len(args), kargs)
+                    self.describe_composition(name, context, func_object, len(args), kargs)
                     self.depth -= 1
                 else:
                     self.function_to_rdf(name, context, func_object, len(args), kargs, value_type, static)
@@ -605,7 +614,7 @@ class FlowDescriptor:
 
         f = self.g.get_function(context)
         call = URIRef(f"{f}_{self.f_counter[context]}")
-        self.g += FunctionDescriptor.apply(call, f)
+        self.g += FnOBuilder.apply(call, f)
             
         # Get usefull information from description
         self_par = self.g.get_self(f)
@@ -613,7 +622,6 @@ class FlowDescriptor:
         f_output = MappingNode().set_function_out(call, output)
         
         # Create mappings for composition
-        mappings = []
         positional = self.g.get_positional(f)
         varpos = self.g.get_varpositional(f)
         varkey = self.g.get_varkeyword(f)
@@ -623,7 +631,7 @@ class FlowDescriptor:
         # Map value to self parameter if called upon a variable
         if self_par:
             mapto = MappingNode().set_function_par(call, self_par)
-            mappings.append(Mapping(value_name, mapto))       
+            self.handle_mapping(value_name, mapto)       
         
         # first map all positional arguments
         # If no more positional arguments, add to variable positional argument
@@ -632,11 +640,11 @@ class FlowDescriptor:
             if i < len(positional):
                 par = positional[i]
                 mapto = MappingNode().set_function_par(call, par)
-                mappings.append(Mapping(mapfrom, mapto))
+                self.handle_mapping(mapfrom, mapto)
                 defaults.remove(par)
             elif varpos is not None:
                 mapto = MappingNode().set_function_par(call, varpos).set_strategy(i - len(positional))    
-                mappings.append(Mapping(mapfrom, mapto))
+                self.handle_mapping(mapfrom, mapto)
         
         # Then map all keywords arguments to the parameter with the same predicate
         # If no such parameter exists add it to the variable keyword parameter
@@ -645,11 +653,11 @@ class FlowDescriptor:
             par = self.g.get_predicate_param(f, karg.arg)
             if par is not None:
                 mapto = MappingNode().set_function_par(call, par)
-                mappings.append(Mapping(mapfrom, mapto))
+                self.handle_mapping(mapfrom, mapto)
                 defaults.remove(par)
             elif varkey is not None:
                 mapto = MappingNode().set_function_par(call, varkey).set_strategy(karg.arg)
-                mappings.append(Mapping(mapfrom, mapto))
+                self.handle_mapping(mapfrom, mapto)
         
         # Map all parameters that were not mapped to its default values
         for par in defaults:
@@ -658,10 +666,7 @@ class FlowDescriptor:
                 default = self.default_map[context][pred]
                 mapfrom = MappingNode().set_constant(default)
                 mapto = MappingNode().set_function_par(call, par)
-                mappings.append(Mapping(mapfrom, mapto))
-        
-        # Add composition using the mappings
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
+                self.handle_mapping(mapfrom, mapto)
 
         # Functions called upon a variable may potentially change the variable
         # TODO Take a better look at this!
@@ -678,6 +683,9 @@ class FlowDescriptor:
                 if value_type != True:
                     self.var_types[self_output.get_value()] = value_type
 
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
+        
         return f_output
     
     def handle_attr(self, attr, value):
@@ -724,21 +732,18 @@ class FlowDescriptor:
 
         s = to_uri(PrefixMap.pf(), context)
         call = URIRef(f"{s}_{self.f_counter[context]}")
-        self.g += FunctionDescriptor.apply(call, s)
-
-        # Define mappings
-        mappings = []
+        self.g += FnOBuilder.apply(call, s)
 
         # Handle the value node
         if isinstance(value, ast.Name) and self.importer.is_module(value.id):
             # An object from an imported module is used
             mapfrom = MappingNode().set_constant(self.importer.get_module(value.id).__name__)
             mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'ValueParameter'))
-            mappings.append(Mapping(mapfrom, mapto))
+            self.handle_mapping(mapfrom, mapto)
         else:
             mapfrom = self.handle_stmt(value)
             mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'ValueParameter'))
-            mappings.append(Mapping(mapfrom, mapto))            
+            self.handle_mapping(mapfrom, mapto)            
 
         # Convert simple string attributes to AST Name nodes if necessary
         if not isinstance(attr, ast.AST):
@@ -746,10 +751,11 @@ class FlowDescriptor:
 
         mapfrom = self.handle_stmt(attr)
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'AttributeParameter'))
-        mappings.append(Mapping(mapfrom, mapto))
+        self.handle_mapping(mapfrom, mapto)
 
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
-
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
+        
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'AttributeOutput'))
     
     def handle_slice(self, lower, upper, step):
@@ -796,26 +802,24 @@ class FlowDescriptor:
 
         f = to_uri(PrefixMap.pf(), f_name)
         call = URIRef(f"{f}_{self.f_counter[f_name]}")
-        self.g += FunctionDescriptor.apply(call, f)
+        self.g += FnOBuilder.apply(call, f)
 
         # Handle the lower, upper, and step components of the slice
         lower_name = self.handle_stmt(lower) if lower else [MappingNode().set_constant(None)]
         upper_name = self.handle_stmt(upper) if upper else [MappingNode().set_constant(None)]
         step_name = self.handle_stmt(step) if step else [MappingNode().set_constant(None)]
 
-        # Define mappings
-        mappings = []
-
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'LowerIndexParameter'))
-        mappings.append(Mapping(lower_name, mapto))
+        self.handle_mapping(lower_name, mapto)
         
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'UpperIndexParameter'))
-        mappings.append(Mapping(upper_name, mapto))
+        self.handle_mapping(upper_name, mapto)
         
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'StepParameter'))
-        mappings.append(Mapping(step_name, mapto))
-
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
+        self.handle_mapping(step_name, mapto)
+        
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'SliceOutput'))
     
@@ -899,22 +903,22 @@ class FlowDescriptor:
         # Create a URI for the list function and apply it to the RDF graph
         f = to_uri(PrefixMap.pf(), "list")
         call = URIRef(f"{f}_{self.f_counter['list']}")
-        self.g += FunctionDescriptor.apply(call, f)
+        self.g += FnOBuilder.apply(call, f)
 
         # Handle each element in the list to generate its RDF representation and map it to the list
-        mappings = []
         for i, el in enumerate(elts):
             el_output = self.handle_stmt(el)
             mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'Elements')).set_strategy(i)
-            mappings.append(Mapping(el_output, mapto))
-
-        # Describe the composition of the list in the RDF graph using FnODescriptor
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
+            self.handle_mapping(el_output, mapto)
 
         # Set the type of the list output to `list`
         self.var_types[to_uri(PrefixMap.pf(), "ListOutput")] = list
 
         # Return the URI of the list call and the list output
+        
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
+        
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'ListOutput'))
     
     def handle_tuple(self, elts):
@@ -957,18 +961,18 @@ class FlowDescriptor:
         
         f = to_uri(PrefixMap.pf(), "tuple")
         call = URIRef(f"{f}_{self.f_counter['tuple']}")
-        self.g += FunctionDescriptor.apply(call, f)
+        self.g += FnOBuilder.apply(call, f)
 
-        mappings = []
         for i, el in enumerate(elts):
             el_output = self.handle_stmt(el)
             mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'Elements')).set_strategy(i)
-            mappings.append(Mapping(el_output, mapto))
-        
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
+            self.handle_mapping(el_output, mapto)
 
         # TupleOutput has type tuple
         self.var_types[to_uri(PrefixMap.pf(), "TupleOutput")] = tuple
+        
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TupleOutput'))
     
@@ -1014,18 +1018,18 @@ class FlowDescriptor:
 
         f = to_uri(PrefixMap.pf(), "dict")
         call = URIRef(f"{f}_{self.f_counter['dict']}")
-        self.g += FunctionDescriptor.apply(call, f)
+        self.g += FnOBuilder.apply(call, f)
         
-        mappings = []
         for i, (key, val) in enumerate(zip(keys, values)):
             pair_output = self.handle_tuple([key, val])
             mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'Pairs')).set_strategy(i)
-            mappings.append(Mapping(pair_output, mapto))
-        
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
+            self.handle_mapping(pair_output, mapto)
     
         # DictOutput has type dict
         self.var_types[to_uri(PrefixMap.pf(), "DictOutput")] = dict
+        
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'DictOutput'))
     
@@ -1070,18 +1074,18 @@ class FlowDescriptor:
 
         f = to_uri(PrefixMap.pf(), "strjoin")
         call = URIRef(f"{f}_{self.f_counter[name]}")
-        self.g += FunctionDescriptor.apply(call, f)
-
-        mappings = []
+        self.g += FnOBuilder.apply(call, f)
+        
         for i, value in enumerate(values):
             for mapfrom in self.handle_stmt(value):
                 mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'StringsParameter')).set_strategy(i)
-                mappings.append(Mapping(mapfrom, mapto))
-
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
+                self.handle_mapping(mapfrom, mapto)
 
         # StrJoinOutput has type str
         self.var_types[to_uri(PrefixMap.pf(), "StrJoinOutput")] = str
+        
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
 
         return MappingNode().set_function_out((call, to_uri(PrefixMap.pf(), 'StrJoinOutput')))
     
@@ -1346,18 +1350,18 @@ class FlowDescriptor:
 
         f = to_uri(PrefixMap.pf(), name)
         call = URIRef(f"{f}_{self.f_counter[name]}")
-        self.g += FunctionDescriptor.apply(call, f)
+        self.g += FnOBuilder.apply(call, f)
 
-        mappings = []
         mapfrom in self.handle_stmt(left)
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'ObjectParameter1'))
-        mappings.append(Mapping(mapfrom, mapto))
+        self.handle_mapping(mapfrom, mapto)
         
         mapfrom = self.handle_stmt(right)
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'ObjectParameter2'))
-        mappings.append(Mapping(mapfrom, mapto))
-
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
+        self.handle_mapping(mapfrom, mapto)
+        
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'BoolOutput'))
     
@@ -1393,7 +1397,6 @@ class FlowDescriptor:
         4. Describe the composition using FnO Descriptor.
         5. Return the URI of the IfExpr function call and its output.
         """
-        mappings = []
       
         if "ifexpr" not in self.f_counter:
             self.f_counter["ifexpr"] = 1
@@ -1404,23 +1407,24 @@ class FlowDescriptor:
             
         f = to_uri(PrefixMap.pf(), 'ifexpr')
         call = URIRef(f"{f}_{self.f_counter['ifexpr']}")
-        self.g += FunctionDescriptor.apply(call, f)
+        self.g += FnOBuilder.apply(call, f)
 
         mapfrom = self.handle_stmt(test)
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'TestParameter'))
-        mappings.append(Mapping(mapfrom, mapto))
+        self.handle_mapping(mapfrom, mapto)
         
         if true is not None:
             mapfrom = self.handle_stmt(true)
             mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'IfTrueParameter'))
-            mappings.append(Mapping(mapfrom, mapto))
+            self.handle_mapping(mapfrom, mapto)
 
         if false is not None:
             mapfrom in self.handle_stmt(false)
             mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'IfFalseParameter'))
-            mappings.append(Mapping(mapfrom, mapto))
+            self.handle_mapping(mapfrom, mapto)
         
-        FunctionDescriptor.describe_composition(self.g, self.block_id, mappings)
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (call, "next")
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'IfExprOutput'))
     
@@ -1431,14 +1435,11 @@ class FlowDescriptor:
         context = "iter"
         iter_output = self.handle_func(name, context, iter, [mapfrom])
         
-        # Create the next call in a separate composition
-        self.for_loops[self.block_id] = URIRef(f"{self.scope}_For_{len(self.for_loops)}")
-        prev_block_id = self.block_id
-        self.block_id = self.for_loops[prev_block_id]
-        
+        # Create the next call
         name = next.__name__
         context = "next"
         next_output = self.handle_func(name, context, next, [iter_output])
+        self.iterators[self.block] = next_output.context
 
         # Create a variable for the targets
         if isinstance(target, ast.Tuple):
@@ -1449,26 +1450,27 @@ class FlowDescriptor:
         else:
             target_output = self.handle_stmt(target)
             self.handle_assignment(next_output, [self.name_node(target_output.get_value())])
-        
-        if_next = URIRef(f"{self.scope}_Block{self.block.exits[0].target.id}")
-        followed_by = URIRef(f"{self.scope}_Block{self.block.exits[1].target.id}")
-        FunctionDescriptor.link_with_iterator(self.g, next_output, self.block_id, if_next, followed_by)
-        
-        # Link iterator composition and next composition
-        FunctionDescriptor.set_comp_type(self.g, prev_block_id)
-        FunctionDescriptor.link(self.g, prev_block_id, self.block_id)
-        
-        self.block_id = prev_block_id
     
-    def handle_if(self, test):
+    def handle_if(self, test):       
+        if "if" not in self.f_counter:
+            self.f_counter["if"] = 1
+            _, desc = PipelineGraph.from_std("if")
+            self.g += desc
+        else:
+            self.f_counter["if"] += 1
+        
+        f = to_uri(PrefixMap.pf(), 'if')
+        call = URIRef(f"{f}_{self.f_counter['if']}")
+        self.g += FnOBuilder.apply(call, f)
+        
         condition = self.handle_stmt(test)
-        is_true = URIRef(f"{self.scope}_Block{self.block.exits[0].target.id}")
-        if is_true in self.for_loops:
-            is_true = self.for_loops[is_true]
-        is_false = URIRef(f"{self.scope}_Block{self.block.exits[1].target.id}")
-        if is_false in self.for_loops:
-            is_false = self.for_loops[is_false]
-        FunctionDescriptor.link_with_condition(self.g, condition, self.block_id, is_true, is_false)
+        if_input = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'TestParameter')) 
+        self.handle_mapping(condition, if_input)
+        
+        self.g += FnOBuilder.link(*self.prev_function, call)
+        self.prev_function = (None, None)
+        
+        self.conditions[self.block] = call
     
     def function_to_rdf(self, fun_name, context, fun, num, keywords, self_class=None, static=None):
         """
@@ -1516,9 +1518,9 @@ class FlowDescriptor:
             if fun is not None:
                 imp, descr = ImpMap.imp_to_rdf(fun, context, self_type, static)
             else:
-                imp, descr = FunctionDescriptor.describe_implementation(context)
+                imp, descr = FnOBuilder.describe_implementation(context)
         except:
-            imp, descr = FunctionDescriptor.describe_implementation(context, fun.__module__, getattr(fun, '__package__', None))
+            imp, descr = FnOBuilder.describe_implementation(context, fun.__module__, getattr(fun, '__package__', None))
         self.g += descr
 
         ### FUNCTION MAPPING ###
@@ -1566,9 +1568,9 @@ class FlowDescriptor:
             if f is not None:
                 imp, descr = ImpMap.imp_to_rdf(f, context, self_type, static)
             else:
-                imp, descr = FunctionDescriptor.describe_implementation(context)
+                imp, descr = FnOBuilder.describe_implementation(context)
         except:
-            imp, descr = FunctionDescriptor.describe_implementation(context, builtins.__name__, builtins.__package__)
+            imp, descr = FnOBuilder.describe_implementation(context, builtins.__name__, builtins.__package__)
         self.g += descr
 
         ### FUNCTION MAPPING ###
@@ -1658,7 +1660,7 @@ class FlowDescriptor:
                 self.g += type_desc
         
             # Add function description
-            s, desc = FunctionDescriptor.describe_function(f_name, context,
+            s, desc = FnOBuilder.describe_function(f_name, context,
                                                  parameter_preds, parameter_types,
                                                  output_pred, output_type,
                                                  self_type=self_type)
@@ -1732,7 +1734,7 @@ class FlowDescriptor:
             else: 
                 self_type = None
 
-            s, desc= FunctionDescriptor.describe_function(f_name, context,
+            s, desc = FnOBuilder.describe_function(f_name, context,
                                                      parameter_preds, parameter_types,
                                                      output_pred, output_type,
                                                      self_type=self_type)
@@ -1796,7 +1798,7 @@ class FlowDescriptor:
                 defaults[par] = param.default
                 self.default_map[s].update({name: param.default})
 
-        _, desc = FunctionDescriptor.describe_mapping(s, imp, f_name, positional, keyword, args, kargs, output, self_output, defaults)
+        _, desc = FnOBuilder.describe_mapping(s, imp, f_name, positional, keyword, args, kargs, output, self_output, defaults)
         self.g += desc
 
     def map_with_num(self, s, keywords, imp, f_name, output, self_output):
@@ -1832,5 +1834,5 @@ class FlowDescriptor:
             if par is not None:
                 keyword.append((par, pred.arg))
 
-        _, desc = FunctionDescriptor.describe_mapping(s, imp, f_name, positional, keyword, None, None, output, self_output)
+        _, desc = FnOBuilder.describe_mapping(s, imp, f_name, positional, keyword, None, None, output, self_output)
         self.g += desc

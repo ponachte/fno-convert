@@ -51,7 +51,12 @@ pf:TargetOutput a fno:Output ;
                   fno:required "True"^^xsd:bool ;
                   fno:predicate pf:target .
 
-# IF EXPR
+# IF
+
+pf:if a fno:Function ;
+      a prov:Entity ;
+      fno:expects [ a rdf:Seq ;
+                    rdf:_1 pf:TestParameter ] .
 
 pf:ifexpr a fno:Function ;
           a prov:Entity ;

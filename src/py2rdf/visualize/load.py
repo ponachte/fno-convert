@@ -5,7 +5,7 @@ from PyQt6.QtGui import QTextCursor, QColor, QTextCharFormat
 from ..map import ImpMap
 from ..graph import PipelineGraph
 from ..util import ASTUtil
-from ..describe.flow_descriptor import FlowDescriptor
+from ..describe.comp_descriptor import CompositionDescriptor
 from rdflib import URIRef
 
 import os, sys, ast, inspect, time
@@ -72,7 +72,7 @@ class FunctionPicker(QWidget):
             selected_function = locals().get(function_name)
             if selected_function and callable(selected_function):
                 start = time.time()
-                graph, uri = FlowDescriptor().describe_function(selected_function)
+                graph, uri = CompositionDescriptor().from_function(selected_function)
                 stop = time.time()
                 print(f"gen time: {(stop-start)*1000}")
                 print(f"num of triples: {len(graph)}")

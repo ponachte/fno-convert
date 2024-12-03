@@ -1,6 +1,9 @@
+from typing import List
+import copy
+
 class Mapping:
 
-    def __init__(self, mapfrom: "MappingNode", mapto: "MappingNode") -> None:
+    def __init__(self, mapfrom: "MappingNode" | List["MappingNode"], mapto: "MappingNode") -> None:
         self.mapfrom = mapfrom
         self.mapto = mapto
 
@@ -19,7 +22,6 @@ class MappingNode:
         self.parameter = parameter
         self.output = None
         self.constant = None
-        self.variable = None
 
         return self
     
@@ -28,22 +30,11 @@ class MappingNode:
         self.output = output
         self.parameter = None
         self.constant = None
-        self.variable = None
 
         return self
     
     def set_constant(self, constant) -> "MappingNode":
         self.constant = constant
-        self.context = None
-        self.parameter = None
-        self.output = None
-        self.variable = None
-
-        return self
-    
-    def set_variable(self, variable) -> "MappingNode":
-        self.variable = variable
-        self.constant = None
         self.context = None
         self.parameter = None
         self.output = None
@@ -55,9 +46,13 @@ class MappingNode:
             return self.parameter
         if self.output is not None:
             return self.output
-        if self.variable is not None:
-            return self.variable
         return self.constant
+    
+    def set_variable(self, var):
+        self.variable = var
+    
+    def get_variable(self):
+        return self.variable
     
     def set_strategy(self, index: int | str | None) -> "MappingNode":
         self.index = index
@@ -71,7 +66,7 @@ class MappingNode:
         return self.index is not None
     
     def from_term(self) -> bool:
-        return self.parameter is None and self.output is None and self.variable is None
+        return self.parameter is None and self.output is None
     
-    def is_variable(self) -> bool:
+    def from_variable(self) -> bool:
         return self.variable is not None

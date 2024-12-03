@@ -1130,6 +1130,30 @@ class PipelineGraph(Graph):
             ''', initNs=PrefixMap.NAMESPACES) 
 
         return  { (x['call'], x['func']) for x in results }
+    
+    def depends_on(self, c: URIRef, f: URIRef):
+        """
+        Get all the functions on which this functions depends on
+        
+        :param c: rdflib.URIRef
+            URIRef of the composition which the function belongs to
+        
+        :param f: rdflib.URIRef
+            URIRef of the applied function you want to calculate the dependencies of
+            
+        :returns:
+            A list of dependencies
+        """
+        
+        dependencies = [x['dep'] for x in self.query(f'''
+            SELECT ?dep WHERE {{
+                <{c}> fnoc:composedOf ?mapping .
+                ?mapping fnoc:mapto ?mapto .
+                ?mapto fnoc:constituentFunction <{f}> .
+                ?mapping fnoc:mapfrom ?mapfrom .
+                ?mapfrom fnoc:constituentFunction ?dep .}}''')]
+        
+        return dependencies
      
     def get_function_description(self, name) -> "PipelineGraph":
           """
