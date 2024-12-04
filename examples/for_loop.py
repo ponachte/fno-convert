@@ -9,3 +9,7 @@ def n_sum(n: int):
     for i in range(n):
         total += i
     return total
+
+if __name__ == "__main__":
+    for n in range(10):
+        print(f"faculty sum of n = {n_sum(n)}")

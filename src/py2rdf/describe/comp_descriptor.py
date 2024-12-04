@@ -2,6 +2,7 @@ import inspect
 import builtins
 import traceback
 import ast
+import os
 
 from operator import (__add__, __and__, __contains__, __eq__, __floordiv__, __ge__, __getitem__, __gt__, 
                       __iadd__, __iand__, __ifloordiv__, __ilshift__, __imatmul__, __imod__, __imul__, __invert__, 
@@ -13,10 +14,13 @@ from scalpel.cfg.builder import CFGBuilder
 from scalpel.cfg.model import Block
 
 from rdflib import URIRef
+from collections import deque
 
-from .mapping import Mapping, MappingNode
-from .importer import Importer
-from .fno_builder import FnOBuilder
+from .util.mapping import Mapping, MappingNode
+from .util.importer import Importer
+from .util.fno_builder import FnOBuilder
+from .util.scope import ScopeState
+from .util.astparse import get_main_source_code
 from ..graph import PipelineGraph, to_uri, get_name
 from ..map import ImpMap, PrefixMap
 
@@ -25,43 +29,142 @@ class CompositionDescriptor:
     @staticmethod
     def name_node(name: str):
         return ast.Name(id=name, ctx=ast.Load())
-
-    def from_function(self, fun, max_depth=3):
+    
+    def __init__(self, max_depth=3) -> None:
         self.g = PrefixMap.bind_namespaces(PipelineGraph())
         self.importer = Importer()
-
-        self.scope = None
-        self.block = None
-
+        self.max_depth = max_depth
         self.fun_cfgs = {}
         self.f_counter = {}
-        self.assigned = {}
-        self.used_by = {}
-        self.default_map = {}
-        self.var_types = {}
-        self.returns = []
-        self.mappings = []
-        self.iterators = {}
-        self.conditions = {}
-        self.prev_function = (None, None)
-        self.start = None
-
+        self.state = deque()
+        self.init_scope()
+        
         self.depth = 0
-        self.max_depth = max_depth
-
-        self.uri = self.describe_composition(fun.__name__, fun.__name__, fun)
-
-        return self.g, self.uri
     
-    def get_flow(self):
-        return self.g, self.uri
+    def init_scope(self, scope=None):
+        self.scope = ScopeState(scope=scope)
+
+    def new_scope(self, scope):
+        # Save current state
+        self.state.append(self.scope)
+        # Reset to a new blank state
+        self.init_scope(scope)
+
+    def restore_scope(self):
+        if not self.state:
+            raise RuntimeError("No saved state to restore.")
+        self.scope.scope = self.state.pop()
+    
+    def from_object(self, obj):
+        return self.from_function(obj.__name__, obj.__name__, obj)
+
+    def from_function(self, name, context, obj, num=0, keywords=[]):
+        
+        ### IMPORTS ###
+
+        try:
+            self.importer.import_from_obj(obj)
+        except Exception as e:
+            print(f"Error importing from {name}: {e}")
+            print(traceback.format_exc())
+
+        ### FUNCTION DESCRIPTION ###
+
+        fun_uri = self.function_to_rdf(name, context, obj, num, keywords)
+        comp_uri = URIRef(f"{fun_uri}Composition")
+        
+        ### NEW SCOPE ###
+        
+        self.new_scope(fun_uri)
+
+        ### PARSE SOURCE CODE ###
+
+        try:
+            src = inspect.getsource(obj)
+            def_cfg = CFGBuilder().build_from_src(obj.__name__, src)
+
+            for (_, fun_name), fun_cfg in def_cfg.functioncfgs.items():
+                if fun_name == obj.__name__:
+                    self.fun_cfgs[obj] = fun_cfg
+                    dot = fun_cfg.build_visual('png')
+                    dot.render(f"cfg_diagrams/{fun_name}_cfg_diagram", view=False)
+                    
+                    # Assign parameters to function arguments
+                    parameters = self.g.get_param_predicates(fun_uri)
+                    for par, pred in parameters:
+                        self.handle_assignment(MappingNode().set_function_par(fun_uri, par), [self.name_node(pred)])                   
+
+                    # Iterate blocks
+                    for block in fun_cfg:
+                        self.handle_block(block)
+                    
+                    # Handle returns
+                    self.handle_returns()
+
+            # Create composition
+            FnOBuilder.describe_composition(self.g, comp_uri, self.scope.mappings, represents=self.scope.scope)
+                        
+            # Set starting point
+            self.g += FnOBuilder.start(comp_uri, self.scope.start)
+            
+        except Exception as e:
+            print(f"Error: Unable to describe composition of function: {name}")
+            traceback.print_exc()
+        
+        ### RESTORE SCOPE
+        
+        self.restore_scope()
+
+        return self.g, fun_uri
+
+    def from_file(self, file_path):
+        
+        ### IMPORTS ###
+
+        try:
+            self.importer.import_from_file(file_path)
+        except Exception as e:
+            print(f"Error importing from {file_path}: {e}")
+            print(traceback.format_exc())
+        
+        ### COMPOSITION URI ###
+        
+        file_name, _ = os.path.splitext(os.path.basename(file_path))
+        comp = f"{file_name}Composition"
+        
+        ### NEW SCOPE ###
+        
+        self.new_scope(comp)
+        
+        ### PARSE SOURCE CODE ###
+        
+        try:
+            src = get_main_source_code(file_path)
+            main_cfg = CFGBuilder().build_from_src(file_path, src)
+            dot = main_cfg.build_visual('png')
+            dot.render(f"cfg_diagrams/{file_name}_cfg_diagram", view=False)
+            
+            # Iterate blocks
+            for block in main_cfg:
+                self.handle_block(block)
+            
+            # Create composition
+            comp_uri = FnOBuilder.describe_composition(self.g, comp, self.scope.mappings)
+                        
+            # Set starting point
+            self.g += FnOBuilder.start(comp_uri, self.scope.start)
+        except Exception as e:
+            print(f"Error: Unable to describe composition of file: {file_path}")
+            traceback.print_exc()
+        
+        return self.g, comp_uri
     
     def get_type(self, var):
         """
         Retrieves the stored type of a given variable, if available.
 
         This method attempts to find and return the type of a variable that has been propagated
-        through the system. It first checks if the type is directly stored in `self.var_types`.
+        through the system. It first checks if the type is directly stored in `self.scope.var_types`.
         If the type is not found, it checks if the variable is assigned to the output of a function
         that has a stored type.
 
@@ -77,104 +180,18 @@ class CompositionDescriptor:
         """
         
         # Check if the type of the variable is directly stored
-        if var in self.var_types:
+        if var in self.scope.var_types:
             # Return None if no type annotation was found (inspect._empty)
-            if self.var_types[var] is inspect._empty:
+            if self.scope.var_types[var] is inspect._empty:
                 return None
-            return self.var_types[var]
+            return self.scope.var_types[var]
         
         # Check if the variable is assigned to the output of a function with a stored type
-        if var in self.assigned:
-            return self.get_type(self.assigned[var].get_value())
+        if var in self.scope.assigned:
+            return self.get_type(self.scope.assigned[var].get_value())
         
         # Return None if no type information is found
         return None
-
-    def describe_composition(self, name, context, fun, num=0, keywords=[]):
-
-        ### IMPORTS ###
-
-        try:
-            self.importer.import_from_function(fun)
-        except Exception as e:
-            print(f"Error importing from {name}: {e}")
-            print(traceback.format_exc())
-
-        ### FUNCTION DESCRIPTION ###
-
-        s = self.function_to_rdf(name, context, fun, num, keywords)
-
-        ### FLOW ###
-
-        try:
-            src = inspect.getsource(fun)
-            def_cfg = CFGBuilder().build_from_src(fun.__name__, src)
-
-            for (_, fun_name), fun_cfg in def_cfg.functioncfgs.items():
-                if fun_name == fun.__name__:
-                    self.fun_cfgs[fun] = fun_cfg
-                    dot = fun_cfg.build_visual('png')
-                    dot.render(f"cfg_diagrams/{fun_name}_cfg_diagram", view=False)
-
-                    # Store current scope
-                    prev_scope = self.scope
-                    prev_assigned = self.assigned
-                    prev_used = self.used_by
-                    prev_returns = self.returns
-                    prev_types = self.var_types
-                    prev_mappings = self.mappings
-                    prev_iterators = self.iterators
-                    prev_conditions = self.conditions
-                    prev_prev_function = self.prev_function
-                    prev_start = self.start
-
-                    # Enter scope of function
-                    self.scope = s
-                    self.assigned = {}
-                    self.used_by = {}
-                    self.returns = []
-                    self.var_types = {}
-                    self.mappings = []
-                    self.iterators = {}
-                    self.conditions = {}
-                    self.prev_function = (None, None)
-                    self.start = None
-
-                    # Assign parameters to function arguments
-                    parameters = self.g.get_param_predicates(s)
-                    for par, pred in parameters:
-                        self.handle_assignment(MappingNode().set_function_par(s, par), [self.name_node(pred)])                   
-
-                    # Iterate blocks
-                    for block in fun_cfg:
-                        self.handle_block(block)
-                
-                    # Handle returns
-                    self.handle_returns()
-
-                    # Create composition
-                    comp_uri = URIRef(f"{s}Composition")
-                    FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=self.scope)
-                    
-                    # Set starting point
-                    self.g += FnOBuilder.start(comp_uri, self.start)
-                    
-                    # Reset to previous scope
-                    self.scope = prev_scope
-                    self.assigned = prev_assigned
-                    self.used_by = prev_used
-                    self.returns = prev_returns
-                    self.var_types = prev_types
-                    self.mappings = prev_mappings
-                    self.iterators = prev_iterators
-                    self.conditions = prev_conditions
-                    self.prev_function = prev_prev_function
-                    self.start = prev_start
-                    
-        except TypeError as e:
-            print("Error: Unable to describe flow of builtin functions.")
-            traceback.print_exc()
-        return s
     
     def handle_block(self, block: Block):
         """
@@ -186,61 +203,63 @@ class CompositionDescriptor:
             A CFG Block consisting of a sequence of statements without control structures.
         """
 
-        prev_block = self.block
-        self.block = block
+        prev_block = self.scope.block
+        self.scope.block = block
         
         for predecessor in block.predecessors:
             # Check if input block is an iterator
-            if predecessor.source in self.iterators:
+            if predecessor.source in self.scope.iterators:
                 if predecessor.exitcase is not None:
-                    self.prev_function = (self.iterators[predecessor.source], "iterate")
+                    self.scope.prev_function = (self.scope.iterators[predecessor.source], "iterate")
                 else: 
-                    self.prev_function = (self.iterators[predecessor.source], "next")
+                    self.scope.prev_function = (self.scope.iterators[predecessor.source], "next")
             # Check if input block is a conditional
-            if predecessor.source in self.conditions:
+            if predecessor.source in self.scope.conditions:
                 if predecessor == predecessor.source.exits[0]:
-                    self.prev_function = (self.conditions[predecessor.source], "true")
+                    self.scope.prev_function = (self.scope.conditions[predecessor.source], "true")
                 else:
-                    self.prev_function = (self.conditions[predecessor.source], "false")
+                    self.scope.prev_function = (self.scope.conditions[predecessor.source], "false")
         
         for stmt in block.statements:
             self.handle_stmt(stmt)
         
         for i, exit in enumerate(block.exits):
             # Check if output block is an iterator
-            if exit.target in self.iterators:
+            if exit.target in self.scope.iterators:
                 # Check if this block is a conditional
-                if self.block in self.conditions:
+                if self.scope.block in self.scope.conditions:
                     if i == 0:
-                        self.g += FnOBuilder.link(self.conditions[self.block], "true", self.iterators[exit.target])
+                        self.g += FnOBuilder.link(self.scope.conditions[self.scope.block], "true", self.scope.iterators[exit.target])
                     else:
-                        self.g += FnOBuilder.link(self.conditions[self.block], "false", self.iterators[exit.target])
+                        self.g += FnOBuilder.link(self.scope.conditions[self.scope.block], "false", self.scope.iterators[exit.target])
                 else:
-                    self.g += FnOBuilder.link(*self.prev_function, self.iterators[exit.target])
+                    self.g += FnOBuilder.link(*self.scope.prev_function, self.scope.iterators[exit.target])
         
         # Variables used in previous blocks have ambiguos mapping
-        for var in self.assigned:
-            if var not in self.used_by:
-                self.used_by[var] = set()
+        for var in self.scope.assigned:
+            if var not in self.scope.used_by:
+                self.scope.used_by[var] = set()
 
-        self.block = prev_block
+        self.scope.block = prev_block
     
     def handle_mapping(self, mapfrom, mapto):
         if mapfrom.from_variable():
             var = mapfrom.get_variable()
-            if var in self.used_by:
-                self.used_by[var].add(mapto)
+            if var in self.scope.used_by:
+                self.scope.used_by[var].add(mapto)
         
-        self.mappings.append(Mapping(mapfrom, mapto))
+        self.scope.mappings.append(Mapping(mapfrom, mapto))
     
-    def order(self, call):
-        if self.prev_function[0] is None:
-            self.start = call
+    def handle_order(self, call):
+        if self.scope.prev_function[0] is None:
+            self.scope.start = call
         else:
-            self.g += FnOBuilder.link(*self.prev_function, call)
-        self.prev_function = (call, "next")
+            self.g += FnOBuilder.link(*self.scope.prev_function, call)
+        self.scope.prev_function = (call, "next")
 
     def handle_stmt(self, stmt):
+        if isinstance(stmt, ast.Expr):
+            return self.handle_stmt(stmt.value)
         if isinstance(stmt, ast.Constant):
             return self.handle_constant(stmt.value)
         elif isinstance(stmt, ast.Name):
@@ -333,15 +352,15 @@ class CompositionDescriptor:
         4. Returns the object or identifier without context.
         """
         # Check if the variable is assigned to a function output
-        if id in self.assigned:
-            return self.assigned[id]
+        if id in self.scope.assigned:
+            return self.scope.assigned[id]
         
         # Check if it references an imported object
         obj = self.importer.get_object(id)
         if callable(obj):
             # Add full description for extra provenance
             if obj.__name__ not in self.f_counter:
-                self.describe_composition(obj)
+                self.from_object(obj)
             # Return the object without context
             return MappingNode().set_constant(obj)
         
@@ -384,19 +403,19 @@ class CompositionDescriptor:
                 # Handle assignment to variable
                 target = get_name(target.id)
                 value_output = self.handle_stmt(value)
-                self.assigned[target] = value_output
+                self.scope.assigned[target] = value_output
                 value_output.set_variable(target)
                 
                 # If this variable is used by other inputs in another block, create new mappings that use the new value
-                if target in self.used_by:
-                    for used_by in self.used_by[target]:
+                if target in self.scope.used_by:
+                    for used_by in self.scope.used_by[target]:
                         mapping = Mapping(value_output, used_by, value_output.context)
-                        self.mappings.append(mapping)    
+                        self.scope.mappings.append(mapping)    
 
                 # Copy the type if the assigned value has a type
                 val_type = self.get_type(value_output.get_value())
                 if val_type:
-                    self.var_types[target] = val_type
+                    self.scope.var_types[target] = val_type
 
             elif isinstance(target, ast.Subscript):
                 # Handle assignment to subscript nodes
@@ -412,7 +431,7 @@ class CompositionDescriptor:
                     self.handle_assignment(subscript_output, [el])
     
     def handle_return(self, value):
-        self.returns.append((value, self.block, self.scope))
+        self.scope.returns.append((value, self.scope.block, self.scope.scope))
         
     def handle_returns(self):
         """
@@ -437,12 +456,12 @@ class CompositionDescriptor:
         5. Propagate the type of the value output to the outer scope output if available.
         6. Describe the composition in the RDF graph using `FnODescriptor`.
         """
-        for value, block, scope in self.returns:
+        for value, block, scope in self.scope.returns:
             # Store current scope
-            prev_scope = self.scope
+            prev_scope = self.scope.scope
 
             # Change scope
-            self.scope = scope
+            self.scope.scope = scope
 
             # Retrieve the output node of the outer scope
             output = self.g.get_output(scope)
@@ -455,10 +474,10 @@ class CompositionDescriptor:
             # Propagate the type of the value output to the outer scope output if available
             out_type = self.get_type(mapfrom.get_value())
             if out_type:
-                self.var_types[output] = out_type
+                self.scope.var_types[output] = out_type
 
             # Restore previous scope
-            self.scope = prev_scope
+            self.scope.scope = prev_scope
     
     def handle_call(self, func, args, kargs):
         """
@@ -611,14 +630,14 @@ class CompositionDescriptor:
             self.f_counter[context] = 1
 
             # Not a recursive call
-            if not context == get_name(self.scope):
-                # Do not describe flow of functions that were not defined by the user
+            if not context == get_name(self.scope.scope):
+                # Do not describe composition of functions that were not defined by the user
                 if self.importer.skip(func_object):
                     self.function_to_rdf(name, context, func_object, len(args), kargs, value_type, static)
                 # Do not go deeper then necesary
                 elif self.depth < self.max_depth:
                     self.depth += 1
-                    self.describe_composition(name, context, func_object, len(args), kargs)
+                    self.from_function(name, context, func_object, len(args), kargs)
                     self.depth -= 1
                 else:
                     self.function_to_rdf(name, context, func_object, len(args), kargs, value_type, static)
@@ -677,28 +696,28 @@ class CompositionDescriptor:
         # Map all parameters that were not mapped to its default values
         for par in defaults:
             pred = get_name(self.g.get_predicate(par))
-            if context in self.default_map and pred in self.default_map[context]:
-                default = self.default_map[context][pred]
+            if context in self.scope.default_map and pred in self.scope.default_map[context]:
+                default = self.scope.default_map[context][pred]
                 mapfrom = MappingNode().set_constant(default)
                 mapto = MappingNode().set_function_par(call, par)
                 self.handle_mapping(mapfrom, mapto)
 
         # Functions called upon a variable may potentially change the variable
         # TODO Take a better look at this!
-        if value_name in self.assigned.values():
+        if value_name in self.scope.assigned.values():
             self_output = MappingNode().set_function_out(call, self.g.get_self_output(f))
             if value_name.from_term():
                 # called upon a constant
                 self.handle_assignment(self_output, [self.name_node(value_name.get_value())])
                 if value_type != True:
-                    self.var_types[self_output.get_value()] = value_type
+                    self.scope.var_types[self_output.get_value()] = value_type
             else:
                 # variable is the value called upon
                 self.handle_assignment(self_output, [func.value])
                 if value_type != True:
-                    self.var_types[self_output.get_value()] = value_type
+                    self.scope.var_types[self_output.get_value()] = value_type
 
-        self.order(call)
+        self.handle_order(call)
         
         return f_output
     
@@ -767,7 +786,7 @@ class CompositionDescriptor:
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'AttributeParameter'))
         self.handle_mapping(mapfrom, mapto)
 
-        self.order(call)
+        self.handle_order(call)
         
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'AttributeOutput'))
     
@@ -831,7 +850,7 @@ class CompositionDescriptor:
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'StepParameter'))
         self.handle_mapping(step_name, mapto)
         
-        self.order(call)
+        self.handle_order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'SliceOutput'))
     
@@ -924,10 +943,10 @@ class CompositionDescriptor:
             self.handle_mapping(el_output, mapto)
 
         # Set the type of the list output to `list`
-        self.var_types[to_uri(PrefixMap.pf(), "ListOutput")] = list
+        self.scope.var_types[to_uri(PrefixMap.pf(), "ListOutput")] = list
 
         # Return the URI of the list call and the list output
-        self.order(call)
+        self.handle_order(call)
         
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'ListOutput'))
     
@@ -960,7 +979,7 @@ class CompositionDescriptor:
         Assumptions:
         ------------
         This method assumes that `self.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
-        `self.g`, `self.handle_node`, `self._scope`, and `self.var_types` are properly defined and accessible within the class or module.
+        `self.g`, `self.handle_node`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
         if "tuple" not in self.f_counter:
             self.f_counter["tuple"] = 1
@@ -979,9 +998,9 @@ class CompositionDescriptor:
             self.handle_mapping(el_output, mapto)
 
         # TupleOutput has type tuple
-        self.var_types[to_uri(PrefixMap.pf(), "TupleOutput")] = tuple
+        self.scope.var_types[to_uri(PrefixMap.pf(), "TupleOutput")] = tuple
         
-        self.order(call)
+        self.handle_order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'TupleOutput'))
     
@@ -1016,7 +1035,7 @@ class CompositionDescriptor:
         Assumptions:
         ------------
         This method assumes that `self.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
-        `self.g`, `self.handle_tuple`, `self._scope`, and `self.var_types` are properly defined and accessible within the class or module.
+        `self.g`, `self.handle_tuple`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
         if "dict" not in self.f_counter:
             self.f_counter["dict"] = 1
@@ -1035,9 +1054,9 @@ class CompositionDescriptor:
             self.handle_mapping(pair_output, mapto)
     
         # DictOutput has type dict
-        self.var_types[to_uri(PrefixMap.pf(), "DictOutput")] = dict
+        self.scope.var_types[to_uri(PrefixMap.pf(), "DictOutput")] = dict
         
-        self.order(call)
+        self.handle_order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'DictOutput'))
     
@@ -1070,7 +1089,7 @@ class CompositionDescriptor:
         Assumptions:
         ------------
         This method assumes that `self.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
-        `self.g`, `self.handle_node`, `self._scope`, and `self.var_types` are properly defined and accessible within the class or module.
+        `self.g`, `self.handle_node`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
         name = "strjoin"
         if name not in self.f_counter:
@@ -1085,16 +1104,16 @@ class CompositionDescriptor:
         self.g += FnOBuilder.apply(call, f)
         
         for i, value in enumerate(values):
-            for mapfrom in self.handle_stmt(value):
-                mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'StringsParameter')).set_strategy(i)
-                self.handle_mapping(mapfrom, mapto)
+            mapfrom = self.handle_stmt(value)
+            mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'StringsParameter')).set_strategy(i)
+            self.handle_mapping(mapfrom, mapto)
 
         # StrJoinOutput has type str
-        self.var_types[to_uri(PrefixMap.pf(), "StrJoinOutput")] = str
+        self.scope.var_types[to_uri(PrefixMap.pf(), "StrJoinOutput")] = str
         
-        self.order(call)
+        self.handle_order(call)
 
-        return MappingNode().set_function_out((call, to_uri(PrefixMap.pf(), 'StrJoinOutput')))
+        return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'StrJoinOutput'))
     
     def handle_format(self, value, conversion, spec):
         """
@@ -1120,17 +1139,14 @@ class CompositionDescriptor:
         ---------
         1. Set the name and context for the format function.
         2. Call the handle_func method with the appropriate parameters to process the format operation.
-
-        Assumptions:
-        ------------
-        This method assumes that `self.handle_func` is properly defined and accessible within the class or module.
         """
         # TODO what with conversion ?
 
         name = 'format'
         context = 'format'
+        args = [value, spec] if spec is not None else [value]
 
-        return self.handle_func(name, context, format, [value, spec])
+        return self.handle_func(name, context, format, args)
     
     def handle_unop(self, op, operand):
         """
@@ -1359,7 +1375,7 @@ class CompositionDescriptor:
         call = URIRef(f"{f}_{self.f_counter[name]}")
         self.g += FnOBuilder.apply(call, f)
 
-        mapfrom in self.handle_stmt(left)
+        mapfrom = self.handle_stmt(left)
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'ObjectParameter1'))
         self.handle_mapping(mapfrom, mapto)
         
@@ -1367,7 +1383,7 @@ class CompositionDescriptor:
         mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'ObjectParameter2'))
         self.handle_mapping(mapfrom, mapto)
         
-        self.order(call)
+        self.handle_order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'BoolOutput'))
     
@@ -1425,11 +1441,11 @@ class CompositionDescriptor:
             self.handle_mapping(mapfrom, mapto)
 
         if false is not None:
-            mapfrom in self.handle_stmt(false)
+            mapfrom = self.handle_stmt(false)
             mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'IfFalseParameter'))
             self.handle_mapping(mapfrom, mapto)
         
-        self.order(call)
+        self.handle_order(call)
 
         return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'IfExprOutput'))
     
@@ -1444,7 +1460,7 @@ class CompositionDescriptor:
         name = next.__name__
         context = "next"
         next_output = self.handle_func(name, context, next, [iter_output])
-        self.iterators[self.block] = next_output.context
+        self.scope.iterators[self.scope.block] = next_output.context
 
         # Create a variable for the targets
         if isinstance(target, ast.Tuple):
@@ -1472,9 +1488,9 @@ class CompositionDescriptor:
         if_input = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'TestParameter')) 
         self.handle_mapping(condition, if_input)
         
-        self.conditions[self.block] = call
+        self.scope.conditions[self.scope.block] = call
         
-        self.order(call)
+        self.handle_order(call)
     
     def function_to_rdf(self, fun_name, context, fun, num, keywords, self_class=None, static=None):
         """
@@ -1646,7 +1662,7 @@ class CompositionDescriptor:
                     if type_desc:
                         self.g += type_desc
                     parameter_types.append(param_type)
-                    self.var_types[to_uri(PrefixMap.base(), par_name)] = param.annotation
+                    self.scope.var_types[to_uri(PrefixMap.base(), par_name)] = param.annotation
         
             output_pred = f"{context}Result"
             output = to_uri(PrefixMap.base(), f"{context}Output")
@@ -1654,11 +1670,11 @@ class CompositionDescriptor:
             if f is not None and type(f) is type:
                 # If the function is a class constructor, the output wil have the class type
                 output_type, type_desc = ImpMap.imp_to_rdf(f)
-                self.var_types[output] = f
+                self.scope.var_types[output] = f
             else:
                 # Convert return annotation
                 output_type, type_desc = ImpMap.imp_to_rdf(return_type)
-                self.var_types[output] = return_type
+                self.scope.var_types[output] = return_type
             
             if type_desc:
                 self.g += type_desc
@@ -1780,8 +1796,8 @@ class CompositionDescriptor:
         kargs = None
         defaults = {}
 
-        if s not in self.default_map:
-            self.default_map[s] = {}
+        if s not in self.scope.default_map:
+            self.scope.default_map[s] = {}
 
         for name, param in params.items():
             # Get the parameter linked to this predicate
@@ -1800,7 +1816,7 @@ class CompositionDescriptor:
             
             if param.default is not inspect._empty:
                 defaults[par] = param.default
-                self.default_map[s].update({name: param.default})
+                self.scope.default_map[s].update({name: param.default})
 
         _, desc = FnOBuilder.describe_mapping(s, imp, f_name, positional, keyword, args, kargs, output, self_output, defaults)
         self.g += desc

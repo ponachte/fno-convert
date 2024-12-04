@@ -1,7 +1,7 @@
 from typing import List
-from rdflib import RDF, BNode, Literal
-from ..map import PrefixMap, InstMap
-from ..graph import PipelineGraph, create_rdf_list, get_name
+from rdflib import RDF, BNode, Literal, URIRef
+from ...map import PrefixMap, InstMap
+from ...graph import PipelineGraph, create_rdf_list, get_name
 
 class FnOBuilder():
     """
@@ -53,9 +53,14 @@ class FnOBuilder():
         """
 
         # create the composition
-        g.add((comp, RDF.type, PrefixMap.ns('fno')["Composition"]))
+        if not isinstance(comp, URIRef):
+            comp_uri = PrefixMap.ns('')[comp]
+        else:
+            comp_uri = comp
+        
+        g.add((comp_uri, RDF.type, PrefixMap.ns('fno')["Composition"]))
         if represents:
-            g.add((comp, PrefixMap.ns('fnoc')["represents"], represents))
+            g.add((comp_uri, PrefixMap.ns('fnoc')["represents"], represents))
 
         # initiate the mapping nodes
         mapping_nodes = [BNode() for i in range(len(mappings))]
@@ -64,7 +69,7 @@ class FnOBuilder():
             mapfrom = mapping.mapfrom
             mapto = mapping.mapto
 
-            g.add((comp, PrefixMap.ns('fnoc')["composedOf"], mapping_node))
+            g.add((comp_uri, PrefixMap.ns('fnoc')["composedOf"], mapping_node))
             if mapping.priority:
                 g.add((mapping_node, PrefixMap.ns('fnoc')["priority"], mapping.priority))
                 
@@ -115,6 +120,10 @@ class FnOBuilder():
                     triples.append((bnode, PrefixMap.ns('fnoc')["property"], Literal(index)))
 
             [ g.add(x) for x in triples ]
+            
+        return comp_uri
+        
+        
     
     @staticmethod
     def describe_part_function(call, applies, parameters, terms):
