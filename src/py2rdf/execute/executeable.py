@@ -42,22 +42,28 @@ class Composition:
                 call, ter = g.get_function_mapping(mapfrom)
                 source = self.get_terminal(call, ter)
             elif g.is_term_mapping(mapfrom):
-                source = ValueStore(mapfrom.value, mapfrom.datatype)
+                source = ValueStore(mapfrom.datatype)
+                source.set_value(mapfrom.value)
             
             # Handle mapto
             call, ter = g.get_function_mapping(mapto)
             target = self.get_terminal(call, ter)
             
-            # Create mapping
+            # Group mappings by target
             if target not in self.mappings:
                 self.mappings[target] = []
-            self.mappings[target].append((source, priority))
-            
-            for target, sources in self.mappings.items():
-                self.mappings[target] = Mapping(sources, target)
-                for _, priority in sources:
-                    if priority not in self.priorities:
-                        self.priorities[priority] = self.mappings[target]
+            self.mappings[target].append((
+                source, priority,
+                g.has_strategy(mapfrom), g.get_strategy(mapfrom),
+                g.has_strategy(mapto), g.get_strategy(mapto)))
+        
+        # Create mapping for each target    
+        for target, sources in self.mappings.items():
+            self.mappings[target] = Mapping(sources, target)
+            for source in sources:
+                priority = source[1]
+                if priority not in self.priorities:
+                    self.priorities[priority] = self.mappings[target]
         
         ### EXECUTION START ###
         self.start = g.get_start(comp)
@@ -65,7 +71,7 @@ class Composition:
     def execute(self):
         # Execute each function and follow the control flow until no new function can be selected
         call = self.start
-        while call:
+        while call is not None:
             # Get the FnO Function Executeable
             fun = self.functions[call]
             # Fetch inputs from mappings
@@ -77,15 +83,16 @@ class Composition:
                 for mapping in self.priorities[call]:
                     mapping.set_priority(call)
             # Get the URI of the next executeable
-            call = fun.next()
+            call = fun.next_function()
         
         # If this composition represents the internal flow of a function, set the output
         if self.rep:
             self.ingest(self.scope)
     
     def ingest(self, fun):
-        for mapping in self.mappings[fun]:
-            mapping.execute()            
+        for input in fun.inputs():
+            if input in self.mappings:
+                self.mappings[input].execute()            
     
     def get_terminal(self, call, ter):
         return  self.functions[call][ter] if call != self.scope else self.rep[ter]
@@ -170,6 +177,11 @@ class Function:
 
                 for param in self.inputs():
                     mapping = param.param_mapping
+                    if not param.value_set:
+                        if mapping.has_default:
+                            param.set_value(mapping.default)
+                        else:
+                            raise Exception(f"Parameter {param.name} not set.")
                     value = param.value
 
                     if mapping.getType() == MappingType.VARPOSITIONAL:
@@ -194,13 +206,23 @@ class Function:
                     else:
                         args = args[1:]
                 
-                self.startedAt = datetime.datetime.now()
-                ret = self.f_object(*args, *vargs, **keyargs, **vkeyargs)
-                self.endedAt = datetime.datetime.now()
-
-                self.output.set_value(ret)
-                if self.self_input is not None:
-                    self.self_output.set_value(self.self_input.value)
+                try:
+                    self.startedAt = datetime.datetime.now()
+                    ret = self.f_object(*args, *vargs, **keyargs, **vkeyargs)
+                    self.endedAt = datetime.datetime.now()
+                    
+                    self.output.set_value(ret)
+                    if self.self_input is not None:
+                        self.self_output.set_value(self.self_input.value)
+                except StopIteration as e:
+                    raise e
+                except Exception as e:
+                    print(f"Error while executing {self.name} with")
+                    print(f"\targs: {args}")
+                    print(f"\tvargs: {vargs}")
+                    print(f"\tkeyargs: {",".join([f"{key}={arg}" for key, arg in keyargs.items()])}")
+                    print(f"\tvkeyargs: {",".join([f"{key}={arg}" for key, arg in vkeyargs.items()])}")
+                    raise e
     
     def __getitem__(self, key):
         # Based on parameter URI
@@ -246,9 +268,15 @@ class AppliedFunction(Function):
         elif self.iftrue is not None:
             super().execute()
             self._next = self.iftrue if self.output.value else self.iffalse
+        else:
+            super().execute()
+            self._next = self.next
     
     def next_function(self):
         return self._next
+    
+    def __hash__(self) -> int:
+        return hash(self.uri)
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, AppliedFunction) and self.uri == other.uri and self.scope == other.scope

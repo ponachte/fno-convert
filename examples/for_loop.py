@@ -12,4 +12,4 @@ def n_sum(n: int):
 
 if __name__ == "__main__":
     for n in range(10):
-        print(f"faculty sum of n = {n_sum(n)}")
+        print(n_sum(n))

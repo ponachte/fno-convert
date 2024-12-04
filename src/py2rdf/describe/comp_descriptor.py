@@ -44,16 +44,16 @@ class CompositionDescriptor:
     def init_scope(self, scope=None):
         self.scope = ScopeState(scope=scope)
 
-    def new_scope(self, scope):
+    def new_scope(self, new_scope):
         # Save current state
         self.state.append(self.scope)
         # Reset to a new blank state
-        self.init_scope(scope)
+        self.init_scope(new_scope)
 
     def restore_scope(self):
         if not self.state:
             raise RuntimeError("No saved state to restore.")
-        self.scope.scope = self.state.pop()
+        self.scope = self.state.pop()
     
     def from_object(self, obj):
         return self.from_function(obj.__name__, obj.__name__, obj)
@@ -156,6 +156,10 @@ class CompositionDescriptor:
         except Exception as e:
             print(f"Error: Unable to describe composition of file: {file_path}")
             traceback.print_exc()
+        
+        ### RESTORE SCOPE ###
+        
+        self.restore_scope()
         
         return self.g, comp_uri
     

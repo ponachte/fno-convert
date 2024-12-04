@@ -25,7 +25,9 @@ class ParameterMapping:
         if index is not None:
             self.property = index
             self.type = MappingType.POSITIONAL
-    
+        
+        self.has_default, self.default = g.get_default_mapping(fun, par)    
+        
     def getType(self):
         return self.type
     
@@ -36,27 +38,40 @@ class Mapping:
 
     def __init__(self, sources, target: "ValueStore") -> None:
         self.priority = None
-        self.sources = { priority: source for priority, source in sources }
+        self.sources = {}
+        for source, priority, src_strat, src_key, tar_start, tar_key in sources:
+            self.sources[priority] = (source, src_strat, src_key, tar_start, tar_key)
         self.target = target
     
     def set_priority(self, priority):
         self.priority = priority
     
     def execute(self):
-        self.target.set_value(self.sources[self.priority].value)
+        source, src_strat, src_key, tar_start, tar_key = self.sources[self.priority]
+        self.target.set_value(source.get_value(src_strat, src_key), tar_start, tar_key)
 
 class ValueStore:
 
-    def __init__(self, value=None, type=None) -> None:        
+    def __init__(self, type=None) -> None:        
         self.value = None
+        self.value_set = False
         self.type = type
-        
-        if value is not None:
-            self.set_value(value)
 
-    def set_value(self, value):
-        if value != self.value:
-            self.value = value
+    def set_value(self, value, strat=False, key=None):
+        self.value_set = True
+        if not strat:
+            if value != self.value:
+                self.value = value
+        else:
+            if not isinstance(self.value, dict):
+                self.value = {}
+            self.value[key] = value
+    
+    def get_value(self, strat=False, key=None):
+        if not strat:
+            return self.value
+        else:
+            return self.value[key]
     
     def __hash__(self) -> int:
         return hash(self.value)
@@ -66,8 +81,8 @@ class ValueStore:
 
 class Terminal(ValueStore):
 
-    def __init__(self, fun, uri: URIRef, pred: str, value=None, type=None, is_output=False, param_mapping=None) -> None:
-        super().__init__(value, type)
+    def __init__(self, fun, uri: URIRef, pred: str, type=None, is_output=False, param_mapping=None) -> None:
+        super().__init__(type)
         self.name = get_name(pred)
         self.fun = fun
         self.uri = uri

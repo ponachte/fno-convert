@@ -30,6 +30,7 @@ class Importer:
         self._objects = {}
         self._modules = {}
         self._asname = {}
+        self._imported_files = set()
         self.user_defined = set()
 
     def objects(self):
@@ -113,37 +114,39 @@ class Importer:
             func (function): The function object.
         """
         # Get the source file of the function
+        obj_path = inspect.getfile(func)
         source_file = inspect.getsourcefile(func)
         if not source_file:
             raise Exception(f"Source file for function {func.__name__} not found.")
         
-        self.import_from_file(source_file)
+        self.import_from_file(source_file), obj_path
     
-    def import_from_file(self, filepath):
-        
-        if not os.path.isfile(filepath):
-            raise FileNotFoundError(f"File not found: {filepath}")
+    def import_from_file(self, file_path, obj_path=None):
+        # if file_path in self._imported_files:
+        #    return
+        # self._imported_files.add(file_path)
 
-        # Ensure the directory of the file is in `sys.path`
-        source_dir = os.path.dirname(filepath)
+        # Get the directory of the source file and add it to sys.path if needed
+        source_dir = os.path.dirname(file_path)
         if source_dir not in sys.path:
-            sys.path.insert(0, source_dir)  # Add the directory to `sys.path` temporarily
+            sys.path.insert(0, source_dir)  # Add directory to sys.path temporarily
 
-        # Read the file contents
-        with open(filepath, 'r') as file:
+        # Read the source file
+        with open(file_path, 'r') as file:
             source_code = file.read()
 
-        # Parse the source code using the AST module
+        # Use the AST module to parse the source code
         parsed_source = ast.parse(source_code)
 
         # Function to recursively extract import statements or function definitions
         def extract_nodes(node):
             for child in ast.iter_child_nodes(node):
-                if isinstance(child, ast.Import) or isinstance(child, ast.ImportFrom):
+                if isinstance(child, ast.Import) or isinstance(child, ast.ImportFrom) or \
+                   isinstance(child, ast.FunctionDef) or isinstance(child, ast.ClassDef):
                     yield child
                 yield from extract_nodes(child)
 
-        # Collect all relevant nodes (import statements)
+        # Collect all nodes to import
         nodes = list(extract_nodes(parsed_source))
 
         # Handle each node
@@ -154,11 +157,12 @@ class Importer:
                 elif isinstance(node, ast.ImportFrom):
                     self.handle_import_from(node.module, *node.names)
                 elif isinstance(node, (ast.FunctionDef, ast.ClassDef)):
-                    module_name = inspect.getmodulename(filepath)
+                    module_name = inspect.getmodulename(obj_path if obj_path is not None else file_path)
                     if self.is_module(module_name):
                         self.handle_import_from(module_name, ast.alias(node.name), skip=False)
             except Exception as e:
-                print(f"Error handling imports from {filepath}: {e}")
+                print(f"Error importing for {file_path}: {e}")
+
 
     def handle_import(self, *module_names):
         """

@@ -186,7 +186,7 @@ class ImpMap:
         # Add class type and metadata
 
         if inspect.isclass(imp) or imp is Any:
-            imp_uri = PrefixMap.ns('')[imp_name]
+            imp_uri = PrefixMap.ns('')[f"{imp_name}Class"]
             g.add((imp_uri, PrefixMap.ns('rdf').type, PrefixMap.ns('fnoi').PythonClass))
         else:
             imp_uri = PrefixMap.ns('')[f"{imp_name}Implementation"]

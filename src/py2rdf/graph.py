@@ -137,38 +137,38 @@ class PipelineGraph(Graph):
     
     def get_order(self, f):
         next = [x['next'] for x in self.query(
-            f'''SELECT ?f WHERE {{ <{f}> fnoc:next ?next . }}''', 
+            f'''SELECT ?next WHERE {{ <{f}> fnoc:next ?next . }}''', 
             initNs=PrefixMap.NAMESPACES
         )]
         if len(next) > 1:
             raise Exception(f"Applied function has ambigous next order: {next}")
         
         iterate = [x['iterate'] for x in self.query(
-            f'''SELECT ?f WHERE {{ <{f}> fnoc:iterate ?iterate . }}''', 
+            f'''SELECT ?iterate WHERE {{ <{f}> fnoc:iterate ?iterate . }}''', 
             initNs=PrefixMap.NAMESPACES
         )]
         if len(iterate) > 1:
             raise Exception(f"Applied function has ambigous iterate order: {iterate}")
         
         iftrue = [x['iftrue'] for x in self.query(
-            f'''SELECT ?f WHERE {{ <{f}> fnoc:true ?iftrue . }}''', 
+            f'''SELECT ?iftrue WHERE {{ <{f}> fnoc:true ?iftrue . }}''', 
             initNs=PrefixMap.NAMESPACES
         )]
         if len(iftrue) > 1:
             raise Exception(f"Applied function has ambigous iftrue order: {iftrue}")
         
         iffalse = [x['iffalse'] for x in self.query(
-            f'''SELECT ?f WHERE {{ <{f}> fnoc:false ?iffalse . }}''', 
+            f'''SELECT ?iffalse WHERE {{ <{f}> fnoc:false ?iffalse . }}''', 
             initNs=PrefixMap.NAMESPACES
         )]
         if len(iffalse) > 1:
             raise Exception(f"Applied function has ambigous iftrue order: {iffalse}")
         
         return (
-            next[0] if next else None,
-            iterate[0] if iterate else None,
-            iftrue[0] if iftrue else None,
-            iffalse[0] if iffalse else None
+            next[0] if len(next) == 1 else None,
+            iterate[0] if len(iterate) == 1 else None,
+            iftrue[0] if len(iftrue) == 1 else None,
+            iffalse[0] if len(iffalse) == 1 else None
         )
 
     def get_name(self, f):
@@ -740,70 +740,22 @@ class PipelineGraph(Graph):
         results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFromTerm ?endpoint }}''',
                              initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
         return True if results else False
-     
-    def get_strategy(self, f, f1, par1, f2, par2):
-          """
-          Retrieve the mapping strategy employed between two functions within the pipeline.
+    
+    def has_strategy(self, endpoint):
+        results = self.query(f'''ASK WHERE {{ ?endpoint fnoc:mappingStrategy ?strat }}''',
+                             initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
+        return True if results else False
 
-          :param rdflib.URIRef f: The function URI of the pipeline.
-          :param rdflib.URIRef f1: The URI of the first constituent function.
-          :param rdflib.URIRef par1: The parameter of the first constituent function.
-          :param rdflib.URIRef f2: The URI of the second constituent function.
-          :param rdflib.URIRef par2: The parameter of the second constituent function.
-
-          :return list:
-            A list of tuples representing the mapping strategy, each tuple containing:
-                - The index or property of the source function (fromindex)
-                - The index or property of the target function (toindex)
-          """
-          p = self.get_composition(f)
-          return [
-               (x['fromindex'].value if x['fromindex'] is not None else None, 
-                x['toindex'].value if x['toindex'] is not None else None) 
-                for x in self.query(f'''
-                    SELECT ?fromindex ?toindex WHERE {{
-                         <{p}> a fnoc:Composition ;
-                                                  fnoc:composedOf ?mapping .
-                         ?mapping fnoc:mapFrom ?mapfrom ;
-                                  fnoc:mapTo ?mapto .
-                         ?mapfrom fnoc:constituentFunction <{f1}> ;
-                                  fnoc:functionParameter | fnoc:functionOutput <{par1}> .
-                         ?mapto fnoc:constituentFunction <{f2}> ;
-                                fnoc:functionParameter | fnoc:functionOutput <{par2}> .
-                         OPTIONAL {{ ?mapfrom fnoc:index | fnoc:property ?fromindex . }}
-                         OPTIONAL {{ ?mapto fnoc:index | fnoc:property ?toindex . }}
-               }}
-          ''', initNs=PrefixMap.NAMESPACES)
-          ]
-     
-    def get_term_strategy(self, c, const, datatype, f, par):
-          """
-          Retrieve the strategy for mapping a term to a function within the pipeline.
-
-          Args:
-               c (str): The function call URI representing the pipeline.
-               const (str): The constant value of the term.
-               datatype (str): The datatype URI of the constant value.
-               f (str): The URI of the function.
-               par (str): The parameter of the function.
-
-          Returns:
-               list: A list of strategy values for mapping the term, representing the index or property.
-          """
-          p = self.get_composition(c)
-          return [
-               x['index'].value for x in self.query(f'''
-               SELECT ?strategy ?index WHERE {{
-                    <{p}> a fnoc:Composition ;
-                                       fnoc:composedOf ?mapping .
-                    ?mapping fnoc:mapFromTerm {Literal(const, datatype=datatype).n3()} ;
-                             fnoc:mapTo ?mapto .
-                    ?mapto fnoc:constituentFunction <{f}> ;
-                           fnoc:functionParameter | fnoc:functionOutput <{par}> .
-                    OPTIONAL {{ ?mapto fnoc:index | fnoc:property ?index . }}
-               }}
-          ''', initNs=PrefixMap.NAMESPACES)
-          ]
+    def get_strategy(self, endpoint):
+        result = [ x['key'].value for x in self.query(f'''
+            SELECT ?key WHERE {{
+               ?endpoint fnoc:index | fnoc:property ?key .
+            }}''', initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})]
+        
+        if len(result) > 1:
+            raise Exception("Mapping endpoint has multiple mapping strategies.")
+        elif len(result) == 1:
+            return result[0]
      
     def get_implementation(self, f):
           """
@@ -1034,7 +986,7 @@ class PipelineGraph(Graph):
                      x['property'].value if x['property'] is not None else None)
                     for x in self.query(f'''
                          SELECT ?index ?property WHERE {{
-                              ?mapping fno:function <{f}> ;
+                              ?mapping fno:function <{f}> .
                               OPTIONAL {{ 
                                    ?mapping fno:parameterMapping ?posmapping .
                                    ?posmapping fnom:functionParameter <{param}> ;
@@ -1052,6 +1004,32 @@ class PipelineGraph(Graph):
           except ParseException as e:
                print(f"Error while parsing query when fetching imp mapping for <{get_name(f)}>: <{e}>")
                return
+    
+    def get_default_mapping(self, f, param):
+        try:
+            f = self.check_call(f)
+               
+            result = [
+                x['default'].value if x['default'] is not None else None
+                for x in self.query(f'''
+                    SELECT ?default WHERE {{
+                        ?mapping fno:function <{f}> ;
+                                 fno:parameterMapping ?defmapping .
+                        ?defmapping fnom:functionParameter <{param}> ;
+                                    fnom:defaultValue ?default . 
+                    }}
+                    ''', initNs=PrefixMap.NAMESPACES)
+                ]
+               
+            if len(result) > 1:
+                raise Exception(f"Parameter {param} has multiple default values: {result}")
+            elif len(result) == 1:
+                return True, result[0]
+            return False, None
+        
+        except ParseException as e:
+            print(f"Error while parsing query when fetching default param mapping for <{get_name(param)}>: <{e}>")
+            return
      
     def get_used_functions(self, c: URIRef):
         """
