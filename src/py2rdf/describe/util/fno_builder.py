@@ -112,12 +112,8 @@ class FnOBuilder():
 
             # map to strategy
             if mapto.has_map_strategy():
-                index = mapto.index
-                triples.append((bnode, PrefixMap.ns('fnoc')["mappingStrategy"], PrefixMap.ns('fnoc')["setItem"]))
-                if isinstance(index, int):
-                    triples.append((bnode, PrefixMap.ns('fnoc')["index"], Literal(index)))
-                else:
-                    triples.append((bnode, PrefixMap.ns('fnoc')["property"], Literal(index)))
+                triples.append((bnode, PrefixMap.ns('fnoc')["mappingStrategy"], PrefixMap.ns('fnoc')[mapto.strategy]))
+                triples.append((bnode, PrefixMap.ns('fnoc')["key"], Literal(mapto.key)))
 
             [ g.add(x) for x in triples ]
             
@@ -320,7 +316,11 @@ class FnOBuilder():
         return PrefixMap.ns('')[f"{f_name}Implementation"], g
     
     @staticmethod
-    def describe_mapping(f, imp, f_name, positional, keyword, args, kargs, output, self_output, defaults={}) -> PipelineGraph:
+    def describe_mapping(f, imp, f_name, output,
+                         positional=[], keyword={}, 
+                         args=None, kargs=None, 
+                         self_output=None, 
+                         defaults={}) -> PipelineGraph:
         """
         Describe a mapping.
 

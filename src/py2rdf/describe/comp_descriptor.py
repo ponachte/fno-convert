@@ -533,7 +533,10 @@ class CompositionDescriptor:
             name = str.strip(func.attr, '_')
             context = name
             value_name = self.handle_stmt(func.value)
-            value_type = self.get_type(value_name.get_value())
+            if value_name.from_term():
+                value_type = type(value_name.get_value())
+            else:
+                value_type = self.get_type(value_name.get_value())
 
             # The value is an imported object
             if callable(value_name.get_value()):
@@ -681,7 +684,7 @@ class CompositionDescriptor:
                 self.handle_mapping(mapfrom, mapto)
                 defaults.remove(par)
             elif varpos is not None:
-                mapto = MappingNode().set_function_par(call, varpos).set_strategy(i - len(positional))    
+                mapto = MappingNode().set_function_par(call, varpos).set_strategy("fromList", i - len(positional))    
                 self.handle_mapping(mapfrom, mapto)
         
         # Then map all keywords arguments to the parameter with the same predicate
@@ -694,7 +697,7 @@ class CompositionDescriptor:
                 self.handle_mapping(mapfrom, mapto)
                 defaults.remove(par)
             elif varkey is not None:
-                mapto = MappingNode().set_function_par(call, varkey).set_strategy(karg.arg)
+                mapto = MappingNode().set_function_par(call, varkey).set_strategy("fromDictionary", karg.arg)
                 self.handle_mapping(mapfrom, mapto)
         
         # Map all parameters that were not mapped to its default values
@@ -929,21 +932,33 @@ class CompositionDescriptor:
         """
         # Check if the "list" function has been encountered before and update its counter
         if "list" not in self.f_counter:
+            # Create FnO Function
             self.f_counter["list"] = 1
-            _, desc = PipelineGraph.from_std('list')
+            s, desc = PipelineGraph.from_std('list')
+            self.g += desc
+            
+            elements = to_uri(PrefixMap.pf(), 'Elements')
+            output = to_uri(PrefixMap.pf(), "ListOutput")
+            
+            # Python implementation
+            imp_uri, desc = ImpMap.imp_to_rdf(list)
+            self.g += desc
+            
+            # Mapping
+            _, desc = FnOBuilder.describe_mapping(s, imp_uri, 'list', output, positional=[elements])
             self.g += desc
         else:
             self.f_counter["list"] += 1
 
         # Create a URI for the list function and apply it to the RDF graph
         f = to_uri(PrefixMap.pf(), "list")
-        call = URIRef(f"{f}_{self.f_counter['list']}")
+        call = to_uri(PrefixMap.base(), f"list_{self.f_counter['list']}")
         self.g += FnOBuilder.apply(call, f)
 
         # Handle each element in the list to generate its RDF representation and map it to the list
         for i, el in enumerate(elts):
             el_output = self.handle_stmt(el)
-            mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'Elements')).set_strategy(i)
+            mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'Elements')).set_strategy("fromList", i)
             self.handle_mapping(el_output, mapto)
 
         # Set the type of the list output to `list`
@@ -998,7 +1013,7 @@ class CompositionDescriptor:
 
         for i, el in enumerate(elts):
             el_output = self.handle_stmt(el)
-            mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'Elements')).set_strategy(i)
+            mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'Elements')).set_strategy("fromList", i)
             self.handle_mapping(el_output, mapto)
 
         # TupleOutput has type tuple
@@ -1054,7 +1069,7 @@ class CompositionDescriptor:
         
         for i, (key, val) in enumerate(zip(keys, values)):
             pair_output = self.handle_tuple([key, val])
-            mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'Pairs')).set_strategy(i)
+            mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'Pairs')).set_strategy("fromList", i)
             self.handle_mapping(pair_output, mapto)
     
         # DictOutput has type dict
@@ -1089,35 +1104,54 @@ class CompositionDescriptor:
         4. Describe the composition of the strjoin operation in the RDF graph using `FnODescriptor`.
         5. Set the type of the strjoin output to `str`.
         6. Return the URI of the strjoin call and the strjoin output.
-
-        Assumptions:
-        ------------
-        This method assumes that `self.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
-        `self.g`, `self.handle_node`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
-        name = "strjoin"
-        if name not in self.f_counter:
-            self.f_counter[name] = 1
-            _, desc = PipelineGraph.from_std('strjoin')
+        
+        # Check if the "list" function has been encountered before and update its counter
+        if "joinstr" not in self.f_counter:
+            # Create FnO Function
+            self.f_counter["joinstr"] = 1
+            s, desc = PipelineGraph.from_std('joinstr')
+            self.g += desc
+            
+            delimiter = to_uri(PrefixMap.pf(), 'Delimiter')
+            strings = to_uri(PrefixMap.pf(), "Strings")
+            output = to_uri(PrefixMap.pf(), "JoinStringOutput")
+            
+            # Python implementation
+            str_uri, desc = ImpMap.imp_to_rdf(str)
+            self.g += desc
+            imp_uri, desc = ImpMap.imp_to_rdf(str.join, 'joinstr', self=str_uri, static=False)
+            self.g += desc
+            
+            # Mapping
+            _, desc = FnOBuilder.describe_mapping(s, imp_uri, 'join', output, positional=[delimiter, strings])
             self.g += desc
         else:
-            self.f_counter[name] += 1
+            self.f_counter["joinstr"] += 1
 
-        f = to_uri(PrefixMap.pf(), "strjoin")
-        call = URIRef(f"{f}_{self.f_counter[name]}")
+        # Create a URI for the join function and apply it to the RDF graph
+        f = to_uri(PrefixMap.pf(), "joinstr")
+        call = to_uri(PrefixMap.base(), f"joinstr_{self.f_counter['joinstr']}")
         self.g += FnOBuilder.apply(call, f)
         
+        # Set the delimiter to an empty string
+        empty_string = self.handle_constant('')
+        mapto = MappingNode().set_function_par(call, delimiter)
+        self.handle_mapping(empty_string, mapto)
+
+        # Handle each value and map it to the strings parameter
         for i, value in enumerate(values):
-            mapfrom = self.handle_stmt(value)
-            mapto = MappingNode().set_function_par(call, to_uri(PrefixMap.pf(), 'StringsParameter')).set_strategy(i)
-            self.handle_mapping(mapfrom, mapto)
+            value_output = self.handle_stmt(value)
+            mapto = MappingNode().set_function_par(call, strings).set_strategy("fromList", i)
+            self.handle_mapping(value_output, mapto)
 
-        # StrJoinOutput has type str
-        self.scope.var_types[to_uri(PrefixMap.pf(), "StrJoinOutput")] = str
-        
+        # Set the type of the join output to `str`
+        self.scope.var_types[output] = str
+
+        # Return the URI of the list call and the list output
         self.handle_order(call)
-
-        return MappingNode().set_function_out(call, to_uri(PrefixMap.pf(), 'StrJoinOutput'))
+        
+        return MappingNode().set_function_out(call, output)
     
     def handle_format(self, value, conversion, spec):
         """
@@ -1470,7 +1504,7 @@ class CompositionDescriptor:
         if isinstance(target, ast.Tuple):
             for i, elt in enumerate(target.elts):
                 elt_output = self.handle_stmt(elt)
-                self.handle_assignment(next_output.set_strategy(i), [self.name_node(elt_output.get_value())])
+                self.handle_assignment(next_output.set_strategy("fromList", i), [self.name_node(elt_output.get_value())])
                 next_output.set_strategy(None)
         else:
             target_output = self.handle_stmt(target)
@@ -1544,7 +1578,8 @@ class CompositionDescriptor:
             else:
                 imp, descr = FnOBuilder.describe_implementation(context)
         except:
-            imp, descr = FnOBuilder.describe_implementation(context, fun.__module__, getattr(fun, '__package__', None))
+            module = getattr(fun, "__module__", Importer.get_owner(fun))
+            imp, descr = FnOBuilder.describe_implementation(context, module, getattr(fun, '__package__', None))
         self.g += descr
 
         ### FUNCTION MAPPING ###
@@ -1822,7 +1857,7 @@ class CompositionDescriptor:
                 defaults[par] = param.default
                 self.scope.default_map[s].update({name: param.default})
 
-        _, desc = FnOBuilder.describe_mapping(s, imp, f_name, positional, keyword, args, kargs, output, self_output, defaults)
+        _, desc = FnOBuilder.describe_mapping(s, imp, f_name, output, positional, keyword, args, kargs, self_output, defaults)
         self.g += desc
 
     def map_with_num(self, s, keywords, imp, f_name, output, self_output):
@@ -1858,5 +1893,7 @@ class CompositionDescriptor:
             if par is not None:
                 keyword.append((par, pred.arg))
 
-        _, desc = FnOBuilder.describe_mapping(s, imp, f_name, positional, keyword, None, None, output, self_output)
+        _, desc = FnOBuilder.describe_mapping(s, imp, f_name, output, 
+                                              positional=positional, keyword=keyword, 
+                                              self_output=self_output)
         self.g += desc

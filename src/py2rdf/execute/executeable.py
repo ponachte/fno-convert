@@ -52,10 +52,9 @@ class Composition:
             # Group mappings by target
             if target not in self.mappings:
                 self.mappings[target] = []
-            self.mappings[target].append((
-                source, priority,
-                g.has_strategy(mapfrom), g.get_strategy(mapfrom),
-                g.has_strategy(mapto), g.get_strategy(mapto)))
+            src_strat, src_key = g.get_strategy(mapfrom)
+            tar_strat, tar_key = g.get_strategy(mapto)
+            self.mappings[target].append((source, priority, src_strat, src_key, tar_strat, tar_key))
         
         # Create mapping for each target    
         for target, sources in self.mappings.items():
@@ -127,7 +126,9 @@ class Function:
         
         if g.has_self(fun):
             uri = g.get_self(fun)
-            self.self_input = Terminal(self, uri, 'self', type=g.get_param_type(uri))
+            self.self_input = Terminal(self, uri, 'self', 
+                                       type=g.get_param_type(uri), 
+                                       param_mapping=ParameterMapping(g, fun, uri))
             self.terminals[self.self_input.uri] = self.self_input
         if g.has_output(fun):
             uri = g.get_output(fun)
@@ -182,22 +183,20 @@ class Function:
                             param.set_value(mapping.default)
                         else:
                             raise Exception(f"Parameter {param.name} not set.")
-                    value = param.value
+                    value = param.get_value()
 
-                    if mapping.getType() == MappingType.VARPOSITIONAL:
-                        for i, val in value.items():
-                            vargs.append((i, val))
-                    elif mapping.getType() == MappingType.VARKEYWORD:
+                    if mapping.get_type() == MappingType.VARPOSITIONAL:
+                        vargs = value
+                    elif mapping.get_type() == MappingType.VARKEYWORD:
                         if isinstance(value, dict):
                             vkeyargs = value
-                    elif mapping.getType() == MappingType.KEYWORD:
-                        keyargs[mapping.getProperty()] = value
-                    elif mapping.getType() == MappingType.POSITIONAL:
-                        args.append((mapping.getProperty(), value))
+                    elif mapping.get_type() == MappingType.KEYWORD:
+                        keyargs[mapping.get_property()] = value
+                    elif mapping.get_type() == MappingType.POSITIONAL:
+                        args.append((mapping.get_property(), value))
                 
                 # correctly sort the positional arguments
                 args = [ x[1] for x in sorted(args, key=lambda x: x[0])]
-                vargs = [ x[1] for x in sorted(vargs, key=lambda x: x[0])]
 
                 # Remove the self parameter as we already have the method object
                 if self.self_input is not None:
@@ -212,8 +211,8 @@ class Function:
                     self.endedAt = datetime.datetime.now()
                     
                     self.output.set_value(ret)
-                    if self.self_input is not None:
-                        self.self_output.set_value(self.self_input.value)
+                    if self.self_output is not None:
+                        self.self_output.set_value(self.self_input.get_value())
                 except StopIteration as e:
                     raise e
                 except Exception as e:

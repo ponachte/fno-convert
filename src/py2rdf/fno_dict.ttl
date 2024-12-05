@@ -1,9 +1,12 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix pf: <http://www.example.com/pythonfunctions#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix fno: <https://w3id.org/function/ontology#> .
 @prefix fnoc: <https://w3id.org/function/vocabulary/composition#> .
+@prefix fnoi: <https://w3id.org/function/vocabulary/implementation#> .
+@prefix fnom: <https://w3id.org/function/vocabulary/mapping#> .
 @prefix ptype: <http://example.com/ptype#> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
 
@@ -187,21 +190,28 @@ pf:AttributeSelfOutput a fno:Output ;
 
 # FORMAT
 
-pf:strjoin a fno:Function ;
+pf:joinstr a fno:Function ;
       a prov:Entity ;
       fno:expects [ a rdf:Seq ;
-                    rdf:_1 pf:StringsParameter ] ;
+                    rdf:_1 pf:Delimiter ;
+                    rdf:_2 pf:Strings ] ;
       fno:returns [ a rdf:Seq ;
-                    rdf:_1 pf:StrJoinOutput ] ;
-      dcterms:description "Join a list of strings" .
+                    rdf:_1 pf:JoinStringOutput ] ;
+      dcterms:description "Join a list of strings with a given delimiter." .
 
-pf:StringsParameter a fno:Parameter ;
-      fno:predicate pf:strings ;
-      fno:type rdf:List .
+pf:JoinStringOutput a fno:Output ;
+    fno:predicate pf:joinstrResult ;
+    fno:type xsd:string .
 
-pf:StrJoinOutput a fno:Output ;
-      fno:predicate pf:joinResult ;
-      fno:type xsd:string .
+pf:Strings a fno:Parameter ;
+    fno:predicate pf:strings ;
+    fno:required true ;
+    fno:type rdfs:list .
+
+pf:Delimiter a fno:Parameter ;
+    fno:predicate pf:self ;
+    fno:required true ;
+    fno:type xsd:string .
 
 pf:format a fno:Function ;
       a prov:Entity ;

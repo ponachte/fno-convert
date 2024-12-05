@@ -747,15 +747,17 @@ class PipelineGraph(Graph):
         return True if results else False
 
     def get_strategy(self, endpoint):
-        result = [ x['key'].value for x in self.query(f'''
-            SELECT ?key WHERE {{
-               ?endpoint fnoc:index | fnoc:property ?key .
+        result = [ (get_name(x['strat']), x['key'].value) for x in self.query(f'''
+            SELECT ?strat ?key WHERE {{
+               ?endpoint fnoc:mappingStrategy ?strat ; 
+                         fnoc:key ?key .
             }}''', initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})]
         
         if len(result) > 1:
             raise Exception("Mapping endpoint has multiple mapping strategies.")
         elif len(result) == 1:
             return result[0]
+        return None, None
      
     def get_implementation(self, f):
           """

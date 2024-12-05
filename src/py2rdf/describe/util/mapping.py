@@ -14,7 +14,8 @@ class MappingNode:
         self.context = None
         self.parameter = None
         self.output = None
-        self.index = None
+        self.key = None
+        self.strategy = None
         self.constant = None
         self.variable = None
     
@@ -55,8 +56,9 @@ class MappingNode:
     def get_variable(self):
         return self.variable
     
-    def set_strategy(self, index: int | str | None) -> "MappingNode":
-        self.index = index
+    def set_strategy(self, strategy, key: int | str = None) -> "MappingNode":
+        self.strategy = strategy
+        self.key = key
 
         return self
     
@@ -64,7 +66,7 @@ class MappingNode:
         return self.output is not None
 
     def has_map_strategy(self) -> bool:
-        return self.index is not None
+        return self.strategy is not None
     
     def from_term(self) -> bool:
         return self.parameter is None and self.output is None

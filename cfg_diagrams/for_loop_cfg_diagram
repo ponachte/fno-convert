@@ -4,7 +4,7 @@ digraph "clusterexamples/for_loop.py" {
 for n in range(10):
 "]
 	2 [label="#2
-print(n_sum(n))
+print(f'faculty sum of n = {n_sum(n)}')
 "]
 	2 -> 1 [label=""]
 	1 -> 2 [label="range(10)"]

@@ -33,9 +33,11 @@ std_prefixes = {
 }
 
 # Dictionaries for storing RDF graphs
-DICTIONARIES = {
-    'grel': Graph().parse(std_prefixes['grel'], format='turtle')
-}
+DICTIONARIES = {}
+"""try:
+    DICTIONARIES['grel'] = Graph().parse(std_prefixes['grel'], format='turtle')
+except:
+    print("No internet connection")"""
 
 # RDF graph for Python function descriptions
 PFDOC = Graph().parse('./src/py2rdf/fno_dict.ttl', format='turtle')
@@ -186,16 +188,16 @@ class ImpMap:
         # Add class type and metadata
 
         if inspect.isclass(imp) or imp is Any:
-            imp_uri = PrefixMap.ns('')[f"{imp_name}Class"]
+            imp_uri = PrefixMap.ns('')[f"{imp_name}PythonClass"]
             g.add((imp_uri, PrefixMap.ns('rdf').type, PrefixMap.ns('fnoi').PythonClass))
         else:
-            imp_uri = PrefixMap.ns('')[f"{imp_name}Implementation"]
+            imp_uri = PrefixMap.ns('')[f"{imp_name}PythonImplementation"]
             # Make a distinction between a function and a method
             if self is not None:
                 g.add((imp_uri, PrefixMap.ns('rdf').type, PrefixMap.ns('fnoi').PythonMethod))
 
                 # Add the type of the self parameter
-                g.add((imp_uri, PrefixMap.ns('fnoi').self, self))
+                g.add((imp_uri, PrefixMap.ns('fnoi').methodOf, self))
                 g.add((imp_uri, PrefixMap.ns('fnoi').static, Literal(static)))
             else:
                 g.add((imp_uri, PrefixMap.ns('rdf').type, PrefixMap.ns('fnoi').PythonFunction))
@@ -203,10 +205,10 @@ class ImpMap:
 
         g.add((imp_uri, PrefixMap.ns('rdfs').label, Literal(getattr(imp, '__name__', str(imp)))))
         g.add((imp_uri, PrefixMap.ns('rdf').type, PrefixMap.ns('prov').Agent))
-        g.add((imp_uri, PrefixMap.ns('fnoi').module, Literal(imp.__module__)))
-        if '.' in imp.__module__:
-            g.add((imp_uri, PrefixMap.ns('fnoi').package, Literal(imp.__module__.split('.')[0])))
-        
+        if hasattr(imp, "__module__"):
+            g.add((imp_uri, PrefixMap.ns('fnoi').module, Literal(imp.__module__)))
+            if '.' in imp.__module__:
+                g.add((imp_uri, PrefixMap.ns('fnoi').package, Literal(imp.__module__.split('.')[0]))) 
         if hasattr(imp, '__doc__'):
             g.add((imp_uri, PrefixMap.ns('dcterms').description, Literal(imp.__doc__)))
 
@@ -241,32 +243,35 @@ class ImpMap:
             return NoneType
                 
         result = [
-            (x['label'].value, x['module'].value, 
+            (x['label'].value, 
+             x['module'].value if x['module'] is not None else None, 
              x['package'].value if x['package'] is not None else None,
              x['file'].value if x['file'] is not None else None,
-             x['self'] if x['self'] is not None else None)
+             x['self_class'])
             for x in g.query(f'''
-            SELECT ?type ?label ?module ?package ?file ?self WHERE {{
+            SELECT ?type ?label ?module ?package ?file ?self_class WHERE {{
                 VALUES ?type {{ fnoi:PythonClass fnoi:PythonFunction fnoi:PythonMethod }}
                 <{s}> a ?type ;
-                             rdfs:label ?label ;
-                             fnoi:module ?module .
+                      rdfs:label ?label ;
+                OPTIONAL {{ <{s}> fnoi:module ?module . }}
                 OPTIONAL {{ <{s}> fnoi:package ?package . }}
                 OPTIONAL {{ <{s}> fnoi:file ?file . }}
-                OPTIONAL {{ <{s}> fnoi:self ?self . }}
+                OPTIONAL {{ <{s}> fnoi:methodOf ?self_class . }}
             }}''', initNs=PrefixMap.NAMESPACES)]
         
         try:
             if result:
-                label, module, package, file, self = result[0]
+                label, module, package, file, self_class = result[0]
                 if module is not None:
+                    if module == "builtins" and hasattr(__builtins__, label):
+                        return getattr(__builtins__, label)   
                     module_obj = importlib.import_module(module, package)
                     if hasattr(module_obj, label):
                         return getattr(module_obj, label)
-                    elif self is not None:
-                        self_obj = ImpMap.rdf_to_imp(g, self)
-                        if hasattr(self_obj, label):
-                            return getattr(self_obj, label)
+                elif self_class is not None:
+                    self_obj = ImpMap.rdf_to_imp(g, self_class)
+                    if hasattr(self_obj, label):
+                        return getattr(self_obj, label)
                 if file is not None:
                     return load_function_from_source(file, label)
         except Exception as e:
