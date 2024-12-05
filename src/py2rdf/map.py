@@ -262,6 +262,8 @@ class ImpMap:
         try:
             if result:
                 label, module, package, file, self_class = result[0]
+                if file is not None:
+                    return load_function_from_source(file, label)
                 if module is not None:
                     if module == "builtins" and hasattr(__builtins__, label):
                         return getattr(__builtins__, label)   
@@ -272,8 +274,6 @@ class ImpMap:
                     self_obj = ImpMap.rdf_to_imp(g, self_class)
                     if hasattr(self_obj, label):
                         return getattr(self_obj, label)
-                if file is not None:
-                    return load_function_from_source(file, label)
         except Exception as e:
             print(f"Error while trying to get implementation from {s.split('#')[-1]}: {e}")
             return Any

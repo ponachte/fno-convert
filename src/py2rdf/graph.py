@@ -115,6 +115,7 @@ class PipelineGraph(Graph):
             An optional RDF graph to initialize the PipelineGraph with.
         """
         super().__init__()
+        PrefixMap.bind_namespaces(self)
         if graph:
             self += graph
 

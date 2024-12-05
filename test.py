@@ -1,10 +1,10 @@
 from py2rdf.describe.comp_descriptor import CompositionDescriptor
 from py2rdf.execute.executeable import Composition
-import ast, astpretty, importlib
+from py2rdf.graph import PipelineGraph
+import ast, astpretty, importlib, rdflib
 
 if __name__ == "__main__":
-  # astpretty.pprint(ast.parse("str.join('', ['hey', 'hallo'])"), show_offsets=False)
-  g, s = CompositionDescriptor().from_file("examples/for_loop.py")
+  g = PipelineGraph().parse('graphs/for_loop.ttl')
   print(g.serialize(format="turtle"))
-  exe = Composition(g, s)
+  exe = Composition(g, rdflib.URIRef("http://www.example.com#for_loopComposition"))
   exe.execute()
