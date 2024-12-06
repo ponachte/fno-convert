@@ -1,5 +1,5 @@
-from semantify.descriptors.docker import DockerDescriptor
-from semantify.descriptors.python import PythonDescriptor
+from semantexe.descriptors.docker import DockerDescriptor
+from semantexe.descriptors.python import PythonDescriptor
 
 DD_DOCKERFILE = "/home/ponachte/projects/protego-data-driven-activity-recognition/phone_model/Dockerfile"
 
