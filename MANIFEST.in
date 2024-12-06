@@ -1,1 +1,1 @@
-include src/semantify/functions/*.ttl
+include src/semantexe/functions/*.ttl

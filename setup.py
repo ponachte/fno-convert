@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='semantify',
+    name='semantexe',
     version='0.1',
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     include_package_data=True,
-    package_data={'semantify/functions': ['*.ttl']}
+    package_data={'semantexe/functions': ['*.ttl']}
 )
