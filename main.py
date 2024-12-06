@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QApplication
-from src.py2rdf.visualize import PY2RDFWindow
+from src.semantify.visualize import PY2RDFWindow
 
 import sys
 

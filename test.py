@@ -1,10 +1,10 @@
-from py2rdf.describe.comp_descriptor import CompositionDescriptor
-from py2rdf.execute.executeable import Composition
-from py2rdf.graph import PipelineGraph
-import ast, astpretty, importlib, rdflib
+from semantify.descriptors.docker import DockerDescriptor
+from semantify.descriptors.python import PythonDescriptor
 
 if __name__ == "__main__":
-  g = PipelineGraph().parse('graphs/for_loop.ttl')
-  print(g.serialize(format="turtle"))
-  exe = Composition(g, rdflib.URIRef("http://www.example.com#for_loopComposition"))
-  exe.execute()
+  # descriptor = DockerDescriptor()
+  # descriptor.from_dir("/home/ponachte/projects/protego-data-driven-activity-recognition/phone_model/Dockerfile")
+  
+  descriptor = PythonDescriptor()
+  g, s = descriptor.from_file('examples/for_loop.py')
+  print(g.serialize(format='turtle'))
