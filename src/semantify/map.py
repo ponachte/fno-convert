@@ -1,5 +1,5 @@
 from rdflib import Namespace, Graph, Literal
-from pkg_resources import resource_filename
+from importlib.resources import files
 import inspect
 import importlib
 import sys
@@ -14,7 +14,7 @@ std_prefixes = {
     'rdfs': "http://www.w3.org/2000/01/rdf-schema#",
     'xsd': "http://www.w3.org/2001/XMLSchema#",
     'ex': "http://www.example.com#",
-    'pf': "http://www.example.com/pythonfunctions#",
+    'cf': "http://www.example.com/controlflow#",
     'dcterms': "http://purl.org/dc/terms/",
     'doap': "http://usefulinc.com/ns/doap#",
     'fno': "https://w3id.org/function/ontology#",
@@ -26,23 +26,12 @@ std_prefixes = {
     'prov': "http://www.w3.org/ns/prov#",
     'cc': "http://creativecommons.org/ns#",
     'foaf': "http://xmlns.com/foaf/0.1/",
-    'grel': "http://users.ugent.be/~bjdmeest/function/grel.ttl#",
     'void': "http://rdfs.org/ns/void#",
     'mls': "http://www.w3.org/ns/mls#",
     'mlflow': "http://www.example.com/mlflow#",
     'do': "http://linkedcontainers.org/vocab#",
+    'docker': "http://www.example.com/dockerimage#"
 }
-
-# Dictionaries for storing RDF graphs
-DICTIONARIES = {}
-"""try:
-    DICTIONARIES['grel'] = Graph().parse(std_prefixes['grel'], format='turtle')
-except:
-    print("No internet connection")"""
-
-# RDF graph for Python function descriptions
-PFDOC = Graph().parse('./src/semantify/fno_dict.ttl', format='turtle')
-
 
 def load_function_from_source(file_path, function_name):
     """
@@ -145,14 +134,24 @@ class PrefixMap:
         return PrefixMap.ns('ex')
     
     @staticmethod
-    def pf():
+    def cf():
         """
         Get the base URI for the Python functions namespace.
 
         Returns:
             str: The base URI.
         """
-        return PrefixMap.ns('pf')
+        return PrefixMap.ns('cf')
+    
+    @staticmethod
+    def do():
+        """
+        Get the base URI for the docker onto namespace.
+
+        Returns:
+            str: The base URI.
+        """
+        return PrefixMap.ns('do')
 
 
 class ImpMap:
@@ -315,69 +314,3 @@ class InstMap:
         else:
             inst_type, type_desc = ImpMap.imp_to_rdf(type(inst))
         return Literal(inst, datatype=inst_type), type_desc
-
-
-class FnODescriptionMap:
-    """
-    Utility class for managing and accessing RDF dictionaries of function descriptions.
-    """
-    
-    @staticmethod
-    def add_dict(prefix, url, format):
-        """
-        Add an RDF dictionary of function descriptions.
-
-        Args:
-            prefix (str): The namespace prefix for the dictionary.
-            url (str): The URL of the RDF dictionary.
-            format (str): The format of the RDF data.
-        """
-        PrefixMap.update_namespaces(prefix, url)
-        DICTIONARIES.update({prefix: Graph().parse(url, format=format)})
-
-    @staticmethod
-    def get_std(name):
-        """
-        Get a standard function description from the standard function document.
-
-        Args:
-            name (str): The name of the function.
-
-        Returns:
-            tuple: A tuple containing the URI of the function and the RDF graph.
-        """
-        if FnODescriptionMap.check_dict(name, 'pf', PFDOC):
-            return PrefixMap.ns('pf')[name], PFDOC
-
-    @staticmethod
-    def get_description(name: str):
-        """
-        Get a function description from the RDF dictionary.
-
-        Args:
-            name (str): The name of the function.
-
-        Returns:
-            tuple: A tuple containing the URI of the function and the RDF graph.
-        """
-        for prefix, graph in DICTIONARIES.items():
-            if FnODescriptionMap.check_dict(name, prefix, graph):
-                return PrefixMap.ns(prefix)[name], graph
-        return None
-
-    @staticmethod
-    def check_dict(name: str, prefix, graph: Graph) -> bool:
-        """
-        Check if a function description exists in the RDF dictionary.
-
-        Args:
-            name (str): The name of the function.
-            prefix (str): The namespace prefix for the dictionary.
-            graph (Graph): The RDF graph containing the dictionary.
-
-        Returns:
-            bool: True if the function description exists, False otherwise.
-        """
-        if graph.query(f'''ASK WHERE {{ {prefix}:{name} a fno:Function . }}''', initNs=PrefixMap.NAMESPACES):
-            return True
-        return False

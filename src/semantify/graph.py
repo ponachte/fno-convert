@@ -1,6 +1,6 @@
 from rdflib import Graph, BNode, Literal, URIRef
 from rdflib.container import Container
-from .map import PrefixMap, FnODescriptionMap, ImpMap
+from .map import PrefixMap, ImpMap
 from pyparsing.exceptions import ParseException
 from typing import Any
 
@@ -68,38 +68,6 @@ class ExecutableGraph(Graph):
     A subclass of rdflib.Graph tailored for handling pipeline graphs
     with specific functionalities for managing function descriptions.
     """
-    @staticmethod
-    def from_std(name):
-        """
-        Creates a PipelineGraph from a standard description.
-        
-        :param name: str
-            The name of the standard to look up.
-        :return: tuple or None
-            A tuple containing the standard identifier and its function description, or None if not found.
-        """
-        info = FnODescriptionMap.get_std(name)
-        if info:
-            s, desc = info
-            return s, ExecutableGraph(desc).get_function_description(s)
-        return
-
-    @staticmethod
-    def from_dict(name):
-        """
-        Creates a PipelineGraph from a dictionary description.
-        
-        :param name: str
-            The name of the description to look up.
-        :return: tuple or None
-            A tuple containing the description identifier and its function description, or None if not found.
-        """
-        info = FnODescriptionMap.get_description(name)
-        if info:
-            s, desc = info
-            return s, ExecutableGraph(desc).get_function_description(s)
-        return
-
     def __init__(self, graph=None):
         """
         Initializes a PipelineGraph.
@@ -185,23 +153,6 @@ class ExecutableGraph(Graph):
             initNs=PrefixMap.NAMESPACES
         )]
         return result[0] if len(result) > 0 else None
-    
-    def is_iterator(self, s) -> bool:
-        """
-        Checks if a URI is an iterator
-        
-        :param s: URIRef
-            The URI to check
-        :return: bool
-            True if the URI is an iterator, False otherwise
-        """
-        results = self.query(
-            f'''ASK WhERE {{ 
-                ?comp fnoc:iterator ?iter .
-                ?iter fnoc:constituentFunction <{s}> .
-            }}''', initNs=PrefixMap.NAMESPACES
-        )
-        return True if results else False
 
     def is_parameter(self, s) -> bool:
         """
@@ -234,6 +185,13 @@ class ExecutableGraph(Graph):
             initNs=PrefixMap.NAMESPACES
         )
         return True if results else False
+    
+    def has_function(self, uri):
+        result = self.query(f"""
+            ASK WHERE {{
+                <{uri}> a fno:Function .
+            }}""")
+        return True if result else False
 
     def get_function(self, name):
         """
@@ -1071,7 +1029,7 @@ class ExecutableGraph(Graph):
         
         return dependencies
      
-    def get_function_description(self, name) -> "ExecutableGraph":
+    def get_function_description(self, f_uri) -> "ExecutableGraph":
           """
           Retrieve the description of a function, including its parameters, outputs, implementation, and other related information.
 
@@ -1086,10 +1044,10 @@ class ExecutableGraph(Graph):
           """
           # Get Full Function Description
           triples = [
-               (name, x['p'], x['o'])
+               (f_uri, x['p'], x['o'])
                for x in self.query(f'''
                     SELECT ?p ?o WHERE {{
-                         <{name}> ?p ?o .
+                         <{f_uri}> ?p ?o .
                     }}''', initNs=PrefixMap.NAMESPACES)
           ]
 
@@ -1098,7 +1056,7 @@ class ExecutableGraph(Graph):
                (x['s'], x['p'], x['o'])
                for x in self.query(f'''
                     SELECT ?s ?p ?o WHERE {{
-                         <{name}> fno:expects ?s .
+                         <{f_uri}> fno:expects ?s .
                          ?s ?p ?o .
                     }}''', initNs=PrefixMap.NAMESPACES)
           ])
@@ -1108,7 +1066,7 @@ class ExecutableGraph(Graph):
                (x['s'], x['p'], x['o'])
                for x in self.query(f'''
                     SELECT ?s ?p ?o WHERE {{
-                         <{name}> fno:returns ?s .
+                         <{f_uri}> fno:returns ?s .
                          ?s ?p ?o .
                     }}''', initNs=PrefixMap.NAMESPACES)
           ])
@@ -1118,7 +1076,7 @@ class ExecutableGraph(Graph):
                (x['s'], x['p'], x['o'])
                for x in self.query(f'''
                     SELECT ?s ?p ?o WHERE {{
-                         ?s fno:function <{name}> .
+                         ?s fno:function <{f_uri}> .
                          ?s ?p ?o .
                     }}''', initNs=PrefixMap.NAMESPACES)
           ])
@@ -1126,7 +1084,7 @@ class ExecutableGraph(Graph):
                (x['s'], x['p'], x['o'])
                for x in self.query(f'''
                     SELECT ?s ?p ?o WHERE {{
-                         ?mapping fno:function <{name}> .
+                         ?mapping fno:function <{f_uri}> .
                          ?mapping ?type ?s .
                          ?s ?p ?o .
                     }}''', initNs=PrefixMap.NAMESPACES)
@@ -1137,14 +1095,14 @@ class ExecutableGraph(Graph):
                (x['s'], x['p'], x['o'])
                for x in self.query(f'''
                     SELECT ?s ?p ?o WHERE {{
-                         ?mapping fno:function <{name}> ;
+                         ?mapping fno:function <{f_uri}> ;
                                   fno:implementation ?s .
                          ?s ?p ?o .
                     }}''', initNs=PrefixMap.NAMESPACES)
           ])
 
           # Get Parameter Descriptions
-          for param in self.get_parameters(name):
+          for param in self.get_parameters(f_uri):
                triples.extend([
                     (param, x['p'], x['o'])
                     for x in self.query(f'''
@@ -1164,7 +1122,7 @@ class ExecutableGraph(Graph):
                ])
           
           # Get Self Description
-          param = self.get_self(name)
+          param = self.get_self(f_uri)
           if param:
                triples.extend([
                     (param, x['p'], x['o'])
@@ -1185,7 +1143,7 @@ class ExecutableGraph(Graph):
                ])
           
           # Get Output Description
-          out = self.get_output(name)
+          out = self.get_output(f_uri)
           if out:
                triples.extend([
                     (out, x['p'], x['o'])
@@ -1206,7 +1164,7 @@ class ExecutableGraph(Graph):
                ])
           
           # Get Self Output Description
-          self_out = self.get_self_output(name)
+          self_out = self.get_self_output(f_uri)
           if self_out:
                triples.extend([
                     (self_out, x['p'], x['o'])
@@ -1228,10 +1186,10 @@ class ExecutableGraph(Graph):
           
           # Get all function calls
           triples.extend([
-               (x['call'], PrefixMap.NAMESPACES['fnoc']['applies'], name)
+               (x['call'], PrefixMap.NAMESPACES['fnoc']['applies'], f_uri)
                for x in self.query(f'''
                     SELECT ?call WHERE {{
-                         ?call fnoc:applies <{name}> .
+                         ?call fnoc:applies <{f_uri}> .
                     }}
                ''', initNs=PrefixMap.NAMESPACES)
           ])

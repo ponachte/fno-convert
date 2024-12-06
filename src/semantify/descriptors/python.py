@@ -21,6 +21,7 @@ from ..util.python.importer import Importer
 from ..builders.fno import FnOBuilder
 from ..util.python.scope import ScopeState
 from ..util.python.astparse import get_main_source_code
+from ..util.std_kg import STD_KG
 from ..graph import ExecutableGraph, to_uri, get_name
 from ..map import ImpMap, PrefixMap
 
@@ -684,7 +685,7 @@ class PythonDescriptor:
                 self.handle_mapping(mapfrom, mapto)
                 defaults.remove(par)
             elif varpos is not None:
-                mapto = MappingNode().set_function_par(call, varpos).set_strategy("fromList", i - len(positional))    
+                mapto = MappingNode().set_function_par(call, varpos).set_strategy("toList", i - len(positional))    
                 self.handle_mapping(mapfrom, mapto)
         
         # Then map all keywords arguments to the parameter with the same predicate
@@ -697,7 +698,7 @@ class PythonDescriptor:
                 self.handle_mapping(mapfrom, mapto)
                 defaults.remove(par)
             elif varkey is not None:
-                mapto = MappingNode().set_function_par(call, varkey).set_strategy("fromDictionary", karg.arg)
+                mapto = MappingNode().set_function_par(call, varkey).set_strategy("toDictionary", karg.arg)
                 self.handle_mapping(mapfrom, mapto)
         
         # Map all parameters that were not mapped to its default values
@@ -763,14 +764,13 @@ class PythonDescriptor:
         # Create function description if it does not exist
         name = 'attribute'
         context = 'attribute'
+        s = PrefixMap.cf()[context]
         if name not in self.f_counter:
             self.f_counter[context] = 1
-            _, desc = ExecutableGraph.from_std(name)
-            self.g += desc
+            self.g += STD_KG[s]
         else:
             self.f_counter[context] += 1
 
-        s = PrefixMap.pf()[context]
         call = URIRef(f"{s}_{self.f_counter[context]}")
         self.g += FnOBuilder.apply(call, s)
 
@@ -778,11 +778,11 @@ class PythonDescriptor:
         if isinstance(value, ast.Name) and self.importer.is_module(value.id):
             # An object from an imported module is used
             mapfrom = MappingNode().set_constant(self.importer.get_module(value.id).__name__)
-            mapto = MappingNode().set_function_par(call, PrefixMap.pf()['ValueParameter'])
+            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['ValueParameter'])
             self.handle_mapping(mapfrom, mapto)
         else:
             mapfrom = self.handle_stmt(value)
-            mapto = MappingNode().set_function_par(call, PrefixMap.pf()['ValueParameter'])
+            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['ValueParameter'])
             self.handle_mapping(mapfrom, mapto)            
 
         # Convert simple string attributes to AST Name nodes if necessary
@@ -790,12 +790,12 @@ class PythonDescriptor:
             attr = self.name_node(attr)
 
         mapfrom = self.handle_stmt(attr)
-        mapto = MappingNode().set_function_par(call, PrefixMap.pf()['AttributeParameter'])
+        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['AttributeParameter'])
         self.handle_mapping(mapfrom, mapto)
 
         self.handle_order(call)
         
-        return MappingNode().set_function_out(call, PrefixMap.pf()['AttributeOutput'])
+        return MappingNode().set_function_out(call, PrefixMap.cf()['AttributeOutput'])
     
     def handle_slice(self, lower, upper, step):
         """
@@ -830,17 +830,16 @@ class PythonDescriptor:
         3. Handle the lower, upper, and step nodes to generate their RDF representations.
         4. Describe the composition of the slice operation in the RDF graph.
         """
-        f_name = "slice"
-
-        if f_name not in self.f_counter:
-            self.f_counter[f_name] = 1
-            _, desc = ExecutableGraph.from_std(f_name)
-            self.g += desc
+        context = "slice"
+        s = PrefixMap.cf()[context]
+        if context not in self.f_counter:
+            self.f_counter[context] = 1
+            self.g += STD_KG[s]
         else:
-            self.f_counter[f_name] += 1
+            self.f_counter[context] += 1
 
-        f = PrefixMap.pf()[f_name]
-        call = URIRef(f"{f}_{self.f_counter[f_name]}")
+        f = PrefixMap.cf()[context]
+        call = URIRef(f"{f}_{self.f_counter[context]}")
         self.g += FnOBuilder.apply(call, f)
 
         # Handle the lower, upper, and step components of the slice
@@ -848,18 +847,18 @@ class PythonDescriptor:
         upper_name = self.handle_stmt(upper) if upper else MappingNode().set_constant(None)
         step_name = self.handle_stmt(step) if step else MappingNode().set_constant(None)
 
-        mapto = MappingNode().set_function_par(call, PrefixMap.pf()['LowerIndexParameter'])
+        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['LowerIndexParameter'])
         self.handle_mapping(lower_name, mapto)
         
-        mapto = MappingNode().set_function_par(call, PrefixMap.pf()['UpperIndexParameter'])
+        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['UpperIndexParameter'])
         self.handle_mapping(upper_name, mapto)
         
-        mapto = MappingNode().set_function_par(call, PrefixMap.pf()['StepParameter'])
+        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['StepParameter'])
         self.handle_mapping(step_name, mapto)
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.pf()['SliceOutput'])
+        return MappingNode().set_function_out(call, PrefixMap.cf()['SliceOutput'])
     
     def handle_subscript(self, value, index, assign=None):
         """
@@ -934,11 +933,11 @@ class PythonDescriptor:
         if "list" not in self.f_counter:
             # Create FnO Function
             self.f_counter["list"] = 1
-            s, desc = ExecutableGraph.from_std('list')
-            self.g += desc
+            s = PrefixMap.cf()["list"]
+            self.g += STD_KG[s]
             
-            elements = PrefixMap.pf()['Elements']
-            output = PrefixMap.pf()["ListOutput"]
+            elements = PrefixMap.cf()['Elements']
+            output = PrefixMap.cf()["ListOutput"]
             
             # Python implementation
             imp_uri, desc = ImpMap.imp_to_rdf(list)
@@ -951,23 +950,23 @@ class PythonDescriptor:
             self.f_counter["list"] += 1
 
         # Create a URI for the list function and apply it to the RDF graph
-        f = PrefixMap.pf()["list"]
+        f = PrefixMap.cf()["list"]
         call = PrefixMap.base()[f"list_{self.f_counter['list']}"]
         self.g += FnOBuilder.apply(call, f)
 
         # Handle each element in the list to generate its RDF representation and map it to the list
         for i, el in enumerate(elts):
             el_output = self.handle_stmt(el)
-            mapto = MappingNode().set_function_par(call, PrefixMap.pf()['Elements']).set_strategy("fromList", i)
+            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['Elements']).set_strategy("toList", i)
             self.handle_mapping(el_output, mapto)
 
         # Set the type of the list output to `list`
-        self.scope.var_types[PrefixMap.pf()["ListOutput"]] = list
+        self.scope.var_types[PrefixMap.cf()["ListOutput"]] = list
 
         # Return the URI of the list call and the list output
         self.handle_order(call)
         
-        return MappingNode().set_function_out(call, PrefixMap.pf()['ListOutput'])
+        return MappingNode().set_function_out(call, PrefixMap.cf()['ListOutput'])
     
     def handle_tuple(self, elts):
         """
@@ -1000,28 +999,30 @@ class PythonDescriptor:
         This method assumes that `self.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
         `self.g`, `self.handle_node`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
-        if "tuple" not in self.f_counter:
-            self.f_counter["tuple"] = 1
-            _, desc = ExecutableGraph.from_std('tuple')
-            self.g += desc
+        context = "tuple"
+        s = PrefixMap.cf()[context]
+        if context not in self.f_counter:
+            self.f_counter[context] = 1
+            self.g += STD_KG[s]
         else:
-            self.f_counter["tuple"] += 1
+            self.f_counter[context] += 1
+
         
-        f = PrefixMap.pf()["tuple"]
-        call = URIRef(f"{f}_{self.f_counter['tuple']}")
+        f = PrefixMap.cf()[context]
+        call = URIRef(f"{f}_{self.f_counter[context]}")
         self.g += FnOBuilder.apply(call, f)
 
         for i, el in enumerate(elts):
             el_output = self.handle_stmt(el)
-            mapto = MappingNode().set_function_par(call, PrefixMap.pf()['Elements']).set_strategy("fromList", i)
+            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['Elements']).set_strategy("toList", i)
             self.handle_mapping(el_output, mapto)
 
         # TupleOutput has type tuple
-        self.scope.var_types[PrefixMap.pf()["TupleOutput"]] = tuple
+        self.scope.var_types[PrefixMap.cf()["TupleOutput"]] = tuple
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.pf()['TupleOutput'])
+        return MappingNode().set_function_out(call, PrefixMap.cf()['TupleOutput'])
     
     def handle_dict(self, keys, values):
         """
@@ -1056,28 +1057,29 @@ class PythonDescriptor:
         This method assumes that `self.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
         `self.g`, `self.handle_tuple`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
-        if "dict" not in self.f_counter:
-            self.f_counter["dict"] = 1
-            _, desc = ExecutableGraph.from_std('dict')
-            self.g += desc
+        context = "dict"
+        s = PrefixMap.cf()[context]
+        if context not in self.f_counter:
+            self.f_counter[context] = 1
+            self.g += STD_KG[s]
         else:
-            self.f_counter["dict"] += 1
+            self.f_counter[context] += 1
 
-        f = PrefixMap.pf()["dict"]
+        f = PrefixMap.cf()["dict"]
         call = URIRef(f"{f}_{self.f_counter['dict']}")
         self.g += FnOBuilder.apply(call, f)
         
         for i, (key, val) in enumerate(zip(keys, values)):
             pair_output = self.handle_tuple([key, val])
-            mapto = MappingNode().set_function_par(call, PrefixMap.pf()['Pairs']).set_strategy("fromList", i)
+            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['Pairs']).set_strategy("toList", i)
             self.handle_mapping(pair_output, mapto)
     
         # DictOutput has type dict
-        self.scope.var_types[PrefixMap.pf()["DictOutput"]] = dict
+        self.scope.var_types[PrefixMap.cf()["DictOutput"]] = dict
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.pf()['DictOutput'])
+        return MappingNode().set_function_out(call, PrefixMap.cf()['DictOutput'])
     
     def handle_strjoin(self, values):
         """
@@ -1107,15 +1109,16 @@ class PythonDescriptor:
         """
         
         # Check if the "list" function has been encountered before and update its counter
-        if "joinstr" not in self.f_counter:
+        context = "joinstr"
+        if context not in self.f_counter:
             # Create FnO Function
-            self.f_counter["joinstr"] = 1
-            s, desc = ExecutableGraph.from_std('joinstr')
-            self.g += desc
+            self.f_counter[context] = 1
+            s = PrefixMap.cf()[context]
+            self.g += STD_KG[s]
             
-            delimiter = PrefixMap.pf()['Delimiter']
-            strings = PrefixMap.pf()["Strings"]
-            output = PrefixMap.pf()["JoinStringOutput"]
+            delimiter = PrefixMap.cf()['Delimiter']
+            strings = PrefixMap.cf()["Strings"]
+            output = PrefixMap.cf()["JoinStringOutput"]
             
             # Python implementation
             str_uri, desc = ImpMap.imp_to_rdf(str)
@@ -1130,7 +1133,7 @@ class PythonDescriptor:
             self.f_counter["joinstr"] += 1
 
         # Create a URI for the join function and apply it to the RDF graph
-        f = PrefixMap.pf()["joinstr"]
+        f = PrefixMap.cf()["joinstr"]
         call = PrefixMap.base()[f"joinstr_{self.f_counter['joinstr']}"]
         self.g += FnOBuilder.apply(call, f)
         
@@ -1142,7 +1145,7 @@ class PythonDescriptor:
         # Handle each value and map it to the strings parameter
         for i, value in enumerate(values):
             value_output = self.handle_stmt(value)
-            mapto = MappingNode().set_function_par(call, strings).set_strategy("fromList", i)
+            mapto = MappingNode().set_function_par(call, strings).set_strategy("toList", i)
             self.handle_mapping(value_output, mapto)
 
         # Set the type of the join output to `str`
@@ -1404,26 +1407,26 @@ class PythonDescriptor:
         """
         if name not in self.f_counter:
             self.f_counter[name] = 1
-            _, desc = ExecutableGraph.from_std(name)
-            self.g += desc
+            s = PrefixMap.cf()[name]
+            self.g += STD_KG[s]
         else:
             self.f_counter[name] += 1
 
-        f = PrefixMap.pf()[name]
+        f = PrefixMap.cf()[name]
         call = URIRef(f"{f}_{self.f_counter[name]}")
         self.g += FnOBuilder.apply(call, f)
 
         mapfrom = self.handle_stmt(left)
-        mapto = MappingNode().set_function_par(call, PrefixMap.pf()['ObjectParameter1'])
+        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['ObjectParameter1'])
         self.handle_mapping(mapfrom, mapto)
         
         mapfrom = self.handle_stmt(right)
-        mapto = MappingNode().set_function_par(call, PrefixMap.pf()['ObjectParameter2'])
+        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['ObjectParameter2'])
         self.handle_mapping(mapfrom, mapto)
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.pf()['BoolOutput'])
+        return MappingNode().set_function_out(call, PrefixMap.cf()['BoolOutput'])
     
     def handle_ifexpr(self, test, true, false):
         """
@@ -1457,35 +1460,35 @@ class PythonDescriptor:
         4. Describe the composition using FnO Descriptor.
         5. Return the URI of the IfExpr function call and its output.
         """
-      
-        if "ifexpr" not in self.f_counter:
-            self.f_counter["ifexpr"] = 1
-            _, desc = ExecutableGraph.from_std("ifexpr")
-            self.g += desc
+        context = "ifexpr"
+        s = PrefixMap.cf()[context]
+        if context not in self.f_counter:
+            self.f_counter[context] = 1
+            self.g += STD_KG[s]
         else:
             self.f_counter["ifexpr"] += 1
             
-        f = PrefixMap.pf()['ifexpr']
-        call = URIRef(f"{f}_{self.f_counter['ifexpr']}")
-        self.g += FnOBuilder.apply(call, f)
+        s = PrefixMap.cf()['ifexpr']
+        call = URIRef(f"{s}_{self.f_counter['ifexpr']}")
+        self.g += FnOBuilder.apply(call, s)
 
         mapfrom = self.handle_stmt(test)
-        mapto = MappingNode().set_function_par(call, PrefixMap.pf()['TestParameter'])
+        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['TestParameter'])
         self.handle_mapping(mapfrom, mapto)
         
         if true is not None:
             mapfrom = self.handle_stmt(true)
-            mapto = MappingNode().set_function_par(call, PrefixMap.pf()['IfTrueParameter'])
+            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['IfTrueParameter'])
             self.handle_mapping(mapfrom, mapto)
 
         if false is not None:
             mapfrom = self.handle_stmt(false)
-            mapto = MappingNode().set_function_par(call, PrefixMap.pf()['IfFalseParameter'])
+            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['IfFalseParameter'])
             self.handle_mapping(mapfrom, mapto)
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.pf()['IfExprOutput'])
+        return MappingNode().set_function_out(call, PrefixMap.cf()['IfExprOutput'])
     
     def handle_for(self, target, iterator):    
         # Create the iterator      
@@ -1504,26 +1507,26 @@ class PythonDescriptor:
         if isinstance(target, ast.Tuple):
             for i, elt in enumerate(target.elts):
                 elt_output = self.handle_stmt(elt)
-                self.handle_assignment(next_output.set_strategy("fromList", i), [self.name_node(elt_output.get_value())])
+                self.handle_assignment(next_output.set_strategy("toList", i), [self.name_node(elt_output.get_value())])
                 next_output.set_strategy(None)
         else:
             target_output = self.handle_stmt(target)
             self.handle_assignment(next_output, [self.name_node(target_output.get_value())])
     
-    def handle_if(self, test):       
+    def handle_if(self, test):
+        s = PrefixMap.cf()['if']       
         if "if" not in self.f_counter:
             self.f_counter["if"] = 1
-            _, desc = ExecutableGraph.from_std("if")
-            self.g += desc
+            self.g += STD_KG[s]
         else:
             self.f_counter["if"] += 1
         
-        f = PrefixMap.pf()['if']
-        call = URIRef(f"{f}_{self.f_counter['if']}")
-        self.g += FnOBuilder.apply(call, f)
+        s = PrefixMap.cf()['if']
+        call = URIRef(f"{s}_{self.f_counter['if']}")
+        self.g += FnOBuilder.apply(call, s)
         
         condition = self.handle_stmt(test)
-        if_input = MappingNode().set_function_par(call, PrefixMap.pf()['TestParameter']) 
+        if_input = MappingNode().set_function_par(call, PrefixMap.cf()['TestParameter']) 
         self.handle_mapping(condition, if_input)
         
         self.scope.conditions[self.scope.block] = call
@@ -1591,56 +1594,6 @@ class PythonDescriptor:
         
         return s
     
-    def std_to_rdf(self, f_name, context, f, self_type=None, static=False):
-        """
-        Converts a standard Python function definition into its RDF representation.
-
-        This method generates an RDF representation of a standard Python function definition 
-        using FnO descriptors based on the provided function name, context, and function object.
-
-        Parameters:
-        -----------
-        f_name : str
-            The name of the function.
-        context : str
-            The context or namespace in which the function is defined.
-        f : callable
-            The function object.
-        self_type : type, optional
-            The type of the self parameter for a method, if applicable (default is None).
-        static : bool, optional
-            Indicates whether the method is a static method (default is False).
-
-        Returns:
-        --------
-        s : str
-            The unique identifier (URI) representing the function in the RDF graph.
-        """
-        s, desc = ExecutableGraph.from_std(f_name)
-        self.g += desc
-        output = desc.get_output(s)
-        self_output = desc.get_self_output(s)
-
-        ### FUNCTION IMPLEMENTATION ###
-
-        try:
-            if f is not None:
-                imp, descr = ImpMap.imp_to_rdf(f, context, self_type, static)
-            else:
-                imp, descr = FnOBuilder.describe_implementation(context)
-        except:
-            imp, descr = FnOBuilder.describe_implementation(context, builtins.__name__, builtins.__package__)
-        self.g += descr
-
-        ### FUNCTION MAPPING ###
-
-        try:
-            self.map_with_sig(f, s, imp, f_name, output, self_output)
-        except:
-            self.map_with_num(s, [], imp, f_name, output, self_output)
-
-        return s
-    
     def desc_with_sig(self, f_name, context, f, self_class):
         """
         Creates a function description based on the function signature.
@@ -1674,60 +1627,52 @@ class PythonDescriptor:
         params = sig.parameters
         return_type = sig.return_annotation
         
-        # Check if there is a default description
-        default = ExecutableGraph.from_dict(context)
-        if default is None:
-            default = ExecutableGraph.from_dict(context)
-        if default:
-            s, desc = default
-            self.g += desc
-        else:
-            # Create function description from signature
-            parameter_preds = []
-            parameter_types = []
-            self_type = None
+        # Create function description from signature
+        parameter_preds = []
+        parameter_types = []
+        self_type = None
 
-            for i, (name, param) in enumerate(params.items()):
-                if name == 'self':
-                    if self_class == False:
-                        continue
-                    self_type, type_desc = ImpMap.imp_to_rdf(self_class)
-                    self.g += type_desc
-                else:
-                    parameter_preds.append(name)
-                    par_name = f"{context}Parameter{i}"
-                    
-                    param_type, type_desc = ImpMap.imp_to_rdf(param.annotation)
-                    if type_desc:
-                        self.g += type_desc
-                    parameter_types.append(param_type)
-                    self.scope.var_types[PrefixMap.base()[par_name]] = param.annotation
-        
-            output_pred = f"{context}Result"
-            output = PrefixMap.base()[f"{context}Output"]
-
-            if f is not None and type(f) is type:
-                # If the function is a class constructor, the output wil have the class type
-                output_type, type_desc = ImpMap.imp_to_rdf(f)
-                self.scope.var_types[output] = f
-            else:
-                # Convert return annotation
-                output_type, type_desc = ImpMap.imp_to_rdf(return_type)
-                self.scope.var_types[output] = return_type
-            
-            if type_desc:
+        for i, (name, param) in enumerate(params.items()):
+            if name == 'self':
+                if self_class == False:
+                    continue
+                self_type, type_desc = ImpMap.imp_to_rdf(self_class)
                 self.g += type_desc
+            else:
+                parameter_preds.append(name)
+                par_name = f"{context}Parameter{i}"
+                
+                param_type, type_desc = ImpMap.imp_to_rdf(param.annotation)
+                if type_desc:
+                    self.g += type_desc
+                parameter_types.append(param_type)
+                self.scope.var_types[PrefixMap.base()[par_name]] = param.annotation
+    
+        output_pred = f"{context}Result"
+        output = PrefixMap.base()[f"{context}Output"]
+
+        if f is not None and type(f) is type:
+            # If the function is a class constructor, the output wil have the class type
+            output_type, type_desc = ImpMap.imp_to_rdf(f)
+            self.scope.var_types[output] = f
+        else:
+            # Convert return annotation
+            output_type, type_desc = ImpMap.imp_to_rdf(return_type)
+            self.scope.var_types[output] = return_type
         
-            # Add function description
-            s, desc = FnOBuilder.describe_function(f_name, context,
-                                                 parameter_preds, parameter_types,
-                                                 output_pred, output_type,
-                                                 self_type=self_type)
-            self.g += desc
+        if type_desc:
+            self.g += type_desc
+    
+        # Add function description
+        s, desc = FnOBuilder.describe_function(f_name, context,
+                                                parameter_preds, parameter_types,
+                                                output_pred, output_type,
+                                                self_type=self_type)
+        self.g += desc
 
-            self_output = PrefixMap.base()[f"{context}SelfOutput"] if self_type else None
+        self_output = PrefixMap.base()[f"{context}SelfOutput"] if self_type else None
 
-            return s, output, self_output, self_type
+        return s, output, self_output, self_type
     
     def desc_with_amount(self, f_name, context, num_of_params, keywords, self_class):
         """
@@ -1760,48 +1705,41 @@ class PythonDescriptor:
         self_type : type
             The type of the self parameter.
         """
-        default = ExecutableGraph.from_dict(context)
-        if default is None:
-            default = ExecutableGraph.from_dict(context)
-        if default:
-            s, desc = default
-            self.g += desc
-        else:
-            # Create the python any type
-            any_type, type_descr = ImpMap.any()
-            self.g += type_descr
+        # Create the python any type
+        any_type, type_descr = ImpMap.any()
+        self.g += type_descr
 
-            # Create function description from call
-            parameter_preds = []
-            parameter_types = []
+        # Create function description from call
+        parameter_preds = []
+        parameter_types = []
 
-            for i in range(num_of_params):
-                parameter_preds.append(f"{context}ParameterPred{i}")
-                parameter_types.append(any_type)
-            
-            for keyword in keywords:
-                parameter_preds.append(keyword.arg)
-                parameter_types.append(any_type)
+        for i in range(num_of_params):
+            parameter_preds.append(f"{context}ParameterPred{i}")
+            parameter_types.append(any_type)
         
-            output_pred = f"{context}Result"
-            output = PrefixMap.base()[f"{context}Output"]
-            output_type = any_type
-        
-            # Add function description
-            if self_class:
-                self_type = any_type 
-            else: 
-                self_type = None
+        for keyword in keywords:
+            parameter_preds.append(keyword.arg)
+            parameter_types.append(any_type)
+    
+        output_pred = f"{context}Result"
+        output = PrefixMap.base()[f"{context}Output"]
+        output_type = any_type
+    
+        # Add function description
+        if self_class:
+            self_type = any_type 
+        else: 
+            self_type = None
 
-            s, desc = FnOBuilder.describe_function(f_name, context,
-                                                     parameter_preds, parameter_types,
-                                                     output_pred, output_type,
-                                                     self_type=self_type)
-            self.g += desc
+        s, desc = FnOBuilder.describe_function(f_name, context,
+                                                    parameter_preds, parameter_types,
+                                                    output_pred, output_type,
+                                                    self_type=self_type)
+        self.g += desc
 
-            self_output = PrefixMap.base()[f"{context}SelfOutput"] if self_type else None
+        self_output = PrefixMap.base()[f"{context}SelfOutput"] if self_type else None
 
-            return s, output, self_output, self_type
+        return s, output, self_output, self_type
     
     def map_with_sig(self, f, s, imp, f_name, output, self_output):
         """

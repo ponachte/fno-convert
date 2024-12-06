@@ -105,7 +105,7 @@ class Terminal(ValueStore):
         if self.is_output:
             return super().get_value(strat, key)
         
-        if (self.param_mapping.get_type() == MappingType.POSITIONAL and self.strat == "fromList") or \
+        if (self.param_mapping.get_type() == MappingType.POSITIONAL and self.strat == "toList") or \
             self.param_mapping.get_type() == MappingType.VARPOSITIONAL:
                 indexed = []
                 for i, val in super().get_value().items():
