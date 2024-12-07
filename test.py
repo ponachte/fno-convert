@@ -5,8 +5,8 @@ DD_DOCKERFILE = "/home/ponachte/projects/protego-data-driven-activity-recognitio
 
 if __name__ == "__main__":
   
-  descriptor = DockerDescriptor()
-  # g, s = descriptor.from_file('examples/for_loop.py')
-  g, s = descriptor.from_file(DD_DOCKERFILE)
-  print(g.serialize(format='turtle'))
-  
+  descriptor = PythonDescriptor()
+  g, s = descriptor.from_file('examples/for_loop.py')
+  # descriptor = DockerDescriptor()
+  # g, s = descriptor.from_file(DD_DOCKERFILE)
+  print(g.serialize(format='ttl'))

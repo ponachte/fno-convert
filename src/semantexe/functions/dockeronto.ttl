@@ -23,153 +23,196 @@
                                                  <https://w3id.org/function/ontology/0.4> .
 
 do:from a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam ) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 ##
 
 do:entrypoint a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam do:entrypointInputCommand do:entrypointInputParamList ) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ;
+                  rdf:_2 do:entrypointInputCommand ;
+                  rdf:_3 do:entrypointInputParamList ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:entrypointInputCommand a fno:Parameter ;
-  fno:predicate do:entrypointCMD ;
-      fno:type do:Command .
+    fno:predicate do:entrypointCMD ;
+    fno:type do:Command .
 
-do:entrypointInputParamList a fno:Parameter, rdf:List ;
-  fno:predicate do:entrypointCMDParams ;
-      fno:type do:Param .
+do:entrypointInputParamList a fno:Parameter ;
+    fno:predicate do:entrypointCMDParams ;
+    fno:type do:Param .
 
 ##
 
 do:user a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam ) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 ##
 
 do:add a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam do:add_src do:add_dest) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ;
+                  rdf:_2 do:add_src ;
+                  rdf:_3 do:add_dest ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:add_src a fno:Parameter ;
-          fno:predicate do:addSrc ;
-          fno:type xsd:String .
+    fno:predicate do:addSrc ;
+    fno:type xsd:String .
 
 do:add_dest a fno:Parameter ;
-            fno:predicate do:addDest ;
-          fno:type xsd:String .
+    fno:predicate do:addDest ;
+    fno:type xsd:String .
 
 ##
 
 do:label a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam do:labelKey do:labelVal) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ;
+                  rdf:_2 do:labelKey ;
+                  rdf:_3 do:labelVal ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:labelKey a fno:Parameter ;
-          fno:predicate do:labelKeyCmd ;
-          fno:type xsd:String .
+    fno:predicate do:labelKeyCmd ;
+    fno:type xsd:String .
 
 do:labelVal a fno:Parameter ;
-            fno:predicate do:labelValCmd ;
-          fno:type xsd:String .
-
+    fno:predicate do:labelValCmd ;
+    fno:type xsd:String .
 
 ##
 
 do:workdir a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam do:workdirInput ) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ;
+                  rdf:_2 do:workdirInput ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:workdirInput a fno:Parameter ;
-          fno:predicate do:directory ;
-          fno:type xsd:String .
+    fno:predicate do:directory ;
+    fno:type xsd:String .
 
 do:arg a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam ) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 ##
 
 do:cmd a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam do:cmdInputCommand do:cmdInputParamList) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ;
+                  rdf:_2 do:cmdInputCommand ;
+                  rdf:_3 do:cmdInputParamList ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:cmdInputCommand a fno:Parameter ;
-  fno:predicate do:cmdCMD ;
-      fno:type do:Command .
+    fno:predicate do:cmdCMD ;
+    fno:type do:Command .
 
-do:cmdInputParamList a fno:Parameter, rdf:List ;
-  fno:predicate do:cmdCMDParams ;
-      fno:type do:Param .
+do:cmdInputParamList a fno:Parameter ;
+    fno:predicate do:cmdCMDParams ;
+    fno:type do:Param .
 
 ##
 
 do:run a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam do:runInputCommand ) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ;
+                  rdf:_2 do:runInputCommand ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:runInputCommand a fno:Parameter ;
-  fno:predicate do:runCmd ;
-      fno:type do:Command .
+    fno:predicate do:runCmd ;
+    fno:type do:Command .
 
 ##
 
 do:env a fno:Function, do:Instruction ;
-fno:expects ( do:imageInputParam ) ;
-fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:envKey a fno:Parameter ;
-          fno:predicate do:envKeyCmd ;
-          fno:type xsd:String .
+    fno:predicate do:envKeyCmd ;
+    fno:type xsd:String .
 
 do:envValue a fno:Parameter ;
-            fno:predicate do:envValCmd ;
-             fno:type xsd:String .
+    fno:predicate do:envValCmd ;
+    fno:type xsd:String .
 
 ##
 
 do:port a fno:Function, do:Instruction ;
-  fno:expects ( do:imageInputParam do:portValue) ;
-  fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ;
+                  rdf:_2 do:portValue ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:portValue a fno:Parameter ;
-        fno:predicate do:portValCmd ;
-        fno:type xsd:Integer .
-## 
+    fno:predicate do:portValCmd ;
+    fno:type xsd:Integer .
+
+##
 
 do:volume a fno:Function, do:Instruction ;
-  fno:expects ( do:imageInputParam ) ;
-  fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 ##
 
 do:copy a fno:Function, do:Instruction ;
-  fno:expects ( do:imageInputParam  do:copySrc do:copyDest) ;
-  fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParamS ;
+                  rdf:_2 do:copySrc ;
+                  rdf:_3 do:copyDest ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:copySrc a fno:Parameter ;
-          fno:predicate do:src  ;
-  fno:type xsd:String .
+    fno:predicate do:src ;
+    fno:type xsd:String .
 
 do:copyDest a fno:Parameter ;
-            fno:predicate do:dest ;
-            fno:type xsd:String .
+    fno:predicate do:dest ;
+    fno:type xsd:String .
 
 ##
 
 do:maintainer a fno:Function, do:Instruction ;
-  fno:expects ( do:imageInputParam ) ;
-  fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:expose a fno:Function, do:Instruction ;
-  fno:expects ( do:imageInputParam ) ;
-  fno:returns ( do:imageOutputParam ) .
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:imageInputParam ] ;
+    fno:returns [ a rdf:Seq ;
+                  rdf:_1 do:imageOutputParam ] .
 
 do:imageInputParam a fno:Parameter ;
-  fno:predicate do:imageInput  ;
-  fno:type do:Image .
+    fno:predicate do:imageInput ;
+    fno:type do:Image .
 
 do:imageOutputParam a fno:Output ;
-  fno:predicate do:imageOutput ;
-  fno:type do:Image .
+    fno:predicate do:imageOutput ;
+    fno:type do:Image .

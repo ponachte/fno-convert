@@ -5,19 +5,7 @@ from pyparsing.exceptions import ParseException
 from typing import Any
 
 def create_rdf_list(g, elements):
-    """
-    Helper function to create an RDF List with the given elements.
-    
-    This function creates a Container of type 'Seq' (sequence) in the given RDF graph.
-    
-    :param g: rdflib.Graph
-        The RDF Graph on which the RDF list will be attached.
-    :param elements: list
-        A list of elements to be included in the RDF list.
-    :return: rdflib.collection.Container
-        A Container object representing the RDF list.
-    """
-    return Container(g, BNode(), seq=elements, rtype='Seq')
+    return Container(g, BNode(), seq=elements, rtype="Seq")
 
 def get_prefix(s):
     """
