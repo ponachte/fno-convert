@@ -1,10 +1,14 @@
 from dockerfile_parse import DockerfileParser
+from rdflib import URIRef
 
-import ast, hashlib
+import ast, os
 
 from ..map import PrefixMap
 from ..graph import ExecutableGraph
 from ..builders.fno import FnOBuilder
+from ..builders.docker import DockerBuilder
+from ..descriptors.file import DirectoryDescriptor
+from ..descriptors import Descriptor
 from ..util.std_kg import STD_KG
 from ..util.mapping import Mapping, MappingNode
 
@@ -15,29 +19,37 @@ OUTPUT_IMAGE = PrefixMap.do()["imageOutputParam"]
 
 class DockerDescriptor:
     
-    def __init__(self) -> None:
+    def __init__(self, g: ExecutableGraph) -> None:
         self.parser = DockerfileParser()
-        self.f_counter = {}
-        self.g = ExecutableGraph()
+        self.g = g
     
-    def from_file(self, path):
+    def from_file(self, path, file_uri):
+        
+        ### DOCKERFILE ###
+        
+        DockerBuilder.describe_dockerfile(self.g, file_uri, path)
+        
+        ### URI ###
+        
+        comp_uri = URIRef(f"{file_uri}Composition")
+        
         self.parser.dockerfile_path = path
+        
+        self.dir = os.path.dirname(path)
+        self.workdir = ''
         
         self.prev_instruction = None
         self.mappings = []
         
         for inst in self.parser.structure:
             self.handle_inst(inst)
-            
-        # Create composition
-        unique_hash = hashlib.sha256(path.encode()).hexdigest()[:8]  # Shorten hash
-        comp_uri = PrefixMap.ns('do')[unique_hash]
-        FnOBuilder.describe_composition(self.g, comp_uri, self.mappings)
+        
+        FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=file_uri)
         
         # Indicate start
-        FnOBuilder.start(comp_uri, self.start)
+        FnOBuilder.start(self.g, comp_uri, self.start)
             
-        return self.g, comp_uri
+        return comp_uri
     
     def handle_mapping(self, mapfrom, mapto):
         self.mappings.append(Mapping(mapfrom, mapto))
@@ -52,19 +64,19 @@ class DockerDescriptor:
             input = MappingNode().set_function_par(call, INPUT_IMAGE)
             self.handle_mapping(output, input)
             # Explicit execution order
-            self.g += FnOBuilder.link(self.prev_instruction, "next", call)
+            FnOBuilder.link(self.g, self.prev_instruction, "next", call)
         self.prev_instruction = call
     
     def get_call(self, inst):
         inst_uri = PrefixMap.do()[inst]
-        if inst not in self.f_counter:
-            self.f_counter[inst] = 1
+        if inst not in self.g.f_counter:
+            self.g.f_counter[inst] = 1
             self.g += STD_KG[inst_uri]
         else:
-            self.f_counter[inst] += 1
+            self.g.f_counter[inst] += 1
         
-        call_uri = PrefixMap.base()[f"{inst}_{self.f_counter[inst]}"]
-        self.g += FnOBuilder.apply(call_uri, inst_uri)
+        call_uri = PrefixMap.base()[f"{inst}_{self.g.f_counter[inst]}"]
+        FnOBuilder.apply(self.g, call_uri, inst_uri)
         
         return call_uri
     
@@ -107,6 +119,7 @@ class DockerDescriptor:
         if len(values) > 1:
             entrypoint_cmd_params = MappingNode().set_function_par(call_uri, PrefixMap.do()['entrypointInputParamList'])
             for i, value in enumerate(values[1:]):
+                value = Descriptor.describe(self.g, value, dir=self.dir)
                 param = MappingNode().set_constant(value)
                 entrypoint_cmd_params.set_strategy("toList", i)
                 self.handle_mapping(param, entrypoint_cmd_params)
@@ -131,6 +144,11 @@ class DockerDescriptor:
         # Convert input parameter to list
         value = value.split(' ')
         
+        # Describe all files inside the src directory
+        # TODO Implementation must be in dest_dir
+        src_dir = os.path.join(self.dir, value[0])
+        DirectoryDescriptor.describe(self.g, src_dir)
+        
         # Set src parameter
         src = MappingNode().set_constant(value[0])
         src_input = MappingNode().set_function_par(call_uri, PrefixMap.do()['copySrc'])
@@ -151,5 +169,8 @@ class DockerDescriptor:
         dir = MappingNode().set_constant(value)
         dir_input = MappingNode().set_function_par(call_uri, PrefixMap.do()['workdirInput'])
         self.handle_mapping(dir, dir_input)
+        
+        # Set workdir
+        self.workdir = '' if value != '.' else value
         
         self.handle_order(call_uri)

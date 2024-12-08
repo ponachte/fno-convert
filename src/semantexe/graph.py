@@ -67,7 +67,12 @@ class ExecutableGraph(Graph):
         PrefixMap.bind_namespaces(self)
         if graph:
             self += graph
-
+        
+        self.f_counter = {}
+    
+    def exists(self, uri):
+        return uri in self.subjects() or uri in self.objects() or uri in self.predicates()
+    
     def check_call(self, f):
         """
         Checks if a function call is applied in the graph and returns the function it applies.

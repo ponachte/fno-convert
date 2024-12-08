@@ -10,7 +10,7 @@ class FnOBuilder():
     """
 
     @staticmethod
-    def apply(call, f) -> ExecutableGraph:
+    def apply(g: ExecutableGraph, call, f):
         """
         Apply a call to a function.
 
@@ -21,25 +21,16 @@ class FnOBuilder():
         Returns:
             PipelineGraph: The resulting graph.
         """
-        g = PrefixMap.bind_namespaces(ExecutableGraph())
         g.add((call, PrefixMap.ns('fnoc')["applies"], f))
-        return g
     
     @staticmethod
-    def link(call1, pred, call2) -> ExecutableGraph:
-        g = PrefixMap.bind_namespaces(ExecutableGraph())
+    def link(g: ExecutableGraph, call1, pred, call2):
         if call1 is not None and call2 is not None:
             g.add((call1, PrefixMap.ns('fnoc')[pred], call2))
-        return g
     
     @staticmethod
-    def start(comp, call) -> ExecutableGraph:
-        g = PrefixMap.bind_namespaces(ExecutableGraph())
+    def start(g: ExecutableGraph, comp, call):
         g.add((comp, PrefixMap.ns('fnoc')["start"], call))
-        return g
-    @staticmethod
-    def link_composition(g: ExecutableGraph, function, composition):
-        g.add((function, PrefixMap.ns('fnoc')['composition'], composition))
 
     @staticmethod
     def describe_composition(g: ExecutableGraph, comp, mappings, represents=None):
@@ -119,41 +110,8 @@ class FnOBuilder():
             
         return comp_uri
         
-        
-    
     @staticmethod
-    def describe_part_function(call, applies, parameters, terms):
-        """
-        Describe a partially applied function.
-
-        Args:
-            call (str): The name of the call.
-            applies (URIRef): The URI of the function being applied.
-            parameters (list): List of parameters.
-            terms (list): List of terms.
-
-        Returns:
-            Tuple: URI of the function and the resulting graph.
-        """
-        g = PrefixMap.bind_namespaces(ExecutableGraph())
-
-        triples = [
-            (PrefixMap.base()[call], RDF.type, PrefixMap.ns('fnoc')["PartiallyAppliedFunction"]),
-            (PrefixMap.base()[call], PrefixMap.ns('fnoc')["partiallyApplies"], applies)
-        ]
-
-        for parameter, term in zip(parameters, terms):
-            binding = BNode()
-            triples.append((PrefixMap.base()[call], PrefixMap.ns('fnoc')["parameterBinding"], binding))
-            triples.append((binding, PrefixMap.ns('fnoc')["boundToTerm"], PrefixMap.base()[term]))
-            triples.append((binding, PrefixMap.ns('fnoc')["boundParameter"], PrefixMap.base()[parameter]))
-        
-        [ g.add(x) for x in triples ]
-
-        return PrefixMap.base()[call], g
-        
-    @staticmethod
-    def describe_function(f_name, context,
+    def describe_function(g: ExecutableGraph, f_name, context,
                           inputs = [], input_types = [], 
                           output = None, output_type = None, self_type=None):
         """
@@ -172,24 +130,22 @@ class FnOBuilder():
         Returns:
             Tuple: URI of the function and the resulting graph.
         """
-        g = PrefixMap.bind_namespaces(ExecutableGraph())
-
-        g_params_outputs = PrefixMap.bind_namespaces(ExecutableGraph())
+        g_params_outputs = ExecutableGraph()
 
         # create inputs
         for i, input in enumerate(inputs):
             type = input_types[i]
-            g_params_outputs += FnOBuilder.describe_parameter(context, type, input, i)
+            FnOBuilder.describe_parameter(g_params_outputs, context, type, input, i)
         
         if self_type is not None:
             # create self parameter
             # TO DO get type of self instance
-            g_params_outputs += FnOBuilder.describe_parameter(context, self_type)
-            g_params_outputs += FnOBuilder.describe_output(context, self_type, "self_output", f"{context}SelfOutput")
+            FnOBuilder.describe_parameter(g_params_outputs, context, self_type)
+            FnOBuilder.describe_output(g_params_outputs, context, self_type, "self_output", f"{context}SelfOutput")
             
         # create output
         if output and output_type:
-            g_params_outputs += FnOBuilder.describe_output(context, output_type, output)
+            FnOBuilder.describe_output(g_params_outputs, context, output_type, output)
             
         # create fno:expects container
         c_expects = create_rdf_list(
@@ -221,10 +177,10 @@ class FnOBuilder():
         g.add((s, PrefixMap.ns('fno')['expects'], c_expects.uri))
         g.add((s, PrefixMap.ns('fno')['returns'], c_returns.uri))
 
-        return s, g
+        return s
 
     @staticmethod
-    def describe_parameter(f_name, type, pred = 'self', i=-1) -> ExecutableGraph:
+    def describe_parameter(g: ExecutableGraph, f_name, type, pred = 'self', i=-1):
         """
         Describe a parameter.
 
@@ -238,8 +194,6 @@ class FnOBuilder():
         Returns:
             PipelineGraph: The resulting graph.
         """
-        g = PrefixMap.bind_namespaces(ExecutableGraph())
-
         if i >= 0:
             s = PrefixMap.base()[f"{f_name}Parameter{i}"]
         else:
@@ -252,11 +206,9 @@ class FnOBuilder():
         ]
 
         [ g.add(x) for x in triples ]
-
-        return g
     
     @staticmethod
-    def describe_output(f_name, type, pred = 'selfResult', name = None) -> ExecutableGraph:
+    def describe_output(g: ExecutableGraph, f_name, type, pred = 'selfResult', name = None):
         """
         Describe an output.
 
@@ -269,8 +221,6 @@ class FnOBuilder():
         Returns:
             PipelineGraph: The resulting graph.
         """
-        g = PrefixMap.bind_namespaces(ExecutableGraph())
-
         if name is None:
             s = PrefixMap.base()[f"{f_name}Output"]
         else:
@@ -282,11 +232,9 @@ class FnOBuilder():
             (s, PrefixMap.ns('fno')["type"], type)
         ]
         [ g.add(x) for x in triples ]
-
-        return g
     
     @staticmethod
-    def describe_implementation(f_name, m_name=None, p_name=None) -> ExecutableGraph:
+    def describe_implementation(g: ExecutableGraph, f_name, m_name=None, p_name=None):
         """
         Describe the implementation of a function.
 
@@ -298,8 +246,6 @@ class FnOBuilder():
         Returns:
             PipelineGraph: The resulting graph.
         """
-        g = PrefixMap.bind_namespaces(ExecutableGraph())
-
         triples = [
             (PrefixMap.base()[f"{f_name}Implementation"], RDF.type, PrefixMap.ns('fnoi')['PythonFunction']),
             (PrefixMap.base()[f"{f_name}Implementation"], PrefixMap.ns('doap')['name'], Literal(f_name))
@@ -313,10 +259,10 @@ class FnOBuilder():
 
         [ g.add(x) for x in triples ]
         
-        return PrefixMap.base()[f"{f_name}Implementation"], g
+        return PrefixMap.base()[f"{f_name}Implementation"]
     
     @staticmethod
-    def describe_mapping(f, imp, f_name, output,
+    def describe_mapping(g, f, imp, f_name, output,
                          positional=[], keyword={}, 
                          args=None, kargs=None, 
                          self_output=None, 
@@ -338,8 +284,6 @@ class FnOBuilder():
         Returns:
             PipelineGraph: The resulting graph.
         """
-        g = PrefixMap.bind_namespaces(ExecutableGraph())
-
         methodNode = BNode()
         returnNode = BNode()
         selfNode = BNode()
@@ -438,4 +382,4 @@ class FnOBuilder():
 
         [ g.add(x) for x in triples ]
 
-        return s, g
+        return s

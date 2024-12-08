@@ -1,11 +1,18 @@
-digraph "clusterexamples/for_loop.py" {
-	graph [label="examples/for_loop.py"]
+digraph "clusterpython_examples/for_loop.py" {
+	graph [label="python_examples/for_loop.py"]
 	1 [label="#1
-for n in range(10):
+NUMBERS = [1, 2, 3, 4]
+def sum_array(arr):...
+def n_sum(n: int):...
+if __name__ == '__main__':
 "]
-	2 [label="#2
+	16 [label="#16
+for n in NUMBERS:
+"]
+	18 [label="#18
 print(f'faculty sum of n = {n_sum(n)}')
 "]
-	2 -> 1 [label=""]
-	1 -> 2 [label="range(10)"]
+	18 -> 16 [label=""]
+	16 -> 18 [label=NUMBERS]
+	1 -> 16 [label="__name__ == '__main__'"]
 }

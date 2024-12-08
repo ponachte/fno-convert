@@ -1,12 +1,13 @@
-from semantexe.descriptors.docker import DockerDescriptor
-from semantexe.descriptors.python import PythonDescriptor
+from semantexe.descriptors import Descriptor
+from semantexe.graph import ExecutableGraph
 
-DD_DOCKERFILE = "/home/ponachte/projects/protego-data-driven-activity-recognition/phone_model/Dockerfile"
+DD_DOCKERFILE = "docker_examples/data-driven/Dockerfile"
+SIMPLE_DOCKERFILE = "docker_examples/simple/Dockerfile"
+PY_FILE = "python_examples/for_loop.py"
 
 if __name__ == "__main__":
   
-  descriptor = PythonDescriptor()
-  g, s = descriptor.from_file('examples/for_loop.py')
-  # descriptor = DockerDescriptor()
-  # g, s = descriptor.from_file(DD_DOCKERFILE)
+  g = ExecutableGraph()
+  descriptor = Descriptor()
+  s = descriptor.describe(g, SIMPLE_DOCKERFILE)
   print(g.serialize(format='ttl'))

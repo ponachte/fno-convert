@@ -119,7 +119,7 @@ class Importer:
         if not source_file:
             raise Exception(f"Source file for function {func.__name__} not found.")
         
-        self.import_from_file(source_file), obj_path
+        self.import_from_file(source_file, obj_path)
     
     def import_from_file(self, file_path, obj_path=None):
         # if file_path in self._imported_files:

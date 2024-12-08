@@ -1,8 +1,8 @@
 import inspect
-import builtins
+import random
 import traceback
 import ast
-import os
+import os, sys
 
 from operator import (__add__, __and__, __contains__, __eq__, __floordiv__, __ge__, __getitem__, __gt__, 
                       __iadd__, __iand__, __ifloordiv__, __ilshift__, __imatmul__, __imod__, __imul__, __invert__, 
@@ -19,10 +19,10 @@ from collections import deque
 from ..util.mapping import Mapping, MappingNode
 from ..util.python.importer import Importer
 from ..builders.fno import FnOBuilder
+from ..builders.python import PythonBuilder
 from ..util.python.scope import ScopeState
-from ..util.python.astparse import get_main_source_code
 from ..util.std_kg import STD_KG
-from ..graph import ExecutableGraph, to_uri, get_name
+from ..graph import ExecutableGraph, get_name
 from ..map import ImpMap, PrefixMap
 
 class PythonDescriptor:
@@ -31,27 +31,30 @@ class PythonDescriptor:
     def name_node(name: str):
         return ast.Name(id=name, ctx=ast.Load())
     
-    def __init__(self, max_depth=3) -> None:
-        self.g = PrefixMap.bind_namespaces(ExecutableGraph())
+    def __init__(self, g: ExecutableGraph, max_depth=3) -> None:
+        self.g = g
         self.importer = Importer()
         self.max_depth = max_depth
         self.fun_cfgs = {}
-        self.f_counter = {}
         self.state = deque()
         self.init_scope()
         
         self.depth = 0
     
-    def init_scope(self, scope=None):
-        self.scope = ScopeState(scope=scope)
+    def init_scope(self, scope=None, path=None):
+        self.scope = ScopeState(scope=scope, path=path)
+        if path is not None:
+            sys.path.append(os.path.dirname(path))
 
-    def new_scope(self, new_scope):
+    def new_scope(self, new_scope, new_path):
         # Save current state
         self.state.append(self.scope)
         # Reset to a new blank state
-        self.init_scope(new_scope)
+        self.init_scope(new_scope, new_path)
 
     def restore_scope(self):
+        if self.scope.path is not None:
+            sys.path.remove(os.path.dirname(self.scope.path))
         if not self.state:
             raise RuntimeError("No saved state to restore.")
         self.scope = self.state.pop()
@@ -76,7 +79,8 @@ class PythonDescriptor:
         
         ### NEW SCOPE ###
         
-        self.new_scope(fun_uri)
+        path = inspect.getsourcefile(obj)
+        self.new_scope(fun_uri, path)
 
         ### PARSE SOURCE CODE ###
 
@@ -106,7 +110,7 @@ class PythonDescriptor:
             FnOBuilder.describe_composition(self.g, comp_uri, self.scope.mappings, represents=self.scope.scope)
                         
             # Set starting point
-            self.g += FnOBuilder.start(comp_uri, self.scope.start)
+            FnOBuilder.start(self.g, comp_uri, self.scope.start)
             
         except Exception as e:
             print(f"Error: Unable to describe composition of function: {name}")
@@ -118,30 +122,27 @@ class PythonDescriptor:
 
         return self.g, fun_uri
 
-    def from_file(self, file_path):
-        
-        ### IMPORTS ###
-
-        try:
-            self.importer.import_from_file(file_path)
-        except Exception as e:
-            print(f"Error importing from {file_path}: {e}")
-            print(traceback.format_exc())
-        
-        ### COMPOSITION URI ###
-        
+    def from_file(self, file_path, file_uri):
+        ### PYTHON FILE ###
+        PythonBuilder.describe_pythonfile(self.g, file_uri, file_path)
         file_name, _ = os.path.splitext(os.path.basename(file_path))
-        comp = f"{file_name}Composition"
+        
+        ### URI ###
+        
+        comp_uri = URIRef(f"{file_uri}Composition")
         
         ### NEW SCOPE ###
         
-        self.new_scope(comp)
+        self.new_scope(comp_uri, file_path)
         
         ### PARSE SOURCE CODE ###
         
         try:
-            src = get_main_source_code(file_path)
-            main_cfg = CFGBuilder().build_from_src(file_path, src)
+            with open(file_path, 'r') as file:
+                source_code = file.read()
+
+            # Parse the source code into an AST
+            main_cfg = CFGBuilder().build_from_src(file_path, source_code)
             dot = main_cfg.build_visual('png')
             dot.render(f"cfg_diagrams/{file_name}_cfg_diagram", view=False)
             
@@ -150,10 +151,10 @@ class PythonDescriptor:
                 self.handle_block(block)
             
             # Create composition
-            comp_uri = FnOBuilder.describe_composition(self.g, comp, self.scope.mappings)
+            FnOBuilder.describe_composition(self.g, comp_uri, self.scope.mappings, represents=file_uri)
                         
             # Set starting point
-            self.g += FnOBuilder.start(comp_uri, self.scope.start)
+            FnOBuilder.start(self.g, comp_uri, self.scope.start)
         except Exception as e:
             print(f"Error: Unable to describe composition of file: {file_path}")
             traceback.print_exc()
@@ -162,7 +163,7 @@ class PythonDescriptor:
         
         self.restore_scope()
         
-        return self.g, comp_uri
+        return comp_uri
     
     def get_type(self, var):
         """
@@ -234,11 +235,11 @@ class PythonDescriptor:
                 # Check if this block is a conditional
                 if self.scope.block in self.scope.conditions:
                     if i == 0:
-                        self.g += FnOBuilder.link(self.scope.conditions[self.scope.block], "true", self.scope.iterators[exit.target])
+                        FnOBuilder.link(self.g, self.scope.conditions[self.scope.block], "true", self.scope.iterators[exit.target])
                     else:
-                        self.g += FnOBuilder.link(self.scope.conditions[self.scope.block], "false", self.scope.iterators[exit.target])
+                        FnOBuilder.link(self.g, self.scope.conditions[self.scope.block], "false", self.scope.iterators[exit.target])
                 else:
-                    self.g += FnOBuilder.link(*self.scope.prev_function, self.scope.iterators[exit.target])
+                    FnOBuilder.link(self.g, *self.scope.prev_function, self.scope.iterators[exit.target])
         
         # Variables used in previous blocks have ambiguos mapping
         for var in self.scope.assigned:
@@ -259,7 +260,7 @@ class PythonDescriptor:
         if self.scope.prev_function[0] is None:
             self.scope.start = call
         else:
-            self.g += FnOBuilder.link(*self.scope.prev_function, call)
+            FnOBuilder.link(self.g, *self.scope.prev_function, call)
         self.scope.prev_function = (call, "next")
 
     def handle_stmt(self, stmt):
@@ -307,9 +308,20 @@ class PythonDescriptor:
             return self.handle_for(stmt.target, stmt.iter)
         elif isinstance(stmt, ast.If):
             return self.handle_if(stmt.test)
+        elif isinstance(stmt, ast.Import):
+            self.importer.handle_import(*stmt.names)
+            return
+        elif isinstance(stmt, ast.ImportFrom):
+            self.importer.handle_import_from(stmt.module, *stmt.names)
+            return
+        elif isinstance(stmt, (ast.FunctionDef, ast.ClassDef)):
+            module_name = inspect.getmodulename(self.scope.path)
+            if self.importer.is_module(module_name):
+                self.importer.handle_import_from(module_name, ast.alias(stmt.name), skip=False)
+            return
         elif isinstance(stmt, MappingNode):
             return stmt
-        return MappingNode().set_constant("Unknown source")
+        raise Exception(f"Cannot handle node of type {type(stmt)}")
     
     def handle_constant(self, value) -> MappingNode:
         """
@@ -364,7 +376,7 @@ class PythonDescriptor:
         obj = self.importer.get_object(id)
         if callable(obj):
             # Add full description for extra provenance
-            if obj.__name__ not in self.f_counter:
+            if obj.__name__ not in self.g.f_counter:
                 self.from_object(obj)
             # Return the object without context
             return MappingNode().set_constant(obj)
@@ -634,8 +646,8 @@ class PythonDescriptor:
         ### FUNCTION DESCRIPTION ###
         
         # Don't create function description twice
-        if context not in self.f_counter:
-            self.f_counter[context] = 1
+        if context not in self.g.f_counter:
+            self.g.f_counter[context] = 1
 
             # Not a recursive call
             if not context == get_name(self.scope.scope):
@@ -650,13 +662,13 @@ class PythonDescriptor:
                 else:
                     self.function_to_rdf(name, context, func_object, len(args), kargs, value_type, static)
         else:
-            self.f_counter[context] += 1
+            self.g.f_counter[context] += 1
         
         ### FUNCTION COMPOSITION ###
 
         f = self.g.get_function(context)
-        call = URIRef(f"{f}_{self.f_counter[context]}")
-        self.g += FnOBuilder.apply(call, f)
+        call = URIRef(f"{f}_{self.g.f_counter[context]}")
+        FnOBuilder.apply(self.g, call, f)
             
         # Get usefull information from description
         self_par = self.g.get_self(f)
@@ -765,14 +777,14 @@ class PythonDescriptor:
         name = 'attribute'
         context = 'attribute'
         s = PrefixMap.cf()[context]
-        if name not in self.f_counter:
-            self.f_counter[context] = 1
+        if name not in self.g.f_counter:
+            self.g.f_counter[context] = 1
             self.g += STD_KG[s]
         else:
-            self.f_counter[context] += 1
+            self.g.f_counter[context] += 1
 
-        call = URIRef(f"{s}_{self.f_counter[context]}")
-        self.g += FnOBuilder.apply(call, s)
+        call = URIRef(f"{s}_{self.g.f_counter[context]}")
+        FnOBuilder.apply(self.g, call, s)
 
         # Handle the value node
         if isinstance(value, ast.Name) and self.importer.is_module(value.id):
@@ -832,15 +844,15 @@ class PythonDescriptor:
         """
         context = "slice"
         s = PrefixMap.cf()[context]
-        if context not in self.f_counter:
-            self.f_counter[context] = 1
+        if context not in self.g.f_counter:
+            self.g.f_counter[context] = 1
             self.g += STD_KG[s]
         else:
-            self.f_counter[context] += 1
+            self.g.f_counter[context] += 1
 
         f = PrefixMap.cf()[context]
-        call = URIRef(f"{f}_{self.f_counter[context]}")
-        self.g += FnOBuilder.apply(call, f)
+        call = URIRef(f"{f}_{self.g.f_counter[context]}")
+        FnOBuilder.apply(self.g, call, f)
 
         # Handle the lower, upper, and step components of the slice
         lower_name = self.handle_stmt(lower) if lower else MappingNode().set_constant(None)
@@ -930,29 +942,29 @@ class PythonDescriptor:
         6. Return the URI of the list call and the list output.
         """
         # Check if the "list" function has been encountered before and update its counter
-        if "list" not in self.f_counter:
+        elements = PrefixMap.cf()['Elements']
+        output = PrefixMap.cf()["ListOutput"]
+            
+        if "list" not in self.g.f_counter:
             # Create FnO Function
-            self.f_counter["list"] = 1
+            self.g.f_counter["list"] = 1
             s = PrefixMap.cf()["list"]
             self.g += STD_KG[s]
-            
-            elements = PrefixMap.cf()['Elements']
-            output = PrefixMap.cf()["ListOutput"]
             
             # Python implementation
             imp_uri, desc = ImpMap.imp_to_rdf(list)
             self.g += desc
             
             # Mapping
-            _, desc = FnOBuilder.describe_mapping(s, imp_uri, 'list', output, positional=[elements])
+            FnOBuilder.describe_mapping(self.g, s, imp_uri, 'list', output, positional=[elements])
             self.g += desc
         else:
-            self.f_counter["list"] += 1
+            self.g.f_counter["list"] += 1
 
         # Create a URI for the list function and apply it to the RDF graph
         f = PrefixMap.cf()["list"]
-        call = PrefixMap.base()[f"list_{self.f_counter['list']}"]
-        self.g += FnOBuilder.apply(call, f)
+        call = PrefixMap.base()[f"list_{self.g.f_counter['list']}"]
+        FnOBuilder.apply(self.g, call, f)
 
         # Handle each element in the list to generate its RDF representation and map it to the list
         for i, el in enumerate(elts):
@@ -996,21 +1008,21 @@ class PythonDescriptor:
 
         Assumptions:
         ------------
-        This method assumes that `self.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
+        This method assumes that `self.g.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
         `self.g`, `self.handle_node`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
         context = "tuple"
         s = PrefixMap.cf()[context]
-        if context not in self.f_counter:
-            self.f_counter[context] = 1
+        if context not in self.g.f_counter:
+            self.g.f_counter[context] = 1
             self.g += STD_KG[s]
         else:
-            self.f_counter[context] += 1
+            self.g.f_counter[context] += 1
 
         
         f = PrefixMap.cf()[context]
-        call = URIRef(f"{f}_{self.f_counter[context]}")
-        self.g += FnOBuilder.apply(call, f)
+        call = URIRef(f"{f}_{self.g.f_counter[context]}")
+        FnOBuilder.apply(self.g, call, f)
 
         for i, el in enumerate(elts):
             el_output = self.handle_stmt(el)
@@ -1054,20 +1066,20 @@ class PythonDescriptor:
 
         Assumptions:
         ------------
-        This method assumes that `self.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
+        This method assumes that `self.g.f_counter`, `self.f_generator`, `to_uri`, `PrefixMap.pf()`, `URIRef`, `FnODescriptor`,
         `self.g`, `self.handle_tuple`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
         context = "dict"
         s = PrefixMap.cf()[context]
-        if context not in self.f_counter:
-            self.f_counter[context] = 1
+        if context not in self.g.f_counter:
+            self.g.f_counter[context] = 1
             self.g += STD_KG[s]
         else:
-            self.f_counter[context] += 1
+            self.g.f_counter[context] += 1
 
         f = PrefixMap.cf()["dict"]
-        call = URIRef(f"{f}_{self.f_counter['dict']}")
-        self.g += FnOBuilder.apply(call, f)
+        call = URIRef(f"{f}_{self.g.f_counter['dict']}")
+        FnOBuilder.apply(self.g, call, f)
         
         for i, (key, val) in enumerate(zip(keys, values)):
             pair_output = self.handle_tuple([key, val])
@@ -1080,6 +1092,39 @@ class PythonDescriptor:
         self.handle_order(call)
 
         return MappingNode().set_function_out(call, PrefixMap.cf()['DictOutput'])
+    
+    def handle_dictcomp(self, key, value, generators):
+        # TODO handle block problem
+        # create a temp variable for the dict
+        temp_var = str(random.randint(1, 100))
+        # assign an empty dict to the temp variable
+        self.handle_assignment(ast.Dict(keys=[], values=[], ctx=ast.Load(), type_comment=None), [self.name_node(temp_var)])
+        # create update call to assign key to value with key value pair as argument
+        key_val = ast.List(elts=[ast.Tuple(elts=[key, value], ctx=ast.Load())], ctx=ast.Load())
+        update_call = ast.Attribute(value=self.name_node(temp_var), attr='update', ctx=ast.Load())
+        
+        # build the internal structure of the comprehension
+        fornode = None
+        for i, generator in enumerate(reversed(generators)):
+            target = generator.target
+            iter = generator.iter
+
+            # The deepest loop must execute elt each time
+            if i == 0:
+                body = [ast.Call(func=update_call, args=[key_val], keywords=[])]
+            else:
+                body = fornode
+            
+            # Check if the generator has if statements
+            if len(generator.ifs) == 1:
+                body = ast.If(test=generator.ifs[0], body=body, orelse=[])
+            elif len(generator.ifs) > 1:
+                andnode = ast.BoolOp(op=ast.And(), values=generator.ifs)
+                body = ast.If(test=andnode, body=body, orelse=[])
+
+            fornode = ast.For(target=target, iter=iter, body=body, orelse=[])
+        
+        self.handle_stmt(fornode)
     
     def handle_strjoin(self, values):
         """
@@ -1110,15 +1155,15 @@ class PythonDescriptor:
         
         # Check if the "list" function has been encountered before and update its counter
         context = "joinstr"
-        if context not in self.f_counter:
+        delimiter = PrefixMap.cf()['Delimiter']
+        strings = PrefixMap.cf()["Strings"]
+        output = PrefixMap.cf()["JoinStringOutput"]
+        
+        if context not in self.g.f_counter:
             # Create FnO Function
-            self.f_counter[context] = 1
+            self.g.f_counter[context] = 1
             s = PrefixMap.cf()[context]
             self.g += STD_KG[s]
-            
-            delimiter = PrefixMap.cf()['Delimiter']
-            strings = PrefixMap.cf()["Strings"]
-            output = PrefixMap.cf()["JoinStringOutput"]
             
             # Python implementation
             str_uri, desc = ImpMap.imp_to_rdf(str)
@@ -1127,15 +1172,15 @@ class PythonDescriptor:
             self.g += desc
             
             # Mapping
-            _, desc = FnOBuilder.describe_mapping(s, imp_uri, 'join', output, positional=[delimiter, strings])
+            FnOBuilder.describe_mapping(self.g, s, imp_uri, 'join', output, positional=[delimiter, strings])
             self.g += desc
         else:
-            self.f_counter["joinstr"] += 1
+            self.g.f_counter["joinstr"] += 1
 
         # Create a URI for the join function and apply it to the RDF graph
         f = PrefixMap.cf()["joinstr"]
-        call = PrefixMap.base()[f"joinstr_{self.f_counter['joinstr']}"]
-        self.g += FnOBuilder.apply(call, f)
+        call = PrefixMap.base()[f"joinstr_{self.g.f_counter['joinstr']}"]
+        FnOBuilder.apply(self.g, call, f)
         
         # Set the delimiter to an empty string
         empty_string = self.handle_constant('')
@@ -1405,16 +1450,16 @@ class PythonDescriptor:
         4. Map the left and right operands to the function parameters.
         5. Return the URI of the comparison operation and its output.
         """
-        if name not in self.f_counter:
-            self.f_counter[name] = 1
+        if name not in self.g.f_counter:
+            self.g.f_counter[name] = 1
             s = PrefixMap.cf()[name]
             self.g += STD_KG[s]
         else:
-            self.f_counter[name] += 1
+            self.g.f_counter[name] += 1
 
         f = PrefixMap.cf()[name]
-        call = URIRef(f"{f}_{self.f_counter[name]}")
-        self.g += FnOBuilder.apply(call, f)
+        call = URIRef(f"{f}_{self.g.f_counter[name]}")
+        FnOBuilder.apply(self.g, call, f)
 
         mapfrom = self.handle_stmt(left)
         mapto = MappingNode().set_function_par(call, PrefixMap.cf()['ObjectParameter1'])
@@ -1462,15 +1507,15 @@ class PythonDescriptor:
         """
         context = "ifexpr"
         s = PrefixMap.cf()[context]
-        if context not in self.f_counter:
-            self.f_counter[context] = 1
+        if context not in self.g.f_counter:
+            self.g.f_counter[context] = 1
             self.g += STD_KG[s]
         else:
-            self.f_counter["ifexpr"] += 1
+            self.g.f_counter["ifexpr"] += 1
             
         s = PrefixMap.cf()['ifexpr']
-        call = URIRef(f"{s}_{self.f_counter['ifexpr']}")
-        self.g += FnOBuilder.apply(call, s)
+        call = URIRef(f"{s}_{self.g.f_counter['ifexpr']}")
+        FnOBuilder.apply(self.g, call, s)
 
         mapfrom = self.handle_stmt(test)
         mapto = MappingNode().set_function_par(call, PrefixMap.cf()['TestParameter'])
@@ -1514,16 +1559,23 @@ class PythonDescriptor:
             self.handle_assignment(next_output, [self.name_node(target_output.get_value())])
     
     def handle_if(self, test):
+        # Check if this statement is the main block
+        if isinstance(test, ast.Compare):
+            # Ensure we are comparing '__name__' with '__main__'
+            if isinstance(test.left, ast.Name) and test.left.id == "__name__":
+                if isinstance(test.comparators[0], ast.Constant) and test.comparators[0].value == "__main__":
+                    return
+        
         s = PrefixMap.cf()['if']       
-        if "if" not in self.f_counter:
-            self.f_counter["if"] = 1
+        if "if" not in self.g.f_counter:
+            self.g.f_counter["if"] = 1
             self.g += STD_KG[s]
         else:
-            self.f_counter["if"] += 1
+            self.g.f_counter["if"] += 1
         
         s = PrefixMap.cf()['if']
-        call = URIRef(f"{s}_{self.f_counter['if']}")
-        self.g += FnOBuilder.apply(call, s)
+        call = URIRef(f"{s}_{self.g.f_counter['if']}")
+        FnOBuilder.apply(self.g, call, s)
         
         condition = self.handle_stmt(test)
         if_input = MappingNode().set_function_par(call, PrefixMap.cf()['TestParameter']) 
@@ -1578,12 +1630,12 @@ class PythonDescriptor:
         try:
             if fun is not None:
                 imp, descr = ImpMap.imp_to_rdf(fun, context, self_type, static)
+                self.g += descr
             else:
-                imp, descr = FnOBuilder.describe_implementation(context)
+                imp = FnOBuilder.describe_implementation(self.g, context)
         except:
             module = getattr(fun, "__module__", Importer.get_owner(fun))
-            imp, descr = FnOBuilder.describe_implementation(context, module, getattr(fun, '__package__', None))
-        self.g += descr
+            imp = FnOBuilder.describe_implementation(self.g, context, module, getattr(fun, '__package__', None))
 
         ### FUNCTION MAPPING ###
 
@@ -1664,11 +1716,10 @@ class PythonDescriptor:
             self.g += type_desc
     
         # Add function description
-        s, desc = FnOBuilder.describe_function(f_name, context,
+        s = FnOBuilder.describe_function(self.g, f_name, context,
                                                 parameter_preds, parameter_types,
                                                 output_pred, output_type,
                                                 self_type=self_type)
-        self.g += desc
 
         self_output = PrefixMap.base()[f"{context}SelfOutput"] if self_type else None
 
@@ -1731,11 +1782,10 @@ class PythonDescriptor:
         else: 
             self_type = None
 
-        s, desc = FnOBuilder.describe_function(f_name, context,
+        s = FnOBuilder.describe_function(self.g, f_name, context,
                                                     parameter_preds, parameter_types,
                                                     output_pred, output_type,
                                                     self_type=self_type)
-        self.g += desc
 
         self_output = PrefixMap.base()[f"{context}SelfOutput"] if self_type else None
 
@@ -1795,8 +1845,7 @@ class PythonDescriptor:
                 defaults[par] = param.default
                 self.scope.default_map[s].update({name: param.default})
 
-        _, desc = FnOBuilder.describe_mapping(s, imp, f_name, output, positional, keyword, args, kargs, self_output, defaults)
-        self.g += desc
+        FnOBuilder.describe_mapping(self.g, s, imp, f_name, output, positional, keyword, args, kargs, self_output, defaults)
 
     def map_with_num(self, s, keywords, imp, f_name, output, self_output):
         """
@@ -1831,7 +1880,6 @@ class PythonDescriptor:
             if par is not None:
                 keyword.append((par, pred.arg))
 
-        _, desc = FnOBuilder.describe_mapping(s, imp, f_name, output, 
+        FnOBuilder.describe_mapping(self.g, s, imp, f_name, output, 
                                               positional=positional, keyword=keyword, 
                                               self_output=self_output)
-        self.g += desc

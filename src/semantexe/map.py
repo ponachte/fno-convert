@@ -1,4 +1,4 @@
-from rdflib import Namespace, Graph, Literal
+from rdflib import Namespace, Graph, Literal, URIRef
 from importlib.resources import files
 import inspect
 import importlib
@@ -15,6 +15,8 @@ std_prefixes = {
     'xsd': "http://www.w3.org/2001/XMLSchema#",
     'ex': "http://www.example.com#",
     'cf': "http://www.example.com/controlflow#",
+    'docker': "http://www.example.com/dockerfile#",
+    'python': "http://www.example.com/pythonfile#",
     'dcterms': "http://purl.org/dc/terms/",
     'doap': "http://usefulinc.com/ns/doap#",
     'fno': "https://w3id.org/function/ontology#",
@@ -30,7 +32,6 @@ std_prefixes = {
     'mls': "http://www.w3.org/ns/mls#",
     'mlflow': "http://www.example.com/mlflow#",
     'do': "http://linkedcontainers.org/vocab#",
-    'docker': "http://www.example.com/dockerimage#"
 }
 
 def load_function_from_source(file_path, function_name):
@@ -307,6 +308,8 @@ class InstMap:
         Returns:
             tuple: A tuple containing the RDF literal and the type description graph.
         """
+        if isinstance(inst, URIRef):
+            return inst, None
         if is_standard_literal_type(inst):
             return Literal(inst), None
         if type(inst) is type or isinstance(inst, FunctionType):

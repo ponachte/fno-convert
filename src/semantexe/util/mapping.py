@@ -1,6 +1,8 @@
 from typing import List
 from rdflib import URIRef
 
+from ..descriptors import Descriptor
+
 class Mapping:
 
     def __init__(self, mapfrom: "MappingNode" | List["MappingNode"], mapto: "MappingNode", priority: URIRef | None = None) -> None:
@@ -35,8 +37,8 @@ class MappingNode:
 
         return self
     
-    def set_constant(self, constant) -> "MappingNode":
-        self.constant = constant
+    def set_constant(self, constant) -> "MappingNode":        
+        self.constant = constant # Descriptor.describe(self.g, constant)
         self.context = None
         self.parameter = None
         self.output = None

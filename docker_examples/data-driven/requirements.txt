@@ -1,0 +1,14 @@
+pytz
+requests
+numpy
+pandas
+python-dateutil
+pyxdg
+scikit-learn
+scipy
+tsflex
+tensorflow
+tensorflow-estimator
+tensorflow-io-gcs-filesystem
+tensorflow-probability[tf]
+pyarrow

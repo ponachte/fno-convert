@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Tuple, Optional
 @dataclass
 class ScopeState:
     scope: Optional[Any] = None
+    path: Optional[str] = None
     block: Optional[Any] = None
     start: Optional[Any] = None
     assigned: Dict = field(default_factory=dict)
