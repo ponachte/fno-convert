@@ -12,3 +12,5 @@ RUN find . -type f -exec chmod 0744 {} \;
 
 # run the command on container startup
 ENTRYPOINT [ "python3", "run.py" ]
+
+CMD [ "1", "2", "3", "4" ]

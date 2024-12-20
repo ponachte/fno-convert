@@ -2,7 +2,7 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QScrollArea, QTextEdit, QVBoxLayout, QPushButton, 
                              QFileDialog, QMessageBox, QComboBox, QLineEdit, QSizePolicy)
 from PyQt6.QtGui import QTextCursor, QColor, QTextCharFormat
-from ..map import ImpMap
+from ..prefix import ImpMap
 from ..graph import ExecutableGraph
 from ..util import ASTUtil
 from ..descriptors.python import PythonDescriptor
@@ -138,7 +138,7 @@ class ScrollWidget(QWidget):
         self.text.setPlainText(g.serialize(format='turtle'))
     
     def setSource(self, g: ExecutableGraph, fun_uri: URIRef):
-        _, imp_uri = g.get_implementation(fun_uri)
+        _, imp_uri = g.fun_to_imp(fun_uri)
         if imp_uri is not None:
             obj = ImpMap.rdf_to_imp(g, imp_uri)
             text = inspect.getsource(obj)

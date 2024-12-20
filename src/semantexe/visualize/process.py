@@ -3,7 +3,7 @@ from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtWidgets import QGraphicsTextItem
 from pyqtgraph import GraphicsObject
 
-from ..execute.process import Process
+from ..executors.process import Process
 from .store import TerminalGraphicsItem
 from .colors import STD_COLOR
 

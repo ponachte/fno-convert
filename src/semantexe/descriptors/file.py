@@ -1,9 +1,10 @@
 from ..graph import ExecutableGraph
-from ..builders.docker import DockerBuilder
-from ..builders.python import PythonBuilder
+from ..mappers import FileMapper
 
 from pathlib import Path
 from rdflib import URIRef
+
+import hashlib, os
 
 def get_all_filepaths(directory):
     dir_path = Path(directory)
@@ -28,17 +29,19 @@ class FileDescriptor:
     def describe(g: ExecutableGraph, file_path):
         # Python file
         if file_path.endswith(".py"):
-            uri = PythonBuilder.file_uri(file_path)
+            name = os.path.basename(file_path).rstrip(".py")
+            uri = FileMapper.uri(name, file_path)
             if not g.exists(uri):
                 from .python import PythonDescriptor
                 PythonDescriptor(g).from_file(file_path, uri)
             return uri
         # Dockerfile
         elif file_path.endswith("Dockerfile"):
-            uri = DockerBuilder.file_uri(file_path)
+            name = os.path.basename(os.path.dirname(file_path))
+            uri = FileMapper.uri(name, file_path)
             if not g.exists(uri):
-                from .docker import DockerDescriptor
-                DockerDescriptor(g).from_file(file_path, uri)
+                from .docker import DockerfileDescriptor
+                DockerfileDescriptor(g).from_file(file_path, uri)
             return uri
         # Other file type
         return URIRef(f"file://{file_path}")

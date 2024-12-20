@@ -1,6 +1,6 @@
 from rdflib import Graph, BNode, Literal, URIRef
 from rdflib.container import Container
-from .map import PrefixMap, ImpMap
+from .prefix import Prefix
 from pyparsing.exceptions import ParseException
 from typing import Any
 
@@ -64,7 +64,7 @@ class ExecutableGraph(Graph):
             An optional RDF graph to initialize the PipelineGraph with.
         """
         super().__init__()
-        PrefixMap.bind_namespaces(self)
+        Prefix.bind_namespaces(self)
         if graph:
             self += graph
         
@@ -72,6 +72,9 @@ class ExecutableGraph(Graph):
     
     def exists(self, uri):
         return uri in self.subjects() or uri in self.objects() or uri in self.predicates()
+    
+    def functions(self):
+        return [ x['fun'] for x in self.query(f'''SELECT ?fun WHERE {{ ?fun a fno:Function . }}''', initNs=Prefix.NAMESPACES) ]
     
     def check_call(self, f):
         """
@@ -84,7 +87,7 @@ class ExecutableGraph(Graph):
         """
         result = [x['f'] for x in self.query(
             f'''SELECT ?f WHERE {{ <{f}> fnoc:applies ?f . }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )]
         if len(result) == 1:
             return result[0]
@@ -93,28 +96,28 @@ class ExecutableGraph(Graph):
     def get_order(self, f):
         next = [x['next'] for x in self.query(
             f'''SELECT ?next WHERE {{ <{f}> fnoc:next ?next . }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )]
         if len(next) > 1:
             raise Exception(f"Applied function has ambigous next order: {next}")
         
         iterate = [x['iterate'] for x in self.query(
             f'''SELECT ?iterate WHERE {{ <{f}> fnoc:iterate ?iterate . }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )]
         if len(iterate) > 1:
             raise Exception(f"Applied function has ambigous iterate order: {iterate}")
         
         iftrue = [x['iftrue'] for x in self.query(
             f'''SELECT ?iftrue WHERE {{ <{f}> fnoc:true ?iftrue . }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )]
         if len(iftrue) > 1:
             raise Exception(f"Applied function has ambigous iftrue order: {iftrue}")
         
         iffalse = [x['iffalse'] for x in self.query(
             f'''SELECT ?iffalse WHERE {{ <{f}> fnoc:false ?iffalse . }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )]
         if len(iffalse) > 1:
             raise Exception(f"Applied function has ambigous iftrue order: {iffalse}")
@@ -143,9 +146,16 @@ class ExecutableGraph(Graph):
                          fno:methodMapping ?methodmap .
                 ?methodmap fnom:method-name ?name .
             }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )]
         return result[0] if len(result) > 0 else None
+    
+    def is_function(self, s) -> bool:
+        results = self.query(
+            f'''ASK WHERE {{ <{s}> a fno:Function . }}''', 
+            initNs=Prefix.NAMESPACES
+        )
+        return True if results else False
 
     def is_parameter(self, s) -> bool:
         """
@@ -159,7 +169,7 @@ class ExecutableGraph(Graph):
         s = self.check_call(s)
         results = self.query(
             f'''ASK WHERE {{ <{s}> a fno:Parameter . }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )
         return True if results else False
 
@@ -175,7 +185,7 @@ class ExecutableGraph(Graph):
         s = self.check_call(s)
         results = self.query(
             f'''ASK WHERE {{ <{s}> a fno:Output . }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )
         return True if results else False
     
@@ -200,7 +210,7 @@ class ExecutableGraph(Graph):
                 x['f'] for x in self.query(f'''
                 SELECT ?f WHERE {{
                     ?f a fno:Function
-                }}''', initNs=PrefixMap.NAMESPACES)
+                }}''', initNs=Prefix.NAMESPACES)
             ]
 
             for f in result:
@@ -230,7 +240,7 @@ class ExecutableGraph(Graph):
                     ?param fno:predicate ?pred .
                     FILTER(?pred != <{to_uri(get_prefix(f), 'self')}>)
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ])
 
     def get_parameter_at(self, f, i) -> list[str]:
@@ -254,7 +264,7 @@ class ExecutableGraph(Graph):
                                 fnom:functionParameter ?param ;
                                 fnom:implementationParameterPosition {Literal(i).n3()} .
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
         return result[0] if len(result) == 1 else None
 
@@ -280,7 +290,7 @@ class ExecutableGraph(Graph):
                                 fnom:functionParameter <{to_uri(prefix, param)}> ;
                                 fnom:implementationParameterPosition ?index .
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
         return result[0] if len(result) == 1 else None
 
@@ -303,7 +313,7 @@ class ExecutableGraph(Graph):
                     ?param fno:predicate ?pred .
                     FILTER(?pred != <{to_uri(get_prefix(f), 'self')}>)
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
 
     def get_predicate(self, s):
@@ -323,7 +333,7 @@ class ExecutableGraph(Graph):
                     <{s}> a ?type ;
                           fno:predicate ?pred .
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ][0]
 
     def get_predicate_param(self, f, pred) -> str:
@@ -349,7 +359,7 @@ class ExecutableGraph(Graph):
                     ?param a fno:Parameter ;
                            fno:predicate <{to_uri(prefix, pred)}> .
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
         return result[0] if len(result) > 0 else None
 
@@ -363,13 +373,13 @@ class ExecutableGraph(Graph):
             The type of the parameter, or a default type if not found.
         """
         result = [
-            ImpMap.rdf_to_imp(self, x['type'])
+            x['type']
             for x in self.query(f'''
                 SELECT ?type WHERE {{
                     <{param}> a fno:Parameter ;
                               fno:type ?type .
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
         return result[0] if len(result) > 0 else Any
 
@@ -394,7 +404,7 @@ class ExecutableGraph(Graph):
                     ?param fno:predicate ?pred .
                     FILTER(?pred = <{to_uri(get_prefix(f), 'self')}>)
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
 
         return result[0] if len(result) > 0 else None
@@ -416,7 +426,7 @@ class ExecutableGraph(Graph):
                 ?param fno:predicate ?pred .
                 FILTER(?pred = <{to_uri(get_prefix(f), 'self')}>)
             }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )
         return True if results else False
 
@@ -441,7 +451,7 @@ class ExecutableGraph(Graph):
                             fno:predicate ?pred .
                     FILTER(?pred != <{to_uri(get_prefix(f), 'self_output')}>)
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
 
         return result[0] if len(result) > 0 else None
@@ -463,7 +473,7 @@ class ExecutableGraph(Graph):
                 ?output fno:predicate ?pred .
                 FILTER(?pred != <{to_uri(get_prefix(f), 'self_output')}>)
             }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )
         return True if results else False
 
@@ -488,7 +498,7 @@ class ExecutableGraph(Graph):
                             fno:predicate ?pred .
                     FILTER(?pred = <{to_uri(get_prefix(f), 'self_output')}>)
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
 
         return result[0] if len(result) > 0 else None
@@ -510,7 +520,7 @@ class ExecutableGraph(Graph):
                 ?output fno:predicate ?pred .
                 FILTER(?pred = <{to_uri(get_prefix(f), 'self_output')}>)
             }}''', 
-            initNs=PrefixMap.NAMESPACES
+            initNs=Prefix.NAMESPACES
         )
         return True if results else False
 
@@ -533,7 +543,7 @@ class ExecutableGraph(Graph):
                     ?output fno:predicate ?pred .
                 FILTER(?pred != <{to_uri(get_prefix(f), 'self_output')}>)
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ][0]
 
     def get_output_type(self, out) -> str:
@@ -546,13 +556,13 @@ class ExecutableGraph(Graph):
             The type of the output, or a default type if not found.
         """
         result = [
-            ImpMap.rdf_to_imp(self, x['type'])
+            x['type']
             for x in self.query(f'''
                 SELECT ?type WHERE {{
                     <{out}> a fno:Output ;
                             fno:type ?type .
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
         return result[0] if len(result) > 0 else Any
      
@@ -561,34 +571,26 @@ class ExecutableGraph(Graph):
                 ASK WHERE {{
                     ?comp fnoc:represents <{f}> .
                 }}
-             ''', initNs=PrefixMap.NAMESPACES)
+             ''', initNs=Prefix.NAMESPACES)
 
          return True if result else False
      
-    def get_compositions(self, f):
-         """
-         Retrieve the URI of the first block of the flow describing a FnO Function.
-
-         :param f: rdflib.URIRef
-            The URI of the FnO Function you want the flow start from.
-        :return: rdflib.URIRef
-            The Uri of the first composition in the flow.
-         """
+    def get_compositions(self, f, first=False):
          result = [
              x['comp']
              for x in self.query(f'''
                 SELECT ?comp WHERE {{
                     ?comp fnoc:represents <{f}> .
                 }}
-             ''', initNs=PrefixMap.NAMESPACES)
+             ''', initNs=Prefix.NAMESPACES)
          ]
 
-         return result
+         return result[0] if first else result
      
     def is_composition(self, c: URIRef) -> bool:
          result = self.query(f'''
             ASK WHERE {{ <{c}> a fnoc:Composition . }}
-         ''', initNs=PrefixMap.NAMESPACES)
+         ''', initNs=Prefix.NAMESPACES)
          return True if result else False
      
     def get_start(self, c: URIRef) -> bool:
@@ -598,7 +600,7 @@ class ExecutableGraph(Graph):
                 SELECT ?start WHERE {{
                     <{c}> fnoc:start ?start .
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
         
         if len(result) > 1:
@@ -613,7 +615,7 @@ class ExecutableGraph(Graph):
                 SELECT ?f WHERE {{
                     <{c}> fnoc:represents ?f .
                 }}
-            ''', initNs=PrefixMap.NAMESPACES)
+            ''', initNs=Prefix.NAMESPACES)
         ]
         return result
      
@@ -636,7 +638,7 @@ class ExecutableGraph(Graph):
                     ?mapping fnoc:priority ?priority
                 }}
             }}
-        ''', initNs=PrefixMap.NAMESPACES)
+        ''', initNs=Prefix.NAMESPACES)
 
         # Return the distinct set of mappings
         return set([ (m['mapfrom'], m['mapto'], m['priority']) for m in results ])
@@ -652,7 +654,7 @@ class ExecutableGraph(Graph):
         True if the endpoint is a 'function mapping'. False otherwise.
         """
         results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFrom | fnoc:mapTo ?endpoint }}''',
-                             initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
+                             initNs=Prefix.NAMESPACES, initBindings={'endpoint': endpoint})
         return True if results else False
     
     def get_function_mapping(self, endpoint):
@@ -669,7 +671,7 @@ class ExecutableGraph(Graph):
             SELECT ?f ?ter WHERE {{
                ?endpoint fnoc:constituentFunction ?f ;
                             fnoc:functionParameter | fnoc:functionOutput ?ter . 
-            }}''', initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})][0]
+            }}''', initNs=Prefix.NAMESPACES, initBindings={'endpoint': endpoint})][0]
         return result
     
     def is_term_mapping(self, endpoint):
@@ -683,12 +685,12 @@ class ExecutableGraph(Graph):
         True if the endpoint is a 'term mapping'. False otherwise.
         """
         results = self.query(f'''ASK WHERE {{ ?mapping fnoc:mapFromTerm ?endpoint }}''',
-                             initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
+                             initNs=Prefix.NAMESPACES, initBindings={'endpoint': endpoint})
         return True if results else False
     
     def has_strategy(self, endpoint):
         results = self.query(f'''ASK WHERE {{ ?endpoint fnoc:mappingStrategy ?strat }}''',
-                             initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})
+                             initNs=Prefix.NAMESPACES, initBindings={'endpoint': endpoint})
         return True if results else False
 
     def get_strategy(self, endpoint):
@@ -696,15 +698,17 @@ class ExecutableGraph(Graph):
             SELECT ?strat ?key WHERE {{
                ?endpoint fnoc:mappingStrategy ?strat ; 
                          fnoc:key ?key .
-            }}''', initNs=PrefixMap.NAMESPACES, initBindings={'endpoint': endpoint})]
+            }}''', initNs=Prefix.NAMESPACES, initBindings={'endpoint': endpoint})]
         
         if len(result) > 1:
             raise Exception("Mapping endpoint has multiple mapping strategies.")
         elif len(result) == 1:
             return result[0]
         return None, None
+    
+    ### IMPLEMENTATION ###
      
-    def get_implementation(self, f):
+    def fun_to_imp(self, fun):
           """
           Retrieve the implementation details of a function.
 
@@ -716,33 +720,65 @@ class ExecutableGraph(Graph):
                     If no implementation is found, returns (None, None).
           """
           try:
-               f = self.check_call(f)
+               fun = self.check_call(fun)
 
                result = [
                     (x['mapping'], x['imp'])
                     for x in self.query(f'''
                          SELECT ?mapping ?imp WHERE {{
-                              ?mapping fno:function <{f}> ;
+                              ?mapping fno:function <{fun}> ;
                                        fno:implementation ?imp .
                          }}
-                    ''', initNs=PrefixMap.NAMESPACES) 
+                    ''', initNs=Prefix.NAMESPACES) 
                ]
-               return result[0] if len(result) > 0 else (None, None)
+               return result
           except ParseException as e:
-               print(f"Error while parsing query when fetching implementation for <{get_name(f)}>: <{e}>")
+               print(f"Error while parsing query when fetching implementation for <{get_name(fun)}>: <{e}>")
                return (None, None)
+    
+    def imp_to_fun(self, imp):
+        """
+        Retrieve a list of FnO Mappings with the representative FnO Function for a given implementation. 
+        Return None if no mapping can be found for this implementation.
+        """
+        result = [
+            (x['mapping'], x['fun']) for x in self.query(f'''
+                                            SELECT ?mapping ?fun WHERE {{
+                                                ?mapping fno:function ?fun ;
+                                                         fno:implementation <{imp}> .
+                                            }}''', initNs=Prefix.NAMESPACES)
+        ]
+        return result
+    
+    def imp_from_file(self, file):
+        result = [
+            (x['imp'], x['mapping'], x['fun']) for x in self.query(f'''
+                SELECT ?imp ?mapping ?fun WHERE {{
+                    ?imp a fnoi:PythonFile ;
+                        fnoi:file <file://{file}> . 
+                    ?mapping fno:implementation ?imp ;
+                        fno:function ?fun .
+                }}''', initNs=Prefix.NAMESPACES)
+        ]
+        return result
+    
+    def get_imp_metadata(self, imp):
+        result = {}
+        
+        for pred, obj in self.predicate_objects(subject=imp):
+            if pred not in result:
+                result[pred] = []
+            result[pred].append(obj)
+        
+        return result
      
-    def is_function_implementation(self, s):
+    def represents_python(self, comp):
           """
-          Check if a given function is implemented in Python.
-
-          Args:
-               s (str): The URI of the function.
-
-          Returns:
-               bool: True if the function is implemented in Python, False otherwise.
+          Check if a given composition represents a python implementation.
           """
-          return self.query(f'''ASK WHERE {{ <{s}> a fnoi:PythonFunction . }}''')
+          return self.query(f'''ASK WHERE {{ 
+                <{comp}> fnoc:represnts ?file .
+                ?file a fnoi:PythonFile . }}''')
      
     def get_positional(self, f):
           """
@@ -767,7 +803,7 @@ class ExecutableGraph(Graph):
                                         fnom:implementationParameterPosition ?index .
                               ?param fno:predicate ?pred .
                               FILTER(?pred != <{to_uri(get_prefix(f), 'self')}>)
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ], key=lambda x: x[0])
                return [pos[1] for pos in positional]
           except ParseException as e:
@@ -795,7 +831,7 @@ class ExecutableGraph(Graph):
                               ?mapping fno:parameterMapping ?keymapping .
                               ?keymapping fnom:functionParameter ?param ;
                                         fnom:implementationProperty ?property .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ]
           except ParseException as e:
                print(f"Error while parsing query when fetching keyword parameters for <{get_name(f)}>: <{e}>")
@@ -822,7 +858,7 @@ class ExecutableGraph(Graph):
                               ?mapping fno:parameterMapping ?varmapping .
                               ?varmapping a fnom:VarPositionalParameterMapping ;
                                         fnom:functionParameter ?param .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ]
                return result[0] if len(result) == 1 else None
           except ParseException as e:
@@ -849,7 +885,7 @@ class ExecutableGraph(Graph):
                                    ?mapping fno:parameterMapping ?varmapping .
                                    ?varmapping a fnom:VarPositionalParameterMapping ;
                                              fnom:functionParameter <{param}> .
-                              }}''', initNs=PrefixMap.NAMESPACES)
+                              }}''', initNs=Prefix.NAMESPACES)
                return True if result else False
           except ParseException as e:
                print(f"Error while parsing query when fetching variable positional parameters for <{get_name(f)}>: <{e}>")
@@ -876,7 +912,7 @@ class ExecutableGraph(Graph):
                               ?mapping fno:parameterMapping ?varmapping .
                               ?varmapping a fnom:VarPropertyParameterMapping ;
                                         fnom:functionParameter ?param .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ]
                return result[0] if len(result) == 1 else None
           except ParseException as e:
@@ -903,7 +939,7 @@ class ExecutableGraph(Graph):
                                    ?mapping fno:parameterMapping ?varmapping .
                                    ?varmapping a fnom:VarPropertyParameterMapping ;
                                              fnom:functionParameter <{param}> .
-                              }}''', initNs=PrefixMap.NAMESPACES)
+                              }}''', initNs=Prefix.NAMESPACES)
                return True if result else False
           except ParseException as e:
                print(f"Error while parsing query when fetching variable keyword parameters for <{get_name(f)}>: <{e}>")
@@ -945,7 +981,7 @@ class ExecutableGraph(Graph):
                                                 fnom:implementationProperty ?property . 
                               }}
                          }}
-                    ''', initNs=PrefixMap.NAMESPACES) 
+                    ''', initNs=Prefix.NAMESPACES) 
                ]
                return result[0] if len(result) > 0 else (None, None)
           except ParseException as e:
@@ -965,7 +1001,7 @@ class ExecutableGraph(Graph):
                         ?defmapping fnom:functionParameter <{param}> ;
                                     fnom:defaultValue ?default . 
                     }}
-                    ''', initNs=PrefixMap.NAMESPACES)
+                    ''', initNs=Prefix.NAMESPACES)
                 ]
                
             if len(result) > 1:
@@ -994,7 +1030,7 @@ class ExecutableGraph(Graph):
                 ?mapping ?map ?node .
                 ?node fnoc:constituentFunction ?call .
             }}
-            ''', initNs=PrefixMap.NAMESPACES) 
+            ''', initNs=Prefix.NAMESPACES) 
 
         return  { x['call'] for x in results }
     
@@ -1041,7 +1077,7 @@ class ExecutableGraph(Graph):
                for x in self.query(f'''
                     SELECT ?p ?o WHERE {{
                          <{f_uri}> ?p ?o .
-                    }}''', initNs=PrefixMap.NAMESPACES)
+                    }}''', initNs=Prefix.NAMESPACES)
           ]
 
           # Get parameters
@@ -1051,7 +1087,7 @@ class ExecutableGraph(Graph):
                     SELECT ?s ?p ?o WHERE {{
                          <{f_uri}> fno:expects ?s .
                          ?s ?p ?o .
-                    }}''', initNs=PrefixMap.NAMESPACES)
+                    }}''', initNs=Prefix.NAMESPACES)
           ])
 
           # Get outputs
@@ -1061,7 +1097,7 @@ class ExecutableGraph(Graph):
                     SELECT ?s ?p ?o WHERE {{
                          <{f_uri}> fno:returns ?s .
                          ?s ?p ?o .
-                    }}''', initNs=PrefixMap.NAMESPACES)
+                    }}''', initNs=Prefix.NAMESPACES)
           ])
 
           # Get implementation mappings
@@ -1071,7 +1107,7 @@ class ExecutableGraph(Graph):
                     SELECT ?s ?p ?o WHERE {{
                          ?s fno:function <{f_uri}> .
                          ?s ?p ?o .
-                    }}''', initNs=PrefixMap.NAMESPACES)
+                    }}''', initNs=Prefix.NAMESPACES)
           ])
           triples.extend([
                (x['s'], x['p'], x['o'])
@@ -1080,7 +1116,7 @@ class ExecutableGraph(Graph):
                          ?mapping fno:function <{f_uri}> .
                          ?mapping ?type ?s .
                          ?s ?p ?o .
-                    }}''', initNs=PrefixMap.NAMESPACES)
+                    }}''', initNs=Prefix.NAMESPACES)
           ])
 
           # Get implementation
@@ -1091,7 +1127,7 @@ class ExecutableGraph(Graph):
                          ?mapping fno:function <{f_uri}> ;
                                   fno:implementation ?s .
                          ?s ?p ?o .
-                    }}''', initNs=PrefixMap.NAMESPACES)
+                    }}''', initNs=Prefix.NAMESPACES)
           ])
 
           # Get Parameter Descriptions
@@ -1101,7 +1137,7 @@ class ExecutableGraph(Graph):
                     for x in self.query(f'''
                          SELECT ?p ?o WHERE {{
                               <{param}> ?p ?o .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ])
 
                # Get Parameter types
@@ -1111,7 +1147,7 @@ class ExecutableGraph(Graph):
                          SELECT ?s ?p ?o WHERE {{
                               <{param}> fno:type ?s .
                          ?s ?p ?o .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ])
           
           # Get Self Description
@@ -1122,7 +1158,7 @@ class ExecutableGraph(Graph):
                     for x in self.query(f'''
                          SELECT ?p ?o WHERE {{
                               <{param}> ?p ?o .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ])
 
                # Get Self type
@@ -1132,7 +1168,7 @@ class ExecutableGraph(Graph):
                          SELECT ?s ?p ?o WHERE {{
                              <{param}> fno:type ?s .
                          ?s ?p ?o .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ])
           
           # Get Output Description
@@ -1143,7 +1179,7 @@ class ExecutableGraph(Graph):
                     for x in self.query(f'''
                          SELECT ?p ?o WHERE {{
                               <{out}> ?p ?o .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ])
 
                # Get output type
@@ -1153,7 +1189,7 @@ class ExecutableGraph(Graph):
                          SELECT ?s ?p ?o WHERE {{
                               <{out}> fno:type ?s .
                          ?s ?p ?o .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ])
           
           # Get Self Output Description
@@ -1164,7 +1200,7 @@ class ExecutableGraph(Graph):
                     for x in self.query(f'''
                          SELECT ?p ?o WHERE {{
                               <{self_out}> ?p ?o .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ])
 
                # Get output type
@@ -1174,19 +1210,41 @@ class ExecutableGraph(Graph):
                          SELECT ?s ?p ?o WHERE {{
                               <{self_out}> fno:type ?s .
                          ?s ?p ?o .
-                         }}''', initNs=PrefixMap.NAMESPACES)
+                         }}''', initNs=Prefix.NAMESPACES)
                ])
           
           # Get all function calls
           triples.extend([
-               (x['call'], PrefixMap.NAMESPACES['fnoc']['applies'], f_uri)
+               (x['call'], Prefix.NAMESPACES['fnoc']['applies'], f_uri)
                for x in self.query(f'''
                     SELECT ?call WHERE {{
                          ?call fnoc:applies <{f_uri}> .
                     }}
-               ''', initNs=PrefixMap.NAMESPACES)
+               ''', initNs=Prefix.NAMESPACES)
           ])
 
-          desc = PrefixMap.bind_namespaces(ExecutableGraph())
+          desc = Prefix.bind_namespaces(ExecutableGraph())
           [ desc.add(x) for x in triples ]
           return desc
+      
+    ### PYTHON ###
+    
+    def is_pythonfile(self, uri: URIRef):
+        return self.query(f"""ASK WHERE {{ <{uri}> a fnoi:PythonFile . }}""", initNs=Prefix.NAMESPACES)
+    
+    ### DOCKER ###
+    
+    def is_dockerfile(self, uri: URIRef):
+        return self.query(f"""ASK WHERE {{ <{uri}> a do:Dockerfile . }}""", initNs=Prefix.NAMESPACES)
+    
+    ### IMPLEMENTATION ###
+    
+    def get_file(self, uri: URIRef):
+        result = [ x['path'].removeprefix("file://") for x in self.query(f"""
+                                         SELECT ?path WHERE {{
+                                            <{uri}> fnoi:file ?path .
+                                        }}""", initNs=Prefix.NAMESPACES)]
+        
+        if len(result) > 1:
+            raise Exception(f"Implementation {uri} has more than one path defined: {result}")
+        return result[0] if result else None

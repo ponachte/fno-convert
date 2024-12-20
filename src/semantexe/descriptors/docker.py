@@ -1,42 +1,38 @@
 from dockerfile_parse import DockerfileParser
-from rdflib import URIRef
+from rdflib import URIRef, Literal
 
 import ast, os
 
-from ..map import PrefixMap
+from ..prefix import Prefix
 from ..graph import ExecutableGraph
-from ..builders.fno import FnOBuilder
-from ..builders.docker import DockerBuilder
-from ..descriptors.file import DirectoryDescriptor
-from ..descriptors import Descriptor
+from ..builders import FnOBuilder, DockerBuilder
 from ..util.std_kg import STD_KG
 from ..util.mapping import Mapping, MappingNode
 
-INPUT_IMAGE = PrefixMap.do()["imageInputParam"]
-OUTPUT_IMAGE = PrefixMap.do()["imageOutputParam"]
+INPUT_IMAGE = Prefix.do()["imageInputParam"]
+OUTPUT_IMAGE = Prefix.do()["imageOutputParam"]
 
 # TODO multiple build stages
 
-class DockerDescriptor:
+class DockerfileDescriptor:
     
     def __init__(self, g: ExecutableGraph) -> None:
         self.parser = DockerfileParser()
         self.g = g
     
-    def from_file(self, path, file_uri):
+    def from_file(self, path, uri):
         
         ### DOCKERFILE ###
         
-        DockerBuilder.describe_dockerfile(self.g, file_uri, path)
-        
+        # Calculate absolute path
+        abspath = os.path.abspath(f"./{path}")
+        DockerBuilder.describe_dockerfile(self.g, uri, abspath)
+    
         ### URI ###
         
-        comp_uri = URIRef(f"{file_uri}Composition")
+        comp_uri = URIRef(f"{uri}Composition")
         
         self.parser.dockerfile_path = path
-        
-        self.dir = os.path.dirname(path)
-        self.workdir = ''
         
         self.prev_instruction = None
         self.mappings = []
@@ -44,12 +40,12 @@ class DockerDescriptor:
         for inst in self.parser.structure:
             self.handle_inst(inst)
         
-        FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=file_uri)
+        FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=uri)
         
         # Indicate start
         FnOBuilder.start(self.g, comp_uri, self.start)
             
-        return comp_uri
+        return uri
     
     def handle_mapping(self, mapfrom, mapto):
         self.mappings.append(Mapping(mapfrom, mapto))
@@ -68,14 +64,14 @@ class DockerDescriptor:
         self.prev_instruction = call
     
     def get_call(self, inst):
-        inst_uri = PrefixMap.do()[inst]
+        inst_uri = Prefix.do()[inst]
         if inst not in self.g.f_counter:
             self.g.f_counter[inst] = 1
             self.g += STD_KG[inst_uri]
         else:
             self.g.f_counter[inst] += 1
         
-        call_uri = PrefixMap.base()[f"{inst}_{self.g.f_counter[inst]}"]
+        call_uri = Prefix.base()[f"{inst}_{self.g.f_counter[inst]}"]
         FnOBuilder.apply(self.g, call_uri, inst_uri)
         
         return call_uri
@@ -85,6 +81,8 @@ class DockerDescriptor:
             self.handle_from(inst['value'])
         elif inst['instruction'] == 'ENTRYPOINT':
             self.handle_entrypoint(inst['value'])
+        elif inst['instruction'] == 'CMD':
+            self.handle_cmd(inst['value'])
         elif inst['instruction'] == 'RUN':
             self.handle_run(inst['value'])
         elif inst['instruction'] == 'COPY':
@@ -112,17 +110,34 @@ class DockerDescriptor:
         
         # Set entrypoint command
         cmd = MappingNode().set_constant(values[0])
-        entrypoint_cmd = MappingNode().set_function_par(call_uri, PrefixMap.do()['entrypointInputCommand'])
+        entrypoint_cmd = MappingNode().set_function_par(call_uri, Prefix.do()['entrypointInputCommand'])
         self.handle_mapping(cmd, entrypoint_cmd)
         
         # Set entrypoint command parameters
         if len(values) > 1:
-            entrypoint_cmd_params = MappingNode().set_function_par(call_uri, PrefixMap.do()['entrypointInputParamList'])
+            entrypoint_cmd_params = MappingNode().set_function_par(call_uri, Prefix.do()['entrypointInputParamList'])
             for i, value in enumerate(values[1:]):
-                value = Descriptor.describe(self.g, value, dir=self.dir)
+                # value = Descriptor.describe(self.g, value, dir=self.dir)
                 param = MappingNode().set_constant(value)
                 entrypoint_cmd_params.set_strategy("toList", i)
                 self.handle_mapping(param, entrypoint_cmd_params)
+        
+        self.handle_order(call_uri)
+    
+    def handle_cmd(self, values):
+        inst = 'cmd'
+        call_uri = self.get_call(inst)
+        
+        # Convert input parameter to list
+        values = ast.literal_eval(values)
+        
+        # Set command parameters
+        entrypoint_cmd_params = MappingNode().set_function_par(call_uri, Prefix.do()['cmdInputParamList'])
+        for i, value in enumerate(values):
+            # value = Descriptor.describe(self.g, value, dir=self.dir)
+            param = MappingNode().set_constant(value)
+            entrypoint_cmd_params.set_strategy("toList", i)
+            self.handle_mapping(param, entrypoint_cmd_params)
         
         self.handle_order(call_uri)
     
@@ -132,7 +147,7 @@ class DockerDescriptor:
         
         # Set run command
         cmd = MappingNode().set_constant(value)
-        run_cmd = MappingNode().set_function_par(call_uri, PrefixMap.do()['runInputCommand'])
+        run_cmd = MappingNode().set_function_par(call_uri, Prefix.do()['runInputCommand'])
         self.handle_mapping(cmd, run_cmd)
         
         self.handle_order(call_uri)
@@ -144,19 +159,14 @@ class DockerDescriptor:
         # Convert input parameter to list
         value = value.split(' ')
         
-        # Describe all files inside the src directory
-        # TODO Implementation must be in dest_dir
-        src_dir = os.path.join(self.dir, value[0])
-        DirectoryDescriptor.describe(self.g, src_dir)
-        
         # Set src parameter
         src = MappingNode().set_constant(value[0])
-        src_input = MappingNode().set_function_par(call_uri, PrefixMap.do()['copySrc'])
+        src_input = MappingNode().set_function_par(call_uri, Prefix.do()['copySrc'])
         self.handle_mapping(src, src_input)
         
         # Set dest parameter
         dest = MappingNode().set_constant(value[1])
-        dest_input = MappingNode().set_function_par(call_uri, PrefixMap.do()['copyDest'])
+        dest_input = MappingNode().set_function_par(call_uri, Prefix.do()['copyDest'])
         self.handle_mapping(dest, dest_input)
         
         self.handle_order(call_uri)
@@ -167,10 +177,7 @@ class DockerDescriptor:
         
         # Set src parameter
         dir = MappingNode().set_constant(value)
-        dir_input = MappingNode().set_function_par(call_uri, PrefixMap.do()['workdirInput'])
+        dir_input = MappingNode().set_function_par(call_uri, Prefix.do()['workdirInput'])
         self.handle_mapping(dir, dir_input)
-        
-        # Set workdir
-        self.workdir = '' if value != '.' else value
         
         self.handle_order(call_uri)

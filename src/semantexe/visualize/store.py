@@ -3,7 +3,7 @@ from PyQt6.QtCore import QRectF, Qt, QPoint
 from PyQt6.QtGui import QColor, QPen, QBrush
 from pyqtgraph import GraphicsObject
 
-from ..execute.store import Terminal, Variable, ValueStore
+from ..executors.store import Terminal, Variable, ValueStore
 from .colors import *
 
 from abc import abstractmethod

@@ -7,7 +7,7 @@ from PyQt6.QtGui import QPainterPath, QPainterPathStroker
 from .store import StoreGraphicsItem, VariableGraphicsItem, TerminalGraphicsItem
 from .composition import CompositionGraphicsItem
 from .process import ProcessGraphicsItem
-from ..execute.process import FunctionLink
+from ..executors.process import FunctionLink
 
 STD_COLOR = (100, 100, 250)
 LINK_COLOR = (250, 100, 100)

@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QGraphicsTextItem
 from PyQt6.QtCore import Qt, QRectF, QPointF
 from typing import Set
 
-from ..execute.executeable import Composition
+from ..executors.executeable import Composition
 from .process import ProcessGraphicsItem
 from .store import VariableGraphicsItem
 

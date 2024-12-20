@@ -1,0 +1,286 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix ex: <http://www.example.com#> .
+@prefix fno: <https://w3id.org/function/ontology#> .
+@prefix fnoc: <https://w3id.org/function/vocabulary/composition#> .
+@prefix fnoi: <https://w3id.org/function/vocabulary/implementation#> .
+@prefix fnom: <https://w3id.org/function/vocabulary/mapping#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:iterMapping a fno:Mapping ;
+    fno:function ex:iter ;
+    fno:implementation ex:iterPythonImplementation ;
+    fno:methodMapping [ a fnom:StringMethodMapping ;
+            fnom:method-name "iter" ] ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:iterParameter0 ;
+            fnom:implementationParameterPosition 0 ] ;
+    fno:returnMapping [ a fnom:DefaultReturnMapping ;
+            fnom:functionOutput ex:iterOutput ] .
+
+ex:n_sumComposition a fno:Composition ;
+    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionOutput ex:op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:n_sum ;
+                    fnoc:functionParameter ex:n_sumOutput ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:n_sum ;
+                    fnoc:functionParameter ex:n_sumParameter0 ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:range_1 ;
+                    fnoc:functionParameter ex:rangeParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
+                    fnoc:functionOutput ex:nextOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionOutput ex:op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter0 ] ;
+            fnoc:priority ex:op_add_1 ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_1 ;
+                    fnoc:functionOutput ex:iterOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:next_1 ;
+                    fnoc:functionParameter ex:nextParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:range_1 ;
+                    fnoc:functionOutput ex:rangeOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:iter_1 ;
+                    fnoc:functionParameter ex:iterParameter0 ] ],
+        [ fnoc:mapFromTerm 0 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter0 ] ] ;
+    fnoc:represents ex:n_sum ;
+    fnoc:start ex:range_1 .
+
+ex:n_sumMapping a fno:Mapping ;
+    fno:function ex:n_sum ;
+    fno:implementation ex:n_sumPythonImplementation ;
+    fno:methodMapping [ a fnom:StringMethodMapping ;
+            fnom:method-name "n_sum" ] ;
+    fno:parameterMapping [ a fnom:PropertyParameterMapping ;
+            fnom:functionParameter ex:n_sumParameter0 ;
+            fnom:implementationProperty "n" ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:n_sumParameter0 ;
+            fnom:implementationParameterPosition 0 ] ;
+    fno:returnMapping [ a fnom:DefaultReturnMapping ;
+            fnom:functionOutput ex:n_sumOutput ] .
+
+ex:nextMapping a fno:Mapping ;
+    fno:function ex:next ;
+    fno:implementation ex:nextPythonImplementation ;
+    fno:methodMapping [ a fnom:StringMethodMapping ;
+            fnom:method-name "next" ] ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:nextParameter0 ;
+            fnom:implementationParameterPosition 0 ] ;
+    fno:returnMapping [ a fnom:DefaultReturnMapping ;
+            fnom:functionOutput ex:nextOutput ] .
+
+ex:op_addMapping a fno:Mapping ;
+    fno:function ex:op_add ;
+    fno:implementation ex:op_addPythonImplementation ;
+    fno:methodMapping [ a fnom:StringMethodMapping ;
+            fnom:method-name "add" ] ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:op_addParameter0 ;
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:op_addParameter1 ;
+            fnom:implementationParameterPosition 1 ] ;
+    fno:returnMapping [ a fnom:DefaultReturnMapping ;
+            fnom:functionOutput ex:op_addOutput ] .
+
+ex:rangeMapping a fno:Mapping ;
+    fno:function ex:range ;
+    fno:implementation ex:rangePythonClass ;
+    fno:methodMapping [ a fnom:StringMethodMapping ;
+            fnom:method-name "range" ] ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:rangeParameter0 ;
+            fnom:implementationParameterPosition 0 ] ;
+    fno:returnMapping [ a fnom:DefaultReturnMapping ;
+            fnom:functionOutput ex:rangeOutput ] .
+
+ex:intPythonClass a prov:Agent,
+        fnoi:PythonClass ;
+    rdfs:label "int" ;
+    dcterms:description """int([x]) -> integer
+int(x, base=10) -> integer
+
+Convert a number or string to an integer, or return 0 if no arguments
+are given.  If x is a number, return x.__int__().  For floating point
+numbers, this truncates towards zero.
+
+If x is not a number or if base is given, then x must be a string,
+bytes, or bytearray instance representing an integer literal in the
+given base.  The literal can be preceded by '+' or '-' and be surrounded
+by whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.
+Base 0 means to interpret the base from the string as an integer literal.
+>>> int('0b100', base=0)
+4""" ;
+    fnoi:module "builtins" .
+
+ex:iterPythonImplementation a prov:Agent,
+        fnoi:PythonFunction ;
+    rdfs:label "iter" ;
+    dcterms:description """Get an iterator from an object.
+
+In the first form, the argument must supply its own iterator, or be a sequence.
+In the second form, the callable is called until it returns the sentinel.""" ;
+    fnoi:module "builtins" .
+
+ex:n_sumPythonImplementation a prov:Agent,
+        fnoi:PythonFunction ;
+    rdfs:label "n_sum" ;
+    dcterms:description "None" ;
+    fnoi:file "/home/ponachte/projects/py2rdf/describe_functions.py" ;
+    fnoi:module "__main__" .
+
+ex:nextPythonImplementation a prov:Agent,
+        fnoi:PythonFunction ;
+    rdfs:label "next" ;
+    dcterms:description """Return the next item from the iterator.
+
+If default is given and the iterator is exhausted,
+it is returned instead of raising StopIteration.""" ;
+    fnoi:module "builtins" .
+
+ex:op_addPythonImplementation a prov:Agent,
+        fnoi:PythonFunction ;
+    rdfs:label "add" ;
+    dcterms:description "Same as a + b." ;
+    fnoi:module "_operator" .
+
+ex:rangePythonClass a prov:Agent,
+        fnoi:PythonClass ;
+    rdfs:label "range" ;
+    dcterms:description """range(stop) -> range object
+range(start, stop[, step]) -> range object
+
+Return an object that produces a sequence of integers from start (inclusive)
+to stop (exclusive) by step.  range(i, j) produces i, i+1, i+2, ..., j-1.
+start defaults to 0, and stop is omitted!  range(4) produces 0, 1, 2, 3.
+These are exactly the valid indices for a list of 4 elements.
+When step is given, it specifies the increment (or decrement).""" ;
+    fnoi:module "builtins" .
+
+ex:iter a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:iterParameter0 ] ;
+    fno:name "iter" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:iterOutput ] .
+
+ex:next a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:nextParameter0 ] ;
+    fno:name "next" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:nextOutput ] .
+
+ex:op_add a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:op_addParameter0 ;
+            rdf:_2 ex:op_addParameter1 ] ;
+    fno:name "add" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:op_addOutput ] .
+
+ex:range a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:rangeParameter0 ] ;
+    fno:name "range" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:rangeOutput ] .
+
+ex:iterOutput a fno:Output ;
+    fno:predicate ex:iterResult ;
+    fno:type ex:AnyPythonClass .
+
+ex:iterParameter0 a fno:Parameter ;
+    fno:predicate ex:iterParameterPred0 ;
+    fno:required true ;
+    fno:type ex:AnyPythonClass .
+
+ex:iter_1 fnoc:applies ex:iter ;
+    fnoc:next ex:next_1 .
+
+ex:n_sumOutput a fno:Output ;
+    fno:predicate ex:n_sumResult ;
+    fno:type ex:AnyPythonClass .
+
+ex:nextOutput a fno:Output ;
+    fno:predicate ex:nextResult ;
+    fno:type ex:AnyPythonClass .
+
+ex:nextParameter0 a fno:Parameter ;
+    fno:predicate ex:nextParameterPred0 ;
+    fno:required true ;
+    fno:type ex:AnyPythonClass .
+
+ex:op_addParameter1 a fno:Parameter ;
+    fno:predicate ex:b ;
+    fno:required true ;
+    fno:type ex:AnyPythonClass .
+
+ex:rangeOutput a fno:Output ;
+    fno:predicate ex:rangeResult ;
+    fno:type ex:AnyPythonClass .
+
+ex:rangeParameter0 a fno:Parameter ;
+    fno:predicate ex:rangeParameterPred0 ;
+    fno:required true ;
+    fno:type ex:AnyPythonClass .
+
+ex:range_1 fnoc:applies ex:range ;
+    fnoc:next ex:iter_1 .
+
+ex:n_sum a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:n_sumParameter0 ] ;
+    fno:name "n_sum" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:n_sumOutput ] .
+
+ex:n_sumParameter0 a fno:Parameter ;
+    fno:predicate ex:n ;
+    fno:required true ;
+    fno:type ex:intPythonClass .
+
+ex:next_1 fnoc:applies ex:next ;
+    fnoc:iterate ex:op_add_1 .
+
+ex:op_addOutput a fno:Output ;
+    fno:predicate ex:op_addResult ;
+    fno:type ex:AnyPythonClass .
+
+ex:op_addParameter0 a fno:Parameter ;
+    fno:predicate ex:a ;
+    fno:required true ;
+    fno:type ex:AnyPythonClass .
+
+ex:op_add_1 fnoc:applies ex:op_add ;
+    fnoc:next ex:next_1 .
+
+ex:AnyPythonClass a prov:Agent,
+        fnoi:PythonClass ;
+    rdfs:label "Any" ;
+    dcterms:description """Special type indicating an unconstrained type.
+
+    - Any is compatible with every type.
+    - Any assumed to have all methods.
+    - All values assumed to be instances of Any.
+
+    Note that all the above statements are true from the point of view of
+    static type checkers. At runtime, Any should not be used with instance
+    checks.
+    """ ;
+    fnoi:file "/home/ponachte/anaconda3/lib/python3.12/typing.py" ;
+    fnoi:module "typing" .
+

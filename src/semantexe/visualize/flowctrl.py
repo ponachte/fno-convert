@@ -4,8 +4,8 @@ from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from rdflib import URIRef
 from pyqtgraph import TreeWidget
 
-from ..execute.flow import FnOFlow
-from ..execute.store import Terminal
+from ..executors.flow import FnOFlow
+from ..executors.store import Terminal
 from ..graph import ExecutableGraph
 from .flowview import FlowViewWidget
 

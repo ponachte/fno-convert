@@ -4,18 +4,18 @@ digraph clusterbinarycount {
 count = 0
 "]
 	4 [label="#4
-for i, bit in enumerate(bits[::-1]):
+for i, bit in enumerate(bits):
 "]
 	5 [label="#5
-if int(bit) == 1:
+if bit == 1:
 "]
 	7 [label="#7
 count = count + 2 ** i
 "]
 	7 -> 4 [label=""]
-	5 -> 7 [label="int(bit) == 1"]
-	5 -> 4 [label="(int(bit) != 1)"]
-	4 -> 5 [label="enumerate(bits[::-1])"]
+	5 -> 7 [label="bit == 1"]
+	5 -> 4 [label="(bit != 1)"]
+	4 -> 5 [label="enumerate(bits)"]
 	6 [label="#6
 return count
 "]

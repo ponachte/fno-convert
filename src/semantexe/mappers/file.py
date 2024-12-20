@@ -1,0 +1,55 @@
+import os, hashlib
+
+from rdflib import URIRef
+
+from ..graph import ExecutableGraph
+from ..prefix import Prefix
+from ..builders import PythonBuilder, FnOBuilder
+from .python import PythonMapper
+
+NAME = Prefix.ns('doap').name
+FILE_PRED = Prefix.ns('fnoi').file
+MODULE_PRED = Prefix.ns('fnoi').module
+PACKAGE_PRED = Prefix.ns('fnoi').package
+DOC_PRED = Prefix.ns('dcterms').description
+
+class FileMapper:
+    
+    @staticmethod
+    def uri(name, path):
+        unique_hash = hashlib.sha256(path.encode()).hexdigest()[:8]
+        return Prefix.base()[f"{name}{unique_hash}"]
+    
+    @staticmethod
+    def move_file(g: ExecutableGraph, mapping, imp, src, dest):
+        new_imp = None
+        metadata = g.get_imp_metadata(imp)
+        
+        if FILE_PRED in metadata:
+            new_imp = None
+            src_file = str(metadata[FILE_PRED][0]).removeprefix("file://")
+            dest_file = src_file.replace(src, dest)
+            
+            # Not needed anymore
+            del metadata[FILE_PRED]
+            
+            if dest_file.endswith(".py"):
+                name = metadata[NAME][0].value if NAME in metadata else 'unknown'
+                m_name = metadata[MODULE_PRED][0].value if MODULE_PRED in metadata else None
+                p_name = metadata[PACKAGE_PRED][0].value if PACKAGE_PRED in metadata else None
+                
+                # create new implementation
+                new_imp = PythonMapper.uri(name, m_name, p_name, dest_file)
+            
+            if new_imp:
+                # copy implementation metadata   
+                for pred, values in metadata.items():
+                    for value in values:
+                        g.add((new_imp, pred, value))
+                g.add((new_imp, Prefix.ns('fnoi').file, URIRef(f"file://{dest_file}")))
+                
+                # link new implementation
+                FnOBuilder.implementation(g, mapping, new_imp)
+                
+                return new_imp
+            

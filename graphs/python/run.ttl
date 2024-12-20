@@ -1,0 +1,60 @@
+@prefix cf: <http://www.example.com/controlflow#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix fno: <https://w3id.org/function/ontology#> .
+@prefix fnoc: <https://w3id.org/function/vocabulary/composition#> .
+@prefix fnoi: <https://w3id.org/function/vocabulary/implementation#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix python: <http://www.example.com/pythonfile#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+cf:tuple_1 fnoc:applies cf:tuple ;
+    fnoc:next cf:tuple_2 .
+
+python:run49e8008c a fnoi:PythonFile ;
+    fnoi:file <file://docker_examples/data-driven/job/run.py> .
+
+cf:DictOutput a fno:Output ;
+    fno:predicate cf:dictResult ;
+    fno:type rdf:Seq .
+
+cf:Elements a fno:Parameter ;
+    fno:predicate cf:elements .
+
+cf:Pairs a fno:Parameter ;
+    fno:predicate cf:pairs ;
+    fno:type rdf:Seq .
+
+cf:TupleOutput a fno:Output ;
+    fno:predicate cf:tupleResult ;
+    fno:type rdf:List .
+
+cf:dict a prov:Entity,
+        fno:Function ;
+    dcterms:descrition "ask GPT for description" ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 cf:Pairs ] ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 cf:DictOutput ] .
+
+cf:dict_1 fnoc:applies cf:dict .
+
+cf:tuple_2 fnoc:applies cf:tuple ;
+    fnoc:next cf:tuple_3 .
+
+cf:tuple_3 fnoc:applies cf:tuple ;
+    fnoc:next cf:tuple_4 .
+
+cf:tuple_4 fnoc:applies cf:tuple ;
+    fnoc:next cf:tuple_5 .
+
+cf:tuple_5 fnoc:applies cf:tuple ;
+    fnoc:next cf:dict_1 .
+
+cf:tuple a prov:Entity,
+        fno:Function ;
+    dcterms:descrition "ask GPT for description" ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 cf:Elements ] ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 cf:TupleOutput ] .
+

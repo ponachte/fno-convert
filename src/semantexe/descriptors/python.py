@@ -18,12 +18,12 @@ from collections import deque
 
 from ..util.mapping import Mapping, MappingNode
 from ..util.python.importer import Importer
-from ..builders.fno import FnOBuilder
-from ..builders.python import PythonBuilder
+from ..builders import PythonBuilder, FnOBuilder
 from ..util.python.scope import ScopeState
 from ..util.std_kg import STD_KG
 from ..graph import ExecutableGraph, get_name
-from ..map import ImpMap, PrefixMap
+from ..prefix import Prefix
+from ..mappers import PythonMapper
 
 class PythonDescriptor:
 
@@ -120,11 +120,9 @@ class PythonDescriptor:
         
         self.restore_scope()
 
-        return self.g, fun_uri
+        return fun_uri
 
     def from_file(self, file_path, file_uri):
-        ### PYTHON FILE ###
-        PythonBuilder.describe_pythonfile(self.g, file_uri, file_path)
         file_name, _ = os.path.splitext(os.path.basename(file_path))
         
         ### URI ###
@@ -138,32 +136,26 @@ class PythonDescriptor:
         ### PARSE SOURCE CODE ###
         
         try:
-            with open(file_path, 'r') as file:
-                source_code = file.read()
-
-            # Parse the source code into an AST
-            main_cfg = CFGBuilder().build_from_src(file_path, source_code)
-            dot = main_cfg.build_visual('png')
-            dot.render(f"cfg_diagrams/{file_name}_cfg_diagram", view=False)
+            objects = self.importer.import_from_file(file_path)
+            fun_uri = None
+            for obj in objects:
+                self.from_object(obj)
+                # SIMPLIFICATION
+                # Take the defined function 'main' as entrypoint to the pythonfile
+                if obj.__name__ == "main":
+                    fun_uri = self.from_object(obj)
+                    _, imp = self.g.fun_to_imp(fun_uri)[0]
+                    PythonBuilder.describe_file(self.g, imp)
             
-            # Iterate blocks
-            for block in main_cfg:
-                self.handle_block(block)
+            ### RESTORE SCOPE ###
+        
+            self.restore_scope()
+        
+            return fun_uri
             
-            # Create composition
-            FnOBuilder.describe_composition(self.g, comp_uri, self.scope.mappings, represents=file_uri)
-                        
-            # Set starting point
-            FnOBuilder.start(self.g, comp_uri, self.scope.start)
         except Exception as e:
             print(f"Error: Unable to describe composition of file: {file_path}")
             traceback.print_exc()
-        
-        ### RESTORE SCOPE ###
-        
-        self.restore_scope()
-        
-        return comp_uri
     
     def get_type(self, var):
         """
@@ -317,7 +309,7 @@ class PythonDescriptor:
         elif isinstance(stmt, (ast.FunctionDef, ast.ClassDef)):
             module_name = inspect.getmodulename(self.scope.path)
             if self.importer.is_module(module_name):
-                self.importer.handle_import_from(module_name, ast.alias(stmt.name), skip=False)
+                self.importer.handle_import_from(module_name, ast.alias(stmt.name), skip=False)   
             return
         elif isinstance(stmt, MappingNode):
             return stmt
@@ -339,7 +331,7 @@ class PythonDescriptor:
         MappingNode
             A MappingNode containing the constant
         """
-        return MappingNode().set_constant(value)
+        return MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, value))
     
     def handle_name(self, id):
         """
@@ -379,10 +371,10 @@ class PythonDescriptor:
             if obj.__name__ not in self.g.f_counter:
                 self.from_object(obj)
             # Return the object without context
-            return MappingNode().set_constant(obj)
+            return MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, obj))
         
         # Return the identifier without context if no resolution is found
-        return MappingNode().set_constant(id)
+        return MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, id))
     
     def handle_augassignment(self, target, op, value):
         self.handle_assignment(ast.BinOp(target, op, value), [target])
@@ -718,7 +710,7 @@ class PythonDescriptor:
             pred = get_name(self.g.get_predicate(par))
             if context in self.scope.default_map and pred in self.scope.default_map[context]:
                 default = self.scope.default_map[context][pred]
-                mapfrom = MappingNode().set_constant(default)
+                mapfrom = MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, default))
                 mapto = MappingNode().set_function_par(call, par)
                 self.handle_mapping(mapfrom, mapto)
 
@@ -776,7 +768,7 @@ class PythonDescriptor:
         # Create function description if it does not exist
         name = 'attribute'
         context = 'attribute'
-        s = PrefixMap.cf()[context]
+        s = Prefix.cf()[context]
         if name not in self.g.f_counter:
             self.g.f_counter[context] = 1
             self.g += STD_KG[s]
@@ -789,12 +781,12 @@ class PythonDescriptor:
         # Handle the value node
         if isinstance(value, ast.Name) and self.importer.is_module(value.id):
             # An object from an imported module is used
-            mapfrom = MappingNode().set_constant(self.importer.get_module(value.id).__name__)
-            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['ValueParameter'])
+            mapfrom = MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, self.importer.get_module(value.id).__name__))
+            mapto = MappingNode().set_function_par(call, Prefix.cf()['ValueParameter'])
             self.handle_mapping(mapfrom, mapto)
         else:
             mapfrom = self.handle_stmt(value)
-            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['ValueParameter'])
+            mapto = MappingNode().set_function_par(call, Prefix.cf()['ValueParameter'])
             self.handle_mapping(mapfrom, mapto)            
 
         # Convert simple string attributes to AST Name nodes if necessary
@@ -802,12 +794,12 @@ class PythonDescriptor:
             attr = self.name_node(attr)
 
         mapfrom = self.handle_stmt(attr)
-        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['AttributeParameter'])
+        mapto = MappingNode().set_function_par(call, Prefix.cf()['AttributeParameter'])
         self.handle_mapping(mapfrom, mapto)
 
         self.handle_order(call)
         
-        return MappingNode().set_function_out(call, PrefixMap.cf()['AttributeOutput'])
+        return MappingNode().set_function_out(call, Prefix.cf()['AttributeOutput'])
     
     def handle_slice(self, lower, upper, step):
         """
@@ -843,34 +835,34 @@ class PythonDescriptor:
         4. Describe the composition of the slice operation in the RDF graph.
         """
         context = "slice"
-        s = PrefixMap.cf()[context]
+        s = Prefix.cf()[context]
         if context not in self.g.f_counter:
             self.g.f_counter[context] = 1
             self.g += STD_KG[s]
         else:
             self.g.f_counter[context] += 1
 
-        f = PrefixMap.cf()[context]
+        f = Prefix.cf()[context]
         call = URIRef(f"{f}_{self.g.f_counter[context]}")
         FnOBuilder.apply(self.g, call, f)
 
         # Handle the lower, upper, and step components of the slice
-        lower_name = self.handle_stmt(lower) if lower else MappingNode().set_constant(None)
-        upper_name = self.handle_stmt(upper) if upper else MappingNode().set_constant(None)
-        step_name = self.handle_stmt(step) if step else MappingNode().set_constant(None)
+        lower_name = self.handle_stmt(lower) if lower else MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, None))
+        upper_name = self.handle_stmt(upper) if upper else MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, None))
+        step_name = self.handle_stmt(step) if step else MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, None))
 
-        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['LowerIndexParameter'])
+        mapto = MappingNode().set_function_par(call, Prefix.cf()['LowerIndexParameter'])
         self.handle_mapping(lower_name, mapto)
         
-        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['UpperIndexParameter'])
+        mapto = MappingNode().set_function_par(call, Prefix.cf()['UpperIndexParameter'])
         self.handle_mapping(upper_name, mapto)
         
-        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['StepParameter'])
+        mapto = MappingNode().set_function_par(call, Prefix.cf()['StepParameter'])
         self.handle_mapping(step_name, mapto)
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.cf()['SliceOutput'])
+        return MappingNode().set_function_out(call, Prefix.cf()['SliceOutput'])
     
     def handle_subscript(self, value, index, assign=None):
         """
@@ -942,43 +934,41 @@ class PythonDescriptor:
         6. Return the URI of the list call and the list output.
         """
         # Check if the "list" function has been encountered before and update its counter
-        elements = PrefixMap.cf()['Elements']
-        output = PrefixMap.cf()["ListOutput"]
+        elements = Prefix.cf()['Elements']
+        output = Prefix.cf()["ListOutput"]
             
         if "list" not in self.g.f_counter:
             # Create FnO Function
             self.g.f_counter["list"] = 1
-            s = PrefixMap.cf()["list"]
+            s = Prefix.cf()["list"]
             self.g += STD_KG[s]
             
             # Python implementation
-            imp_uri, desc = ImpMap.imp_to_rdf(list)
-            self.g += desc
+            imp_uri = PythonMapper.imp_to_rdf(self.g, list)
             
             # Mapping
             FnOBuilder.describe_mapping(self.g, s, imp_uri, 'list', output, positional=[elements])
-            self.g += desc
         else:
             self.g.f_counter["list"] += 1
 
         # Create a URI for the list function and apply it to the RDF graph
-        f = PrefixMap.cf()["list"]
-        call = PrefixMap.base()[f"list_{self.g.f_counter['list']}"]
+        f = Prefix.cf()["list"]
+        call = Prefix.base()[f"list_{self.g.f_counter['list']}"]
         FnOBuilder.apply(self.g, call, f)
 
         # Handle each element in the list to generate its RDF representation and map it to the list
         for i, el in enumerate(elts):
             el_output = self.handle_stmt(el)
-            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['Elements']).set_strategy("toList", i)
+            mapto = MappingNode().set_function_par(call, Prefix.cf()['Elements']).set_strategy("toList", i)
             self.handle_mapping(el_output, mapto)
 
         # Set the type of the list output to `list`
-        self.scope.var_types[PrefixMap.cf()["ListOutput"]] = list
+        self.scope.var_types[Prefix.cf()["ListOutput"]] = list
 
         # Return the URI of the list call and the list output
         self.handle_order(call)
         
-        return MappingNode().set_function_out(call, PrefixMap.cf()['ListOutput'])
+        return MappingNode().set_function_out(call, Prefix.cf()['ListOutput'])
     
     def handle_tuple(self, elts):
         """
@@ -1012,7 +1002,7 @@ class PythonDescriptor:
         `self.g`, `self.handle_node`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
         context = "tuple"
-        s = PrefixMap.cf()[context]
+        s = Prefix.cf()[context]
         if context not in self.g.f_counter:
             self.g.f_counter[context] = 1
             self.g += STD_KG[s]
@@ -1020,21 +1010,21 @@ class PythonDescriptor:
             self.g.f_counter[context] += 1
 
         
-        f = PrefixMap.cf()[context]
+        f = Prefix.cf()[context]
         call = URIRef(f"{f}_{self.g.f_counter[context]}")
         FnOBuilder.apply(self.g, call, f)
 
         for i, el in enumerate(elts):
             el_output = self.handle_stmt(el)
-            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['Elements']).set_strategy("toList", i)
+            mapto = MappingNode().set_function_par(call, Prefix.cf()['Elements']).set_strategy("toList", i)
             self.handle_mapping(el_output, mapto)
 
         # TupleOutput has type tuple
-        self.scope.var_types[PrefixMap.cf()["TupleOutput"]] = tuple
+        self.scope.var_types[Prefix.cf()["TupleOutput"]] = tuple
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.cf()['TupleOutput'])
+        return MappingNode().set_function_out(call, Prefix.cf()['TupleOutput'])
     
     def handle_dict(self, keys, values):
         """
@@ -1070,28 +1060,28 @@ class PythonDescriptor:
         `self.g`, `self.handle_tuple`, `self._scope`, and `self.scope.var_types` are properly defined and accessible within the class or module.
         """
         context = "dict"
-        s = PrefixMap.cf()[context]
+        s = Prefix.cf()[context]
         if context not in self.g.f_counter:
             self.g.f_counter[context] = 1
             self.g += STD_KG[s]
         else:
             self.g.f_counter[context] += 1
 
-        f = PrefixMap.cf()["dict"]
+        f = Prefix.cf()["dict"]
         call = URIRef(f"{f}_{self.g.f_counter['dict']}")
         FnOBuilder.apply(self.g, call, f)
         
         for i, (key, val) in enumerate(zip(keys, values)):
             pair_output = self.handle_tuple([key, val])
-            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['Pairs']).set_strategy("toList", i)
+            mapto = MappingNode().set_function_par(call, Prefix.cf()['Pairs']).set_strategy("toList", i)
             self.handle_mapping(pair_output, mapto)
     
         # DictOutput has type dict
-        self.scope.var_types[PrefixMap.cf()["DictOutput"]] = dict
+        self.scope.var_types[Prefix.cf()["DictOutput"]] = dict
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.cf()['DictOutput'])
+        return MappingNode().set_function_out(call, Prefix.cf()['DictOutput'])
     
     def handle_dictcomp(self, key, value, generators):
         # TODO handle block problem
@@ -1155,31 +1145,28 @@ class PythonDescriptor:
         
         # Check if the "list" function has been encountered before and update its counter
         context = "joinstr"
-        delimiter = PrefixMap.cf()['Delimiter']
-        strings = PrefixMap.cf()["Strings"]
-        output = PrefixMap.cf()["JoinStringOutput"]
+        delimiter = Prefix.cf()['Delimiter']
+        strings = Prefix.cf()["Strings"]
+        output = Prefix.cf()["JoinStringOutput"]
         
         if context not in self.g.f_counter:
             # Create FnO Function
             self.g.f_counter[context] = 1
-            s = PrefixMap.cf()[context]
+            s = Prefix.cf()[context]
             self.g += STD_KG[s]
             
             # Python implementation
-            str_uri, desc = ImpMap.imp_to_rdf(str)
-            self.g += desc
-            imp_uri, desc = ImpMap.imp_to_rdf(str.join, 'joinstr', self=str_uri, static=False)
-            self.g += desc
+            str_uri = PythonMapper.imp_to_rdf(self.g, str)
+            imp_uri = PythonMapper.imp_to_rdf(self.g, str.join, 'joinstr', self=str_uri, static=False)
             
             # Mapping
             FnOBuilder.describe_mapping(self.g, s, imp_uri, 'join', output, positional=[delimiter, strings])
-            self.g += desc
         else:
             self.g.f_counter["joinstr"] += 1
 
         # Create a URI for the join function and apply it to the RDF graph
-        f = PrefixMap.cf()["joinstr"]
-        call = PrefixMap.base()[f"joinstr_{self.g.f_counter['joinstr']}"]
+        f = Prefix.cf()["joinstr"]
+        call = Prefix.base()[f"joinstr_{self.g.f_counter['joinstr']}"]
         FnOBuilder.apply(self.g, call, f)
         
         # Set the delimiter to an empty string
@@ -1452,26 +1439,26 @@ class PythonDescriptor:
         """
         if name not in self.g.f_counter:
             self.g.f_counter[name] = 1
-            s = PrefixMap.cf()[name]
+            s = Prefix.cf()[name]
             self.g += STD_KG[s]
         else:
             self.g.f_counter[name] += 1
 
-        f = PrefixMap.cf()[name]
+        f = Prefix.cf()[name]
         call = URIRef(f"{f}_{self.g.f_counter[name]}")
         FnOBuilder.apply(self.g, call, f)
 
         mapfrom = self.handle_stmt(left)
-        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['ObjectParameter1'])
+        mapto = MappingNode().set_function_par(call, Prefix.cf()['ObjectParameter1'])
         self.handle_mapping(mapfrom, mapto)
         
         mapfrom = self.handle_stmt(right)
-        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['ObjectParameter2'])
+        mapto = MappingNode().set_function_par(call, Prefix.cf()['ObjectParameter2'])
         self.handle_mapping(mapfrom, mapto)
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.cf()['BoolOutput'])
+        return MappingNode().set_function_out(call, Prefix.cf()['BoolOutput'])
     
     def handle_ifexpr(self, test, true, false):
         """
@@ -1506,34 +1493,34 @@ class PythonDescriptor:
         5. Return the URI of the IfExpr function call and its output.
         """
         context = "ifexpr"
-        s = PrefixMap.cf()[context]
+        s = Prefix.cf()[context]
         if context not in self.g.f_counter:
             self.g.f_counter[context] = 1
             self.g += STD_KG[s]
         else:
             self.g.f_counter["ifexpr"] += 1
             
-        s = PrefixMap.cf()['ifexpr']
+        s = Prefix.cf()['ifexpr']
         call = URIRef(f"{s}_{self.g.f_counter['ifexpr']}")
         FnOBuilder.apply(self.g, call, s)
 
         mapfrom = self.handle_stmt(test)
-        mapto = MappingNode().set_function_par(call, PrefixMap.cf()['TestParameter'])
+        mapto = MappingNode().set_function_par(call, Prefix.cf()['TestParameter'])
         self.handle_mapping(mapfrom, mapto)
         
         if true is not None:
             mapfrom = self.handle_stmt(true)
-            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['IfTrueParameter'])
+            mapto = MappingNode().set_function_par(call, Prefix.cf()['IfTrueParameter'])
             self.handle_mapping(mapfrom, mapto)
 
         if false is not None:
             mapfrom = self.handle_stmt(false)
-            mapto = MappingNode().set_function_par(call, PrefixMap.cf()['IfFalseParameter'])
+            mapto = MappingNode().set_function_par(call, Prefix.cf()['IfFalseParameter'])
             self.handle_mapping(mapfrom, mapto)
         
         self.handle_order(call)
 
-        return MappingNode().set_function_out(call, PrefixMap.cf()['IfExprOutput'])
+        return MappingNode().set_function_out(call, Prefix.cf()['IfExprOutput'])
     
     def handle_for(self, target, iterator):    
         # Create the iterator      
@@ -1566,19 +1553,19 @@ class PythonDescriptor:
                 if isinstance(test.comparators[0], ast.Constant) and test.comparators[0].value == "__main__":
                     return
         
-        s = PrefixMap.cf()['if']       
+        s = Prefix.cf()['if']       
         if "if" not in self.g.f_counter:
             self.g.f_counter["if"] = 1
             self.g += STD_KG[s]
         else:
             self.g.f_counter["if"] += 1
         
-        s = PrefixMap.cf()['if']
+        s = Prefix.cf()['if']
         call = URIRef(f"{s}_{self.g.f_counter['if']}")
         FnOBuilder.apply(self.g, call, s)
         
         condition = self.handle_stmt(test)
-        if_input = MappingNode().set_function_par(call, PrefixMap.cf()['TestParameter']) 
+        if_input = MappingNode().set_function_par(call, Prefix.cf()['TestParameter']) 
         self.handle_mapping(condition, if_input)
         
         self.scope.conditions[self.scope.block] = call
@@ -1629,13 +1616,12 @@ class PythonDescriptor:
 
         try:
             if fun is not None:
-                imp, descr = ImpMap.imp_to_rdf(fun, context, self_type, static)
-                self.g += descr
+                imp = PythonMapper.imp_to_rdf(self.g, fun, context, self_type, static)
             else:
-                imp = FnOBuilder.describe_implementation(self.g, context)
+                imp = PythonBuilder.describe_imp(self.g, context)
         except:
             module = getattr(fun, "__module__", Importer.get_owner(fun))
-            imp = FnOBuilder.describe_implementation(self.g, context, module, getattr(fun, '__package__', None))
+            imp = PythonBuilder.describe_imp(self.g, context, module, getattr(fun, '__package__', None))
 
         ### FUNCTION MAPPING ###
 
@@ -1679,49 +1665,82 @@ class PythonDescriptor:
         params = sig.parameters
         return_type = sig.return_annotation
         
+        ### PARAMETERS ###
+        
         # Create function description from signature
-        parameter_preds = []
-        parameter_types = []
+        parameters = []
         self_type = None
 
+        # Create parameter description
         for i, (name, param) in enumerate(params.items()):
             if name == 'self':
                 if self_class == False:
                     continue
-                self_type, type_desc = ImpMap.imp_to_rdf(self_class)
-                self.g += type_desc
-            else:
-                parameter_preds.append(name)
-                par_name = f"{context}Parameter{i}"
+                self_type = PythonMapper.imp_to_rdf(self.g, self_class)
                 
-                param_type, type_desc = ImpMap.imp_to_rdf(param.annotation)
-                if type_desc:
-                    self.g += type_desc
-                parameter_types.append(param_type)
-                self.scope.var_types[PrefixMap.base()[par_name]] = param.annotation
-    
+                uri = Prefix.base()[f"{context}ParameterSelf"]
+                FnOBuilder.describe_parameter(self.g,
+                                              uri=uri,
+                                              type=self_type,
+                                              pred="self")
+                parameters.append(uri)
+            else:                
+                # Get rdf representation of type
+                param_type = PythonMapper.imp_to_rdf(self.g, param.annotation)
+                    
+                # Create input description
+                par_name = f"{context}Parameter{i}"
+                uri = Prefix.base()[par_name]
+                FnOBuilder.describe_parameter(self.g,
+                                              uri=uri,
+                                              type=param_type,
+                                              pred=name)
+                parameters.append(uri)
+                self.scope.var_types[uri] = param.annotation
+        
+        ### OUTPUTS ###
+        
+        outputs = []
+        
+        #### DEFAULT OUTPUT #####
+        
         output_pred = f"{context}Result"
-        output = PrefixMap.base()[f"{context}Output"]
-
+        output = Prefix.base()[f"{context}Output"]
+        
         if f is not None and type(f) is type:
             # If the function is a class constructor, the output wil have the class type
-            output_type, type_desc = ImpMap.imp_to_rdf(f)
+            output_type = PythonMapper.imp_to_rdf(self.g, f)
             self.scope.var_types[output] = f
         else:
             # Convert return annotation
-            output_type, type_desc = ImpMap.imp_to_rdf(return_type)
+            output_type = PythonMapper.imp_to_rdf(self.g, return_type)
             self.scope.var_types[output] = return_type
+            
+        # Create default output description
+        FnOBuilder.describe_output(self.g,
+                                   uri=output,
+                                   type=output_type,
+                                   pred=output_pred)
+        outputs.append(output)
         
-        if type_desc:
-            self.g += type_desc
+        #### SELF OUTPUT ####
+        
+        self_output = Prefix.base()[f"{context}SelfOutput"] if self_type else None
+        if self_type:
+            FnOBuilder.describe_output(self.g,
+                                       uri=self_output,
+                                       type=self_type,
+                                       pred="self_output")
+            outputs.append(self_output)
+    
+        ### FUNCTION DESCRIPTION ###
     
         # Add function description
-        s = FnOBuilder.describe_function(self.g, f_name, context,
-                                                parameter_preds, parameter_types,
-                                                output_pred, output_type,
-                                                self_type=self_type)
-
-        self_output = PrefixMap.base()[f"{context}SelfOutput"] if self_type else None
+        s = FnOBuilder.describe_function(self.g,
+                                         uri=Prefix.base()[context],
+                                         name=f_name,
+                                         parameters=parameters,
+                                         outputs=outputs)
 
         return s, output, self_output, self_type
     
@@ -1757,37 +1776,65 @@ class PythonDescriptor:
             The type of the self parameter.
         """
         # Create the python any type
-        any_type, type_descr = ImpMap.any()
-        self.g += type_descr
-
-        # Create function description from call
-        parameter_preds = []
-        parameter_types = []
-
-        for i in range(num_of_params):
-            parameter_preds.append(f"{context}ParameterPred{i}")
-            parameter_types.append(any_type)
+        any_type = PythonMapper.any(self.g)
         
-        for keyword in keywords:
-            parameter_preds.append(keyword.arg)
-            parameter_types.append(any_type)
-    
-        output_pred = f"{context}Result"
-        output = PrefixMap.base()[f"{context}Output"]
-        output_type = any_type
-    
-        # Add function description
+        parameters = []
+        outputs = []
+        
+        #### SELF OUTPUT AND INPUT ####
+
         if self_class:
-            self_type = any_type 
-        else: 
+            self_type = any_type
+            
+            uri = Prefix.base()[f"{context}ParameterSelf"]
+            FnOBuilder.describe_parameter(self.g,
+                                            uri=uri,
+                                            type=self_type,
+                                            pred="self")
+            parameters.append(uri)
+            
+            self_output = Prefix.base()[f"{context}SelfOutput"]
+            FnOBuilder.describe_output(self.g,
+                                       uri=uri,
+                                       type=self_type,
+                                       pred="self_output")
+            outputs.append(self_output)
+        else:
             self_type = None
+            self_output = None
+            
 
-        s = FnOBuilder.describe_function(self.g, f_name, context,
-                                                    parameter_preds, parameter_types,
-                                                    output_pred, output_type,
-                                                    self_type=self_type)
+        ### PARAMETERS ###
+        
+        for i in range(num_of_params):
+            uri = Prefix.base()[f"{context}Parameter{i}"]
+            pred = f"param{i}"
+            FnOBuilder.describe_parameter(self.g, uri=uri, type=any_type, pred=pred)
+            parameters.append(uri)
+        
+        for i, keyword in enumerate(keywords):
+            uri = Prefix.base()[f"{context}Parameter{i+num_of_params}"]
+            pred = keyword.arg
+            FnOBuilder.describe_parameter(self.g, uri=uri, type=any_type, pred=pred)
+            parameters.append(uri)
+        
+        ### OUTPUTS ###
+        
+        #### DEFAULT OUTPUT ####
+        
+        output = Prefix.base()[f"{context}Output"]
+        output_type = any_type
+        output_pred = f"{context}Result"
+        FnOBuilder.describe_output(self.g, uri=output, type=output_type, pred=output_pred)
+        outputs.append(output)
 
-        self_output = PrefixMap.base()[f"{context}SelfOutput"] if self_type else None
+        ### FUNCTION ###
+        
+        s = FnOBuilder.describe_function(self.g,
+                                         uri=Prefix.base()[context],
+                                         name=f_name,
+                                         parameters=parameters,
+                                         outputs=outputs)
 
         return s, output, self_output, self_type
     
@@ -1842,7 +1889,7 @@ class PythonDescriptor:
                 kargs = par
             
             if param.default is not inspect._empty:
-                defaults[par] = param.default
+                defaults[par] = PythonMapper.inst_to_rdf(self.g, param.default)
                 self.scope.default_map[s].update({name: param.default})
 
         FnOBuilder.describe_mapping(self.g, s, imp, f_name, output, positional, keyword, args, kargs, self_output, defaults)

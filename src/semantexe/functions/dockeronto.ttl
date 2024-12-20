@@ -22,6 +22,19 @@
                                                  <http://www.w3.org/ns/prov-o-20130430> ,
                                                  <https://w3id.org/function/ontology/0.4> .
 
+
+do:build a fno:Function ;
+    fno:expects [ a rdf:Seq ;
+                  rdf:_1 do:dockerfileInputParam ] ;
+    fno:returns [ a rdf:Seq ;
+                    rdf:_1 do:imageOutputParam ] .
+
+do:dockerfileInputParam a fno:Parameter ;
+    fno:predicate do:dockerfile ;
+    fno:type do:Dockerfile .
+
+##
+
 do:from a fno:Function, do:Instruction ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ] ;
@@ -114,17 +127,12 @@ do:arg a fno:Function, do:Instruction ;
 do:cmd a fno:Function, do:Instruction ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ;
-                  rdf:_2 do:cmdInputCommand ;
                   rdf:_3 do:cmdInputParamList ] ;
     fno:returns [ a rdf:Seq ;
                   rdf:_1 do:imageOutputParam ] .
 
-do:cmdInputCommand a fno:Parameter ;
-    fno:predicate do:cmdCMD ;
-    fno:type do:Command .
-
 do:cmdInputParamList a fno:Parameter ;
-    fno:predicate do:cmdCMDParams ;
+    fno:predicate do:cmdParams ;
     fno:type do:Param .
 
 ##
@@ -181,7 +189,7 @@ do:volume a fno:Function, do:Instruction ;
 
 do:copy a fno:Function, do:Instruction ;
     fno:expects [ a rdf:Seq ;
-                  rdf:_1 do:imageInputParamS ;
+                  rdf:_1 do:imageInputParam ;
                   rdf:_2 do:copySrc ;
                   rdf:_3 do:copyDest ] ;
     fno:returns [ a rdf:Seq ;

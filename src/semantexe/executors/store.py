@@ -12,6 +12,7 @@ class ParameterMapping:
 
     def __init__(self, g: ExecutableGraph, fun: URIRef, par: URIRef) -> None:
         self.property = None
+        self.type = None
         if g.is_varpositional(fun, par):
             self.type = MappingType.VARPOSITIONAL
         if g.is_varkeyword(fun, par):
@@ -36,7 +37,7 @@ class ParameterMapping:
 
 class Mapping:
 
-    def __init__(self, sources, target: "ValueStore") -> None:
+    def __init__(self, sources, target: "Terminal") -> None:
         self.priority = None
         self.sources = {}
         for source, priority, src_strat, src_key, tar_start, tar_key in sources:
@@ -50,29 +51,21 @@ class Mapping:
     
     def execute(self):
         for source, src_strat, src_key, tar_start, tar_key in self.sources[self.priority]:
-            self.target.set_value(source.get_value(src_strat, src_key), tar_start, tar_key)
+            self.target.set(source.get(src_strat, src_key), tar_start, tar_key)
 
 class ValueStore:
-
-    def __init__(self, type=None) -> None:        
+    
+    def __init__(self, type=None):
         self.value = None
-        self.value_set = False
         self.type = type
-
-    def set_value(self, value):
+        self.value_set = False
+    
+    def get(self, strat=None, key=None):
+        return self.value if strat is None else self.value[key]
+    
+    def set(self, value):
         self.value_set = True
         self.value = value
-    
-    def get_value(self, strat=None, key=None):
-        if strat is not None:
-           return self.value[key]
-        return self.value
-    
-    def __hash__(self) -> int:
-        return hash(self.value)
-    
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, ValueStore) and self.value == other.value
 
 class Terminal(ValueStore):
 
@@ -85,34 +78,34 @@ class Terminal(ValueStore):
         self.is_output = is_output
         self.param_mapping = param_mapping
     
-    def set_value(self, value, strat=None, key=None):
-        if self.is_output:
-            super().set_value(value)
-            return True
-        
+    def set(self, value, strat=None, key=None):
         if strat is None:
             self.strat = None
-            super().set_value(value)
+            super().set(value)
         else:
             self.strat = strat
             if not isinstance(self.value, dict):
-                super().set_value({})
+                super().set({})
             self.value[key] = value
-    
-    def get_value(self, strat=None, key=None):
-        if strat is not None:
-            return super().get_value(strat, key)
-        if self.is_output:
-            return super().get_value(strat, key)
+
+    def get(self, strat=None, key=None):
+        if self.is_output or self.param_mapping.get_type() is None:
+            return super().get(strat, key)
         
         if (self.param_mapping.get_type() == MappingType.POSITIONAL and self.strat == "toList") or \
             self.param_mapping.get_type() == MappingType.VARPOSITIONAL:
-                indexed = []
-                for i, val in super().get_value().items():
-                    indexed.append((i, val))
-                return [ x[1] for x in sorted(indexed, key=lambda x: x[0]) ]
+                return self.to_list()
             
-        return super().get_value()
+        return super().get(strat, key)
+    
+    def to_list(self):
+        if self.strat != "toList":
+            raise Exception(f"Terminal does not represent a list: {self.strat}")
+        
+        indexed = []
+        for i, val in self.value.items():
+            indexed.append((i, val))
+        return [ x[1] for x in sorted(indexed, key=lambda x: x[0]) ]
                 
 
     def __hash__(self) -> int:

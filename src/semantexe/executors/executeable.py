@@ -1,9 +1,7 @@
 from ..graph import ExecutableGraph, get_name
-from .store import Mapping, Terminal, ValueStore, ParameterMapping, MappingType
-from ..map import ImpMap
+from .store import Mapping, Terminal, ValueStore, ParameterMapping
 from rdflib import URIRef
 from typing import Set
-import datetime
 
 class Composition:
 
@@ -21,7 +19,7 @@ class Composition:
             else:
                 self.scope = comp
         else:
-            self.scope = rep.uri
+            self.scope = rep.fun_uri
 
         ### USED FUNCTIONS ###
         self.functions = {}
@@ -43,7 +41,7 @@ class Composition:
                 source = self.get_terminal(call, ter)
             elif g.is_term_mapping(mapfrom):
                 source = ValueStore(mapfrom.datatype)
-                source.set_value(mapfrom.value)
+                source.set(mapfrom.value)
             
             # Handle mapto
             call, ter = g.get_function_mapping(mapto)
@@ -67,7 +65,7 @@ class Composition:
         ### EXECUTION START ###
         self.start = g.get_start(comp)
     
-    def execute(self):
+    def execute(self, executor):
         # Execute each function and follow the control flow until no new function can be selected
         call = self.start
         while call is not None:
@@ -76,17 +74,14 @@ class Composition:
             # Fetch inputs from mappings
             self.ingest(fun)
             # Execute
-            fun.execute()
+            executor.execute_applied(fun)
             # Signify execution to relevant mappings
             if call in self.priorities:
                 for mapping in self.priorities[call]:
                     mapping.set_priority(call)
             # Get the URI of the next executeable
-            call = fun.next_function()
+            call = fun.next_executeable()
         
-        # If this composition represents the internal flow of a function, set the output
-        if self.rep:
-            self.ingest(self.scope)
     
     def ingest(self, fun):
         for input in fun.inputs():
@@ -104,14 +99,11 @@ class Composition:
 
 class Function:
 
-    def __init__(self, g: ExecutableGraph, fun: URIRef, internal=False) -> None:
-        self.uri = fun
+    def __init__(self, g: ExecutableGraph, fun: URIRef, map: URIRef = None, imp: URIRef = None, internal=True) -> None:
+        self.fun_uri = fun
         self.name = g.get_name(fun)
-        self.map, self.imp = g.get_implementation(fun)
-        
-        ### FUNCTION OBJECT ###
-        
-        self.f_object = ImpMap.rdf_to_imp(g, self.imp)
+        self.map = map
+        self.imp = imp
 
         ### TERMINALS ###
 
@@ -141,19 +133,14 @@ class Function:
         
         ### COMPOSITION ###
         
-        self.comp = None
         if g.has_composition(fun):
             # TODO Function is represented by multiple compositions
             self.comp_uri = g.get_compositions(fun)[0]
+            if internal:
+                self.comp = Composition(g, self.comp_uri, self)
         else:
             self.comp_uri = None
-        
-        if internal:
-            self.init_composition(g)
-        
-    def init_composition(self, g):
-        if self.comp_uri:
-            self.comp = Composition(g, self.comp_uri, self)
+            self.comp = None
 
     def inputs(self) -> Set[Terminal]:
         return { self.terminals[name] for name in self.terminals if not self.terminals[name].is_output }
@@ -161,69 +148,7 @@ class Function:
     def outputs(self) -> Set[Terminal]:
         return { self.terminals[name] for name in self.terminals if self.terminals[name].is_output }
     
-    def execute(self):
-        if self.comp:
-            self.comp.execute()
-        else:            
-            # If there is a self input, use the function object from that terminal's value
-            if self.self_input is not None:
-                self.f_object = getattr(self.self_input.value, self.name, None)
-            
-            # Only execute when there is a function object
-            if self.f_object is not None:
-                args = []
-                vargs = []
-                keyargs = {}
-                vkeyargs = {}
-
-                for param in self.inputs():
-                    mapping = param.param_mapping
-                    if not param.value_set:
-                        if mapping.has_default:
-                            param.set_value(mapping.default)
-                        else:
-                            raise Exception(f"Parameter {param.name} not set.")
-                    value = param.get_value()
-
-                    if mapping.get_type() == MappingType.VARPOSITIONAL:
-                        vargs = value
-                    elif mapping.get_type() == MappingType.VARKEYWORD:
-                        if isinstance(value, dict):
-                            vkeyargs = value
-                    elif mapping.get_type() == MappingType.KEYWORD:
-                        keyargs[mapping.get_property()] = value
-                    elif mapping.get_type() == MappingType.POSITIONAL:
-                        args.append((mapping.get_property(), value))
-                
-                # correctly sort the positional arguments
-                args = [ x[1] for x in sorted(args, key=lambda x: x[0])]
-
-                # Remove the self parameter as we already have the method object
-                if self.self_input is not None:
-                    if 'self' in keyargs:
-                        del keyargs['self']
-                    else:
-                        args = args[1:]
-                
-                try:
-                    self.startedAt = datetime.datetime.now()
-                    ret = self.f_object(*args, *vargs, **keyargs, **vkeyargs)
-                    self.endedAt = datetime.datetime.now()
-                    
-                    self.output.set_value(ret)
-                    if self.self_output is not None:
-                        self.self_output.set_value(self.self_input.get_value())
-                except StopIteration as e:
-                    raise e
-                except Exception as e:
-                    print(f"Error while executing {self.name} with")
-                    print(f"\targs: {args}")
-                    print(f"\tvargs: {vargs}")
-                    print(f"\tkeyargs: {",".join([f"{key}={arg}" for key, arg in keyargs.items()])}")
-                    print(f"\tvkeyargs: {",".join([f"{key}={arg}" for key, arg in vkeyargs.items()])}")
-                    raise e
-    
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> Terminal:
         # Based on parameter URI
         if isinstance(key, URIRef):
             return self.terminals[key]
@@ -236,10 +161,10 @@ class Function:
         raise KeyError(f"No terminal found with key '{key}'")
     
     def __hash__(self) -> int:
-        return hash(self.uri)
+        return hash(self.fun_uri)
     
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Function) and self.uri == other.uri
+        return isinstance(other, Function) and self.fun_uri == other.fun_uri
 
     
 class AppliedFunction(Function):
@@ -248,7 +173,7 @@ class AppliedFunction(Function):
         fun = g.check_call(call)
         super().__init__(g, fun)
         
-        self.uri = call
+        self.call_uri = call
         self.scope = scope
         
         if internal:
@@ -257,25 +182,11 @@ class AppliedFunction(Function):
         self._next = None
         self.next, self.iterate, self.iftrue, self.iffalse = g.get_order(call)
     
-    def execute(self):
-        if self.iterate is not None:
-            try:
-                super().execute()
-                self._next = self.iterate
-            except StopIteration:
-                self._next = self.next
-        elif self.iftrue is not None:
-            super().execute()
-            self._next = self.iftrue if self.output.value else self.iffalse
-        else:
-            super().execute()
-            self._next = self.next
-    
-    def next_function(self):
+    def next_executeable(self):
         return self._next
     
     def __hash__(self) -> int:
-        return hash(self.uri)
+        return hash(self.call_uri)
     
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, AppliedFunction) and self.uri == other.uri and self.scope == other.scope
+        return isinstance(other, AppliedFunction) and self.call_uri == other.call_uri and self.scope == other.scope

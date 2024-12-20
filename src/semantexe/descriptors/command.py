@@ -1,4 +1,4 @@
-from ..map import PrefixMap
+from ..prefix import Prefix
 
 import subprocess
 import re
@@ -37,7 +37,7 @@ class CommandDescriptor:
     
     @staticmethod
     def from_str(self, cmd, args):
-        fun_uri = PrefixMap.base()[cmd]
+        fun_uri = Prefix.base()[cmd]
         
         keyword = None
         keywords = []

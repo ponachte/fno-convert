@@ -7,10 +7,10 @@ from pyqtgraph.dockarea import DockArea, Dock
 from rdflib import URIRef
 import numpy as np
 
-from ..execute.flow import FnOFlow
-from ..execute.process import Process
-from ..execute.store import ValueStore, Terminal, Variable
-from ..execute.executeable import Composition
+from ..executors.flow import FnOFlow
+from ..executors.process import Process
+from ..executors.store import ValueStore, Terminal, Variable
+from ..executors.executeable import Composition
 from ..graph import ExecutableGraph
 from .process import ProcessGraphicsItem
 from .store import StoreGraphicsItem, VariableGraphicsItem

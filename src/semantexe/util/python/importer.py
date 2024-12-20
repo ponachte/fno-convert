@@ -119,12 +119,10 @@ class Importer:
         if not source_file:
             raise Exception(f"Source file for function {func.__name__} not found.")
         
-        self.import_from_file(source_file, obj_path)
+        return self.import_from_file(source_file, obj_path)
     
     def import_from_file(self, file_path, obj_path=None):
-        # if file_path in self._imported_files:
-        #    return
-        # self._imported_files.add(file_path)
+        objects = []
 
         # Get the directory of the source file and add it to sys.path if needed
         source_dir = os.path.dirname(file_path)
@@ -159,9 +157,12 @@ class Importer:
                 elif isinstance(node, (ast.FunctionDef, ast.ClassDef)):
                     module_name = inspect.getmodulename(obj_path if obj_path is not None else file_path)
                     if self.is_module(module_name):
-                        self.handle_import_from(module_name, ast.alias(node.name), skip=False)
+                        obj = self.handle_import_from(module_name, ast.alias(node.name), skip=False)
+                        objects.append(obj)
             except Exception as e:
-                print(f"Error importing for {file_path}: {e}")
+                print(f"Error importing for node {node}: {e}")
+        
+        return objects
 
 
     def handle_import(self, *module_names):
@@ -180,6 +181,8 @@ class Importer:
                     self._asname[module_name.asname] = module_name.name
                 else:
                     self._modules[module_name.name] = module
+                
+                return module
         except ModuleNotFoundError as e:
             # Module does not exist
             raise Exception(f"Module {module_name.name} does not exist.")
@@ -212,6 +215,7 @@ class Importer:
                     if not skip:
                         self.user_defined.add(obj)
 
+                return obj
         except AttributeError as e:
             # Module has no such attribute
             raise Exception(f"Module {module_name} does not have the right attributes.")

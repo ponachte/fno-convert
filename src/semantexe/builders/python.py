@@ -1,24 +1,57 @@
-import os, hashlib
+import os
 
 from ..graph import ExecutableGraph
-from ..map import PrefixMap
+from ..prefix import Prefix
+from .fno import FnOBuilder
 
-from rdflib import RDF, URIRef
+from rdflib import RDF, URIRef, Literal
+from typing import Any
 
 
 class PythonBuilder:
-    
+
     @staticmethod
-    def file_uri(file_path):
-        file_name, _ = os.path.splitext(os.path.basename(file_path))
-        unique_hash = hashlib.sha256(file_path.encode()).hexdigest()[:8]
-        return PrefixMap.ns('python')[f"{file_name}{unique_hash}"]
-    
-    @staticmethod
-    def describe_pythonfile(g: ExecutableGraph, uri, file_path):
+    def describe_imp(g, imp_uri, imp_name, m_name=None, p_name=None, f_path=None, doc=None):
+        triples = []
         
+        FnOBuilder.describe_implementation(g, imp_uri, imp_name)
+        
+        if m_name:
+            triples.append((imp_uri, Prefix.ns('fnoi')['module'], Literal(m_name)))
+
+        if p_name:
+            triples.append((imp_uri, Prefix.ns('fnoi')['package'], Literal(p_name)))
+        
+        if f_path:
+            triples.append((imp_uri,  Prefix.ns('fnoi')['file'], URIRef(f"file://{f_path}")))
+        
+        if doc:
+            triples.append((imp_uri, Prefix.ns('dcterms')['description'], Literal(doc)))
+        
+        [ g.add(x) for x in triples ]
+        
+        return imp_uri
+    
+    @staticmethod
+    def describe_class(g, imp_uri):
+        g.add((imp_uri, RDF.type, Prefix.ns('fnoi').PythonClass))
+    
+    @staticmethod
+    def describe_method(g, imp_uri, self, static):
+        g.add((imp_uri, RDF.type, Prefix.ns('fnoi').PythonMethod))
+        g.add((imp_uri, Prefix.ns('fnoi').methodOf, self))
+        g.add((imp_uri, Prefix.ns('fnoi').static, Literal(static)))
+    
+    @staticmethod
+    def describe_function(g, imp_uri):
+        g.add((imp_uri, RDF.type, Prefix.ns('fnoi').PythonFunction))
+    
+    @staticmethod
+    def describe_file(g: ExecutableGraph, file_uri, file_path=None):
         ### FNO IMPLEMENTATION ###
-        g.add((uri, RDF.type, PrefixMap.ns('fnoi').PythonFile))
-        g.add((uri, PrefixMap.ns('fnoi').file, URIRef(f"file://{file_path}")))
+        g.add((file_uri, RDF.type, Prefix.ns('fnoi').PythonFile))
+        if file_path:
+            g.add((file_uri, Prefix.ns('doap').name, Literal(os.path.basename(file_path))))
+            g.add((file_uri, Prefix.ns('fnoi').file, URIRef(f"file://{file_path}")))
         
-        return uri
+        return file_uri
