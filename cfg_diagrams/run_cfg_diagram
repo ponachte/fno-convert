@@ -1,45 +1,11 @@
-digraph "clusterdocker_examples/data-driven/job/run.py" {
-	graph [label="docker_examples/data-driven/job/run.py"]
-	1 [label="#1
-import json
-import pyarrow as pa
-from functools import reduce
-import numpy as np
-import pandas as pd
-from tsflex.chunking import chunk_data
-from is_on_table_lib import is_on_table
-from library import rolling_acc
-from make_model import make_model
-act_dict = {'Lying': 0, 'Running': 1, 'Sitting': 2, 'Standing': 3, 'Walking': 4
-    }
-act_dict_inverse = {act_dict[key]: key for key in act_dict.keys()}
-def process_data(conf, events):...
-def controller(conf, model, data):...
-if __name__ == '__main__':
+digraph cluster_ {
+	graph [label=_]
+	10 [label="#10
+for n in numbers:
 "]
-	29 [label="#29
-with open('config.json', 'r') as f:
+	11 [label="#11
+print(f'faculty sum of n = {n_sum(n)}')
 "]
-	31 [label="#31
-conf = json.load(f)
-"]
-	32 [label="#32
-model = make_model(5, conf['amp_sdo'], conf['amp_do'], conf['amp_gn'])
-model.load_weights('nn_protego_full.h5')
-reader = pa.ipc.open_file('data/patient_1.feather')
-"]
-	33 [label="#33
-for i in range(reader.num_record_batches):
-"]
-	34 [label="#34
-df = reader.get_batch(i).to_pandas()
-i += 1
-controller(conf, model, df)
-"]
-	34 -> 33 [label=""]
-	33 -> 34 [label="range(reader.num_record_batches)"]
-	32 -> 33 [label=""]
-	31 -> 32 [label=""]
-	29 -> 31 [label=""]
-	1 -> 29 [label="__name__ == '__main__'"]
+	11 -> 10 [label=""]
+	10 -> 11 [label=numbers]
 }

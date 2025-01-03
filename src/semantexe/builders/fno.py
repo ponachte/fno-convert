@@ -250,7 +250,8 @@ class FnOBuilder():
         triples = [
             (s, RDF.type, Prefix.ns('fno')['Mapping']),
             (s, Prefix.ns('fno')['function'], f),
-            (s, Prefix.ns('fno')['implementation'], imp)  
+            (s, Prefix.ns('fno')['implementation'], imp),
+            (s, Prefix.ns('fnom')['mappingMethod'], Literal("default"))  
         ]
         
         if f_name is not None:

@@ -2,13 +2,13 @@ import inspect, importlib, importlib.util, sys, hashlib
 
 from typing import Any
 from types import NoneType, FunctionType
-from rdflib import Literal, URIRef
+from rdflib import Literal, URIRef, BNode, RDF
 from datetime import datetime, date, time
 from decimal import Decimal
 
 from ..prefix import Prefix
-from ..builders import PythonBuilder
-from ..graph import ExecutableGraph
+from ..builders import PythonBuilder, FnOBuilder
+from ..graph import ExecutableGraph, get_name
 
 def load_function_from_source(file_path, function_name):
     """
@@ -53,7 +53,7 @@ class PythonMapper:
         return Prefix.ns('python')[f"{name}{unique_hash}"]
     
     @staticmethod
-    def imp_to_rdf(g: ExecutableGraph, imp, imp_name=None, self=None, static=None):
+    def obj_to_fno(g: ExecutableGraph, imp, imp_name=None, self=None, static=None):
         """
         Convert a Python function implementation to RDF.
 
@@ -115,8 +115,147 @@ class PythonMapper:
 
         return imp_uri
     
+    ### MAPPINGS ###
+    
     @staticmethod
-    def rdf_to_imp(g: ExecutableGraph, s):
+    def map_with_parse_args(g: ExecutableGraph, fun, imp, output, args):
+        methodNode = BNode()
+        returnNode = BNode()
+
+        context = get_name(fun)
+        uri = Prefix.base()[f"{context}Mapping"]
+
+        triples = [
+            (uri, RDF.type, Prefix.ns('fno')['Mapping']),
+            (uri, Prefix.ns(f'fnom')["mappingMethod"], Literal("argparse")),
+            (uri, Prefix.ns('fno')['function'], fun),
+            (uri, Prefix.ns('fno')['implementation'], imp)  
+        ]
+        
+        triples.extend([
+            (uri, Prefix.ns('fno')['methodMapping'], methodNode),
+            (methodNode, RDF.type, Prefix.ns('fnom')['CommandMethodMapping']),
+            (methodNode, Prefix.ns('fnom')['command'], Literal("python"))
+        ])
+        
+        if output is not None:
+            triples.extend([
+                (uri, Prefix.ns('fno')['returnMapping'], returnNode),
+                (returnNode, RDF.type, Prefix.ns('fnom')['DefaultReturnMapping']),
+                (returnNode, Prefix.ns('fnom')['functionOutput'], output),
+            ])
+        
+        for i, arg in enumerate(args):
+            paramNode = BNode()
+            name = arg['name'].lstrip('-')
+            param = g.get_predicate_param(fun, name)
+            
+            triples.extend([
+                (uri, Prefix.ns('fno')['parameterMapping'], paramNode),
+                (paramNode, RDF.type, Prefix.ns('fnom')['ArgumentMapping']),
+            ])
+            
+            if not arg['name'].startswith('-'):
+                # Positional
+                triples.extend([
+                    (paramNode, Prefix.ns('fnom')['functionParameter'], param),
+                    (paramNode, Prefix.ns('fnom')['implementationParameterPosition'], Literal(i))
+                ])
+            else:
+                # Keyword
+                triples.extend([
+                    (paramNode, Prefix.ns('fnom')['functionParameter'], param),
+                    (paramNode, Prefix.ns('fnom')['implementationProperty'], Literal(arg["name"]))
+                ])
+            
+            if 'nargs' in arg:
+                triples.append((paramNode, Prefix.ns('fnom')['nargs'], Literal(arg["nargs"])))
+
+            if 'default' in arg:
+                defaultNode = BNode()
+                
+                triples.extend([
+                    (param, Prefix.ns('fno')["required"], Literal(False)),
+                    (uri, Prefix.ns('fno')['parameterMapping'], defaultNode),
+                    (defaultNode, RDF.type, Prefix.ns('fnom')['DefaultParameterMapping']),
+                    (defaultNode, Prefix.ns('fnom')['functionParameter'], param),
+                    (defaultNode, Prefix.ns('fnom')['defaultValue'], Literal(arg["default"])),
+                ])
+            else:
+                triples.append((param, Prefix.ns('fno')["required"], Literal(True)))
+        
+        [ g.add(x) for x in triples ]
+    
+    @staticmethod
+    def map_with_sig(g: ExecutableGraph, f, s, imp, f_name, output, self_output): 
+        sig = inspect.signature(f)
+        params = sig.parameters
+
+        # Capture the kinds
+        positional = []
+        keyword = []
+        args = None
+        kargs = None
+        defaults = {}
+
+        for name, param in params.items():
+            # Get the parameter linked to this predicate
+            par = g.get_predicate_param(s, name)
+            if param.kind == inspect.Parameter.POSITIONAL_ONLY:
+                positional.append(par)
+            if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                positional.append(par)
+                keyword.append((par, name))
+            elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                keyword.append((par, name))
+            elif param.kind == inspect.Parameter.VAR_POSITIONAL:
+                args = par
+            elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                kargs = par
+            
+            if param.default is not inspect._empty:
+                defaults[par] = PythonMapper.inst_to_rdf(g, param.default)
+
+        FnOBuilder.describe_mapping(g, s, imp, f_name, output, positional, keyword, args, kargs, self_output, defaults)
+        
+    @staticmethod
+    def map_with_num(g: ExecutableGraph, s, keywords, imp, f_name, output, self_output):
+        """
+        Maps function parameters and outputs to RDF representations based on the number of parameters and keywords.
+
+        This method maps function parameters and outputs to RDF representations 
+        based on the number of parameters and keywords using FnO descriptors.
+
+        Parameters:
+        -----------
+        s : str
+            The unique identifier (URI) representing the function in the RDF graph.
+        keywords : list
+            A list of keyword parameters.
+        imp : str
+            The unique identifier (URI) representing the implementation of the function.
+        f_name : str
+            The name of the function.
+        output : str
+            The unique identifier (URI) representing the output of the function.
+        self_output : str
+            The unique identifier (URI) representing the self parameter output of the function.
+        """
+        positional = []
+        self_param = g.get_self(s)
+        if self_param is not None:
+            positional.append(self_param) 
+        positional.extend(g.get_parameters(s))
+        keyword = []
+        for pred in keywords:
+            par = g.get_predicate_param(s, pred.arg)
+            if par is not None:
+                keyword.append((par, pred.arg))
+
+        FnOBuilder.describe_mapping(g, s, imp, f_name, output, positional=positional, keyword=keyword, self_output=self_output)
+    
+    @staticmethod
+    def fno_to_obj(g: ExecutableGraph, s):
         """
         Convert RDF representing a function implementation to a Python function or method.
 
@@ -162,7 +301,7 @@ class PythonMapper:
                     if hasattr(module_obj, label):
                         return getattr(module_obj, label)
                 elif self_class is not None:
-                    self_obj = PythonMapper.rdf_to_imp(g, self_class)
+                    self_obj = PythonMapper.fno_to_obj(g, self_class)
                     if hasattr(self_obj, label):
                         return getattr(self_obj, label)
         except Exception as e:
@@ -187,9 +326,9 @@ class PythonMapper:
         if is_standard_literal_type(inst):
             return Literal(inst)
         if type(inst) is type or isinstance(inst, FunctionType):
-            inst_type = PythonMapper.imp_to_rdf(g, inst)
+            inst_type = PythonMapper.obj_to_fno(g, inst)
         else:
-            inst_type = PythonMapper.imp_to_rdf(g, type(inst))
+            inst_type = PythonMapper.obj_to_fno(g, type(inst))
         return Literal(inst, datatype=inst_type)
     
     @staticmethod
@@ -200,4 +339,4 @@ class PythonMapper:
         Returns:
             tuple: A tuple containing the URI of the 'Any' type and the RDF graph.
         """
-        return PythonMapper.imp_to_rdf(g, inspect._empty)
+        return PythonMapper.obj_to_fno(g, inspect._empty)

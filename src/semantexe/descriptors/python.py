@@ -9,6 +9,7 @@ from operator import (__add__, __and__, __contains__, __eq__, __floordiv__, __ge
                       __ior__, __ipow__, __irshift__, __isub__, __itruediv__, __ixor__, __le__, __lshift__, __lt__, 
                       __matmul__, __mod__, __mul__, __ne__, __neg__, __not__, __or__, __pos__, __pow__, __rshift__,
                         __setitem__, __sub__, __truediv__, __xor__)
+from typing import List
 
 from scalpel.cfg.builder import CFGBuilder
 from scalpel.cfg.model import Block
@@ -18,6 +19,7 @@ from collections import deque
 
 from ..util.mapping import Mapping, MappingNode
 from ..util.python.importer import Importer
+from ..util.python.rewrite import ASTRewriter
 from ..builders import PythonBuilder, FnOBuilder
 from ..util.python.scope import ScopeState
 from ..util.std_kg import STD_KG
@@ -34,6 +36,7 @@ class PythonDescriptor:
     def __init__(self, g: ExecutableGraph, max_depth=3) -> None:
         self.g = g
         self.importer = Importer()
+        self.rewriter = ASTRewriter(parse_arg=True)
         self.max_depth = max_depth
         self.fun_cfgs = {}
         self.state = deque()
@@ -64,7 +67,7 @@ class PythonDescriptor:
 
     def from_function(self, name, context, obj, num=0, keywords=[]):
         
-        ### IMPORTS ###
+        ### IMPORT ###
 
         try:
             self.importer.import_from_obj(obj)
@@ -72,27 +75,87 @@ class PythonDescriptor:
             print(f"Error importing from {name}: {e}")
             print(traceback.format_exc())
 
-        ### FUNCTION DESCRIPTION ###
+        ### PARSE SOURCE CODE ###
 
+        path = inspect.getsourcefile(obj)
+        src = inspect.getsource(obj)
+        
+        # Uri
         fun_uri = self.function_to_rdf(name, context, obj, num, keywords)
         comp_uri = URIRef(f"{fun_uri}Composition")
+
+        # FnO Composition
+        self.describe_composition(name, path, fun_uri, comp_uri, src)
+
+        return fun_uri
+
+    def from_file(self, file_path, file_uri):
+        file_name, suff = os.path.splitext(os.path.basename(file_path))
+        
+        ### IMPORT ###
+
+        try:
+            self.importer.import_from_file(file_path)
+        except Exception as e:
+            print(f"Error importing from {file_path}: {e}")
+            print(traceback.format_exc())
+            
+        ### PARSE SOURCE CODE ###
+        
+        with open(file_path, 'r') as file:
+            source_code = file.read()
+        source_code, args = self.rewriter.rewrite(source_code)
+        
+        # URI
+        fun_uri = Prefix.base()[f"{file_name}"]
+        comp_uri = Prefix.base()[f"{file_name}Composition"]
+        
+        # FnO Parameters
+        parameters = []
+        for i, arg in enumerate(args):
+            uri = URIRef(f"{fun_uri}Parameter{i}")
+            pred = arg["name"].lstrip('-')
+            # TODO Type inferrence
+            type = PythonMapper.any(self.g)
+            # if "nargs" in arg:
+            #     type = PythonMapper.obj_to_fno(self.g, List)
+            FnOBuilder.describe_parameter(self.g, uri, type, pred)
+            parameters.append(uri)
+        
+        # FnO Output
+        output_uri = URIRef(f"{fun_uri}Output")
+        output_pred = Prefix.base()["output"]
+        output_type = PythonMapper.any(self.g)
+        FnOBuilder.describe_output(self.g, output_uri, output_type, output_pred)
+        
+        # FnO Function
+        FnOBuilder.describe_function(self.g, fun_uri, f"{file_name}{suff}", parameters, [output_uri])
+        
+        # FnO Implementation
+        PythonBuilder.describe_file(self.g, file_uri, file_path)
+        
+        # FnO Mapping
+        PythonMapper.map_with_parse_args(self.g, fun_uri, file_uri, output_uri, args)
+        
+        # FnO Composition
+        self.describe_composition("_", file_path, fun_uri, comp_uri, source_code, alt_name=file_name)
+    
+    def describe_composition(self, name, path, fun_uri, comp_uri, source, alt_name=None):
         
         ### NEW SCOPE ###
         
-        path = inspect.getsourcefile(obj)
         self.new_scope(fun_uri, path)
 
         ### PARSE SOURCE CODE ###
 
         try:
-            src = inspect.getsource(obj)
-            def_cfg = CFGBuilder().build_from_src(obj.__name__, src)
+            def_cfg = CFGBuilder().build_from_src(name, source)
 
             for (_, fun_name), fun_cfg in def_cfg.functioncfgs.items():
-                if fun_name == obj.__name__:
-                    self.fun_cfgs[obj] = fun_cfg
+                if fun_name == name:
+                    self.fun_cfgs[fun_uri] = fun_cfg
                     dot = fun_cfg.build_visual('png')
-                    dot.render(f"cfg_diagrams/{fun_name}_cfg_diagram", view=False)
+                    dot.render(f"cfg_diagrams/{alt_name if alt_name else fun_name}_cfg_diagram", view=False)
                     
                     # Assign parameters to function arguments
                     parameters = self.g.get_param_predicates(fun_uri)
@@ -116,46 +179,9 @@ class PythonDescriptor:
             print(f"Error: Unable to describe composition of function: {name}")
             traceback.print_exc()
         
-        ### RESTORE SCOPE
+        ### RESTORE SCOPE ###
         
         self.restore_scope()
-
-        return fun_uri
-
-    def from_file(self, file_path, file_uri):
-        file_name, _ = os.path.splitext(os.path.basename(file_path))
-        
-        ### URI ###
-        
-        comp_uri = URIRef(f"{file_uri}Composition")
-        
-        ### NEW SCOPE ###
-        
-        self.new_scope(comp_uri, file_path)
-        
-        ### PARSE SOURCE CODE ###
-        
-        try:
-            objects = self.importer.import_from_file(file_path)
-            fun_uri = None
-            for obj in objects:
-                self.from_object(obj)
-                # SIMPLIFICATION
-                # Take the defined function 'main' as entrypoint to the pythonfile
-                if obj.__name__ == "main":
-                    fun_uri = self.from_object(obj)
-                    _, imp = self.g.fun_to_imp(fun_uri)[0]
-                    PythonBuilder.describe_file(self.g, imp)
-            
-            ### RESTORE SCOPE ###
-        
-            self.restore_scope()
-        
-            return fun_uri
-            
-        except Exception as e:
-            print(f"Error: Unable to describe composition of file: {file_path}")
-            traceback.print_exc()
     
     def get_type(self, var):
         """
@@ -671,8 +697,6 @@ class PythonDescriptor:
         positional = self.g.get_positional(f)
         varpos = self.g.get_varpositional(f)
         varkey = self.g.get_varkeyword(f)
-        defaults = set(positional)
-        defaults.update(self.g.get_keyword(f))
 
         # Map value to self parameter if called upon a variable
         if self_par:
@@ -687,7 +711,6 @@ class PythonDescriptor:
                 par = positional[i]
                 mapto = MappingNode().set_function_par(call, par)
                 self.handle_mapping(mapfrom, mapto)
-                defaults.remove(par)
             elif varpos is not None:
                 mapto = MappingNode().set_function_par(call, varpos).set_strategy("toList", i - len(positional))    
                 self.handle_mapping(mapfrom, mapto)
@@ -700,18 +723,8 @@ class PythonDescriptor:
             if par is not None:
                 mapto = MappingNode().set_function_par(call, par)
                 self.handle_mapping(mapfrom, mapto)
-                defaults.remove(par)
             elif varkey is not None:
                 mapto = MappingNode().set_function_par(call, varkey).set_strategy("toDictionary", karg.arg)
-                self.handle_mapping(mapfrom, mapto)
-        
-        # Map all parameters that were not mapped to its default values
-        for par in defaults:
-            pred = get_name(self.g.get_predicate(par))
-            if context in self.scope.default_map and pred in self.scope.default_map[context]:
-                default = self.scope.default_map[context][pred]
-                mapfrom = MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, default))
-                mapto = MappingNode().set_function_par(call, par)
                 self.handle_mapping(mapfrom, mapto)
 
         # Functions called upon a variable may potentially change the variable
@@ -944,7 +957,7 @@ class PythonDescriptor:
             self.g += STD_KG[s]
             
             # Python implementation
-            imp_uri = PythonMapper.imp_to_rdf(self.g, list)
+            imp_uri = PythonMapper.obj_to_fno(self.g, list)
             
             # Mapping
             FnOBuilder.describe_mapping(self.g, s, imp_uri, 'list', output, positional=[elements])
@@ -1156,8 +1169,8 @@ class PythonDescriptor:
             self.g += STD_KG[s]
             
             # Python implementation
-            str_uri = PythonMapper.imp_to_rdf(self.g, str)
-            imp_uri = PythonMapper.imp_to_rdf(self.g, str.join, 'joinstr', self=str_uri, static=False)
+            str_uri = PythonMapper.obj_to_fno(self.g, str)
+            imp_uri = PythonMapper.obj_to_fno(self.g, str.join, 'joinstr', self=str_uri, static=False)
             
             # Mapping
             FnOBuilder.describe_mapping(self.g, s, imp_uri, 'join', output, positional=[delimiter, strings])
@@ -1616,19 +1629,21 @@ class PythonDescriptor:
 
         try:
             if fun is not None:
-                imp = PythonMapper.imp_to_rdf(self.g, fun, context, self_type, static)
+                imp = PythonMapper.obj_to_fno(self.g, fun, context, self_type, static)
             else:
-                imp = PythonBuilder.describe_imp(self.g, context)
+                imp = PythonMapper.uri(fun_name)
+                PythonBuilder.describe_imp(self.g, imp, context)
         except:
-            module = getattr(fun, "__module__", Importer.get_owner(fun))
+            print(fun_name, context)
+            module = getattr(fun, "__module__")
             imp = PythonBuilder.describe_imp(self.g, context, module, getattr(fun, '__package__', None))
 
         ### FUNCTION MAPPING ###
 
         try:
-            self.map_with_sig(fun, s, imp, fun_name, output, self_output)
+            PythonMapper.map_with_sig(self.g, fun, s, imp, fun_name, output, self_output)
         except:
-            self.map_with_num(s, keywords, imp, fun_name, output, self_output)
+            PythonMapper.map_with_num(self.g, s, keywords, imp, fun_name, output, self_output)
         
         return s
     
@@ -1676,7 +1691,7 @@ class PythonDescriptor:
             if name == 'self':
                 if self_class == False:
                     continue
-                self_type = PythonMapper.imp_to_rdf(self.g, self_class)
+                self_type = PythonMapper.obj_to_fno(self.g, self_class)
                 
                 uri = Prefix.base()[f"{context}ParameterSelf"]
                 FnOBuilder.describe_parameter(self.g,
@@ -1686,7 +1701,7 @@ class PythonDescriptor:
                 parameters.append(uri)
             else:                
                 # Get rdf representation of type
-                param_type = PythonMapper.imp_to_rdf(self.g, param.annotation)
+                param_type = PythonMapper.obj_to_fno(self.g, param.annotation)
                     
                 # Create input description
                 par_name = f"{context}Parameter{i}"
@@ -1709,11 +1724,11 @@ class PythonDescriptor:
         
         if f is not None and type(f) is type:
             # If the function is a class constructor, the output wil have the class type
-            output_type = PythonMapper.imp_to_rdf(self.g, f)
+            output_type = PythonMapper.obj_to_fno(self.g, f)
             self.scope.var_types[output] = f
         else:
             # Convert return annotation
-            output_type = PythonMapper.imp_to_rdf(self.g, return_type)
+            output_type = PythonMapper.obj_to_fno(self.g, return_type)
             self.scope.var_types[output] = return_type
             
         # Create default output description

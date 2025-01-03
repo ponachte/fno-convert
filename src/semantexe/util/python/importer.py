@@ -121,7 +121,7 @@ class Importer:
         
         return self.import_from_file(source_file, obj_path)
     
-    def import_from_file(self, file_path, obj_path=None):
+    def import_from_file(self, file_path, obj_path=None, source_code=None):
         objects = []
 
         # Get the directory of the source file and add it to sys.path if needed

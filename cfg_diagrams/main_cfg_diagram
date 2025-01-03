@@ -1,11 +1,11 @@
 digraph clustermain {
 	graph [label=main]
-	3 [label="#3
+	10 [label="#10
 for n in numbers:
 "]
-	4 [label="#4
+	11 [label="#11
 print(f'faculty sum of n = {n_sum(n)}')
 "]
-	4 -> 3 [label=""]
-	3 -> 4 [label=numbers]
+	11 -> 10 [label=""]
+	10 -> 11 [label=numbers]
 }

@@ -13,11 +13,11 @@ if __name__ == "__main__":
   
   g = ExecutableGraph()
   descriptor = Descriptor()
-  fun_uri = descriptor.describe(g, SIMPLE_DOCKERFILE)
-  g.serialize("graphs/docker/simple.ttl", format="turtle")
+  fun_uri = descriptor.describe(g, PY_FILE)
+  g.serialize("graphs/python/run.ttl", format="turtle")
   
   # try to create executable model
-  fun = None
+  """fun = None
   for mapping, imp_uri in g.fun_to_imp(fun_uri):
       try:
           print(f"Found implementation {fun_uri} for {imp_uri}. Trying to create executable model...")
@@ -29,4 +29,4 @@ if __name__ == "__main__":
     print("success! Let's execute...")
     executor = DockerfileExecutor(g, fun)
     executor.execute(tag="simple")
-    executor.pg.serialize("graphs/prov/docker/simple.ttl", format="turtle")
+    executor.pg.serialize("graphs/prov/docker/simple.ttl", format="turtle")"""
