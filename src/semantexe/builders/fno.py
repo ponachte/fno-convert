@@ -1,5 +1,3 @@
-import os
-
 from rdflib import RDF, BNode, Literal, URIRef
 
 from ..prefix import Prefix

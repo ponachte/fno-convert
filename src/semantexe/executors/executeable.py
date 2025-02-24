@@ -82,6 +82,10 @@ class Composition:
             # Get the URI of the next executeable
             call = fun.next_executeable()
         
+        # If this composition represents the internal flow of a function, set the output
+        if self.rep:
+            self.ingest(self.rep)
+        
     
     def ingest(self, fun):
         for input in fun.inputs():

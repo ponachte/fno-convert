@@ -21,5 +21,5 @@ if __name__ == "__main__":
   
   g = ExecutableGraph()
   descriptor = PythonDescriptor(g)
-  s = descriptor.from_object(divide)
+  s = descriptor.describe_resource(divide)
   g.serialize(destination="graphs/divide.ttl", format='ttl')

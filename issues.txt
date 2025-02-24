@@ -1,3 +1,1 @@
-rdflib fno:expects <List>
-    --> turtle '()' notation is a rdf LIST
-    --> Builder produces a sequence not an rdf LIST
+- Descriptor also accepts python objects

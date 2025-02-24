@@ -9,24 +9,22 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 ex:simple5797f5aaComposition a fno:Composition ;
-    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:run_3 ;
-                    fnoc:functionOutput do:imageOutputParam ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:workdir_1 ;
-                    fnoc:functionParameter do:imageInputParam ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:run_4 ;
-                    fnoc:functionOutput do:imageOutputParam ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:entrypoint_1 ;
-                    fnoc:functionParameter do:imageInputParam ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:from_1 ;
+    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:from_1 ;
                     fnoc:functionOutput do:imageOutputParam ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:run_1 ;
                     fnoc:functionParameter do:imageInputParam ] ],
-        [ fnoc:mapFromTerm "/home" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:workdir_1 ;
-                    fnoc:functionParameter do:workdirInput ] ],
         [ fnoc:mapFromTerm "." ;
             fnoc:mapTo [ fnoc:constituentFunction ex:copy_1 ;
-                    fnoc:functionParameter do:copySrc ] ],
+                    fnoc:functionParameter do:copyDest ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:workdir_1 ;
+                    fnoc:functionOutput do:imageOutputParam ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:copy_1 ;
+                    fnoc:functionParameter do:imageInputParam ] ],
+        [ fnoc:mapFromTerm "2" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:cmd_1 ;
+                    fnoc:functionParameter do:cmdInputParamList ;
+                    fnoc:key 3 ;
+                    fnoc:mappingStrategy fnoc:toList ] ],
         [ fnoc:mapFromTerm "apt-get install -y python3" ;
             fnoc:mapTo [ fnoc:constituentFunction ex:run_2 ;
                     fnoc:functionParameter do:runInputCommand ] ],
@@ -35,20 +33,54 @@ ex:simple5797f5aaComposition a fno:Composition ;
                     fnoc:functionParameter do:cmdInputParamList ;
                     fnoc:key 3 ;
                     fnoc:mappingStrategy fnoc:toList ] ],
-        [ fnoc:mapFromTerm "ubuntu:20.04" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:from_1 ;
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:run_1 ;
+                    fnoc:functionOutput do:imageOutputParam ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:run_2 ;
                     fnoc:functionParameter do:imageInputParam ] ],
+        [ fnoc:mapFromTerm "apt-get update" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:run_1 ;
+                    fnoc:functionParameter do:runInputCommand ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:run_4 ;
+                    fnoc:functionOutput do:imageOutputParam ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:entrypoint_1 ;
+                    fnoc:functionParameter do:imageInputParam ] ],
+        [ fnoc:mapFromTerm "apt-get install -y python3-pip" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:run_3 ;
+                    fnoc:functionParameter do:runInputCommand ] ],
+        [ fnoc:mapFromTerm "." ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:copy_1 ;
+                    fnoc:functionParameter do:copySrc ] ],
         [ fnoc:mapFromTerm "find . -type f -exec chmod 0744 {} \\;" ;
             fnoc:mapTo [ fnoc:constituentFunction ex:run_4 ;
                     fnoc:functionParameter do:runInputCommand ] ],
+        [ fnoc:mapFromTerm "ubuntu:20.04" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:from_1 ;
+                    fnoc:functionParameter do:imageInputParam ] ],
         [ fnoc:mapFromTerm "3" ;
             fnoc:mapTo [ fnoc:constituentFunction ex:cmd_1 ;
                     fnoc:functionParameter do:cmdInputParamList ;
                     fnoc:key 3 ;
                     fnoc:mappingStrategy fnoc:toList ] ],
-        [ fnoc:mapFromTerm "apt-get install -y python3-pip" ;
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:run_3 ;
+                    fnoc:functionOutput do:imageOutputParam ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:workdir_1 ;
+                    fnoc:functionParameter do:imageInputParam ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:run_2 ;
+                    fnoc:functionOutput do:imageOutputParam ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:run_3 ;
-                    fnoc:functionParameter do:runInputCommand ] ],
+                    fnoc:functionParameter do:imageInputParam ] ],
+        [ fnoc:mapFromTerm "/home" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:workdir_1 ;
+                    fnoc:functionParameter do:workdirInput ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:entrypoint_1 ;
+                    fnoc:functionOutput do:imageOutputParam ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:cmd_1 ;
+                    fnoc:functionParameter do:imageInputParam ] ],
+        [ fnoc:mapFromTerm "1" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:cmd_1 ;
+                    fnoc:functionParameter do:cmdInputParamList ;
+                    fnoc:key 3 ;
+                    fnoc:mappingStrategy fnoc:toList ] ],
         [ fnoc:mapFromTerm "python3" ;
             fnoc:mapTo [ fnoc:constituentFunction ex:entrypoint_1 ;
                     fnoc:functionParameter do:entrypointInputCommand ] ],
@@ -60,39 +92,7 @@ ex:simple5797f5aaComposition a fno:Composition ;
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:copy_1 ;
                     fnoc:functionOutput do:imageOutputParam ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:run_4 ;
-                    fnoc:functionParameter do:imageInputParam ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:entrypoint_1 ;
-                    fnoc:functionOutput do:imageOutputParam ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:cmd_1 ;
-                    fnoc:functionParameter do:imageInputParam ] ],
-        [ fnoc:mapFromTerm "." ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:copy_1 ;
-                    fnoc:functionParameter do:copyDest ] ],
-        [ fnoc:mapFromTerm "1" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:cmd_1 ;
-                    fnoc:functionParameter do:cmdInputParamList ;
-                    fnoc:key 3 ;
-                    fnoc:mappingStrategy fnoc:toList ] ],
-        [ fnoc:mapFromTerm "apt-get update" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:run_1 ;
-                    fnoc:functionParameter do:runInputCommand ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:run_1 ;
-                    fnoc:functionOutput do:imageOutputParam ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:run_2 ;
-                    fnoc:functionParameter do:imageInputParam ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:workdir_1 ;
-                    fnoc:functionOutput do:imageOutputParam ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:copy_1 ;
-                    fnoc:functionParameter do:imageInputParam ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:run_2 ;
-                    fnoc:functionOutput do:imageOutputParam ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:run_3 ;
-                    fnoc:functionParameter do:imageInputParam ] ],
-        [ fnoc:mapFromTerm "2" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:cmd_1 ;
-                    fnoc:functionParameter do:cmdInputParamList ;
-                    fnoc:key 3 ;
-                    fnoc:mappingStrategy fnoc:toList ] ] ;
+                    fnoc:functionParameter do:imageInputParam ] ] ;
     fnoc:represents ex:simple5797f5aa ;
     fnoc:start ex:from_1 .
 
@@ -100,7 +100,8 @@ ex:simple5797f5aaMapping a fno:Mapping ;
     fno:function ex:simple5797f5aa ;
     fno:implementation ex:simple5797f5aaDockerfileImplementation ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput do:ImageOutput ] .
+            fnom:functionOutput do:ImageOutput ] ;
+    fnom:mappingMethod "default" .
 
 do:cmd a do:Instruction,
         fno:Function ;

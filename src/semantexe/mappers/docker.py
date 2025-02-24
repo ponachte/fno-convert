@@ -1,8 +1,9 @@
 import hashlib
 
-from rdflib import Literal
+from rdflib import Literal, RDF, URIRef
 from docker.models.images import Image
 
+from ..builders import FnOBuilder
 from ..prefix import Prefix
 from ..graph import ExecutableGraph
 
@@ -16,6 +17,8 @@ class DockerMapper:
     @staticmethod
     def describe_dockerimage(g: ExecutableGraph, image: Image):
         uri = Prefix.ns('docker')[image.short_id.removeprefix('sha256:')]
+        g.add((uri, RDF.type, Prefix.ns('do').Image))
+        g.add((uri, RDF.type, Prefix.ns('fnoi').DockerImage))
         
         # Image metadata
         # TODO Dockerpedia annotater, now simply state labels and the dockerfile

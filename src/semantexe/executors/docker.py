@@ -1,10 +1,11 @@
-import traceback
 from ..graph import ExecutableGraph
 from ..prefix import Prefix
-from ..builders import DockerBuilder, ProvBuilder, FnOBuilder
-from ..mappers import FileMapper, DockerMapper
+from ..builders import DockerBuilder, ProvBuilder
+from ..mappers import DockerMapper
+from ..util.file import move_file
 from ..descriptors import FileDescriptor
 from .executeable import Function, AppliedFunction
+from .std import Executor
 
 import os, subprocess, docker
 
@@ -14,42 +15,48 @@ from rdflib import URIRef
 def docker_build(dirpath, tag):
     
     # Prepare the docker build command
-        build_command = ['docker', 'build', '-q', '--provenance=true', '--sbom=true', dirpath]
-        
-        if tag:
-            build_command.extend(['-t', tag])
-
-        try:
-            # Run the docker build command and capture the output
-            result = subprocess.run(
-                build_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=True,
-                text=True
-            )
-            
-            # return the image id
-            return result.stdout
-        
-        except subprocess.CalledProcessError as e:
-            print(f"Error during Docker build: {e.stderr}")
-            raise
-
-class DockerfileExecutor:
+    build_command = ['docker', 'build', '-q', '--provenance=true', '--sbom=true', dirpath]
     
-    def __init__(self, g: ExecutableGraph, fun: Function):
+    if tag:
+        build_command.extend(['-t', tag])
+
+    try:
+        # Run the docker build command and capture the output
+        result = subprocess.run(
+            build_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+            text=True
+        )
+        
+        # return the image id
+        return result.stdout
+    
+    except subprocess.CalledProcessError as e:
+        print(f"Error during Docker build: {e.stderr}")
+        raise
+
+class DockerfileExecutor(Executor):
+    
+    def __init__(self, g: ExecutableGraph):
         self.g = g
         self.exe_counter = 0
-        self.fun = fun
     
-    def execute(self, *args, **kwargs):
-        if self.g.is_dockerfile(self.fun.imp):
-            self.build(tag=kwargs['tag'])
-        # TODO execute other docker implementations
+    def accepts(self, fun):
+        if not fun.imp:
+            for mapping, imp in self.g.fun_to_imp(fun.fun_uri):
+                # Just pick the first suitable mapping
+                if self.g.is_dockerfile(imp):
+                    fun.map = mapping
+                    fun.imp = imp
+                    return True
+        
+        return self.g.is_dockerfile(fun.imp)
     
-    def build(self, tag):
+    def build(self, tag) -> ExecutableGraph:
         self.pg = ExecutableGraph()
+        self.fileDescriptor = FileDescriptor(self.pg)
         
         # Describe execution
         self.exe_counter += 1
@@ -132,17 +139,21 @@ class DockerfileExecutor:
                 file = str(file)
                 # Do not describe the Dockerfile again
                 if not file.endswith("Dockerfile"):
-                    FileDescriptor.describe(self.pg, file)
+                    try:
+                        self.fileDescriptor.describe_resource(file)
+                    except ValueError as e:
+                        pass
+                    
                     for uri in [ uri for uri in self.pg.functions() if uri not in copied_uris]:
                         copied_uris.add(uri)
                         # Get the original implementation **Just one imp expected**
                         for mapping, imp in self.pg.fun_to_imp(uri):
                             # Copy the implementation
-                            imp_copy = FileMapper.move_file(self.pg, mapping, imp, src_dir, dest_dir)
+                            imp_copy = move_file(self.pg, mapping, imp, src_dir, dest_dir)
                             if imp_copy:
                                 # Provenance
                                 ProvBuilder.alternateOf(self.pg, imp_copy, imp)
-                                DockerBuilder.contains(self.pg, self.image_uri, imp_copy)
+                                DockerBuilder.includes(self.pg, self.image_uri, imp_copy)
 
     def execute_workdir(self, fun: Function):
         # Set workdir

@@ -1,5 +1,4 @@
 import ast
-import textwrap
 import traceback
 
 import ast
@@ -23,17 +22,22 @@ class ASTRewriter(ast.NodeTransformer):
 
     def visit_Assign(self, node):
         try:
-            # Check if this assignment defines the ArgumentParser
-            if self.parser is None:
-                self.parser = self.find_argparser_variable(node)
-                if self.parser:
-                    return None  # Remove this node from the AST
+            # Check if this assignment defines a generator
+            if isinstance(node.value, (ast.ListComp, ast.DictComp, ast.SetComp)):
+                return self.rewrite_comprehension(node.targets, node.value)
+            
+            if self.parse_arg:
+                # Check if this assignment defines the ArgumentParser
+                if self.parser is None:
+                    self.parser = self.find_argparser_variable(node)
+                    if self.parser:
+                        return None  # Remove this node from the AST
 
-            # Check if this assignment defines the parse_args variable
-            if self.arg_var is None:
-                self.arg_var = self.find_argument_variable(node)
-                if self.arg_var:
-                    return None  # Remove this node from the AST
+                # Check if this assignment defines the parse_args variable
+                if self.arg_var is None:
+                    self.arg_var = self.find_argument_variable(node)
+                    if self.arg_var:
+                        return None  # Remove this node from the AST
         except Exception as e:
             print(f"[ERROR] Error in visit_Assign: {e}")
             print(traceback.format_exc())
@@ -102,6 +106,69 @@ class ASTRewriter(ast.NodeTransformer):
             )
             
         return self.generic_visit(node)
+    
+    def rewrite_comprehension(self, target, comp_node):
+        """
+        Rewrite a comprehension (list or dict) as a loop with explicit appending.
+        """
+        # Create a new list (or dict for DictComp)
+        if isinstance(comp_node, ast.ListComp):
+            init_value = ast.List(elts=[], ctx=ast.Load())
+            append_method = 'append'
+        elif isinstance(comp_node, ast.DictComp):
+            init_value = ast.Dict(keys=[], values=[])
+            append_method = None  # No append method; use key-value assignment
+        elif isinstance(comp_node, ast.SetComp):
+            init_value = ast.Set(elts=[])
+            append_method = 'add'
+        else:
+            raise ValueError("Unsupported comprehension type")
+
+        # Create the assignment: `target = []` or `target = {}`
+        assign_init = ast.Assign(
+            targets=target,
+            value=init_value
+        )
+
+        # Create the loop body
+        if isinstance(comp_node, ast.ListComp):
+            loop_body = [
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(id=target[0].id, ctx=ast.Load()),
+                            attr=append_method,
+                            ctx=ast.Load()
+                        ),
+                        args=[comp_node.elt],
+                        keywords=[]
+                    )
+                )
+            ]
+        elif isinstance(comp_node, ast.DictComp):
+            loop_body = [
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id=target[0].id, ctx=ast.Load()),
+                            slice=ast.Index(value=comp_node.key),
+                            ctx=ast.Store()
+                        )
+                    ],
+                    value=comp_node.value
+                )
+            ]
+
+        # Create the loop: `for ... in ...`
+        for_stmt = ast.For(
+            target=comp_node.generators[0].target,
+            iter=comp_node.generators[0].iter,
+            body=loop_body,
+            orelse=[]
+        )
+
+        # Return the rewritten nodes
+        return [assign_init, for_stmt]
 
     def find_argparser_variable(self, node):
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):

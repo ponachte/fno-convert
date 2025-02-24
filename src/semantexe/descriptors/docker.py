@@ -1,11 +1,13 @@
 from dockerfile_parse import DockerfileParser
-from rdflib import URIRef, Literal
+from rdflib import URIRef
 
 import ast, os
 
 from ..prefix import Prefix
 from ..graph import ExecutableGraph
 from ..builders import FnOBuilder, DockerBuilder
+from ..descriptors.file import AbstractFileDescriptor
+from ..mappers import FileMapper
 from ..util.std_kg import STD_KG
 from ..util.mapping import Mapping, MappingNode
 
@@ -14,38 +16,41 @@ OUTPUT_IMAGE = Prefix.do()["imageOutputParam"]
 
 # TODO multiple build stages
 
-class DockerfileDescriptor:
+class DockerfileDescriptor(AbstractFileDescriptor):
     
     def __init__(self, g: ExecutableGraph) -> None:
         self.parser = DockerfileParser()
         self.g = g
     
-    def from_file(self, path, uri):
-        
-        ### DOCKERFILE ###
-        
-        # Calculate absolute path
-        abspath = os.path.abspath(f"./{path}")
-        DockerBuilder.describe_dockerfile(self.g, uri, abspath)
-    
-        ### URI ###
-        
-        comp_uri = URIRef(f"{uri}Composition")
-        
-        self.parser.dockerfile_path = path
-        
-        self.prev_instruction = None
-        self.mappings = []
-        
-        for inst in self.parser.structure:
-            self.handle_inst(inst)
-        
-        FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=uri)
-        
-        # Indicate start
-        FnOBuilder.start(self.g, comp_uri, self.start)
+    def describe_file(self, path):
+        if path.endswith("Dockerfile"):
+            name = os.path.basename(os.path.dirname(path))
+            uri = FileMapper.uri(name, path)
+            if not self.g.exists(uri):
+                
+                ### DOCKERFILE ###
+                DockerBuilder.describe_dockerfile(self.g, path, uri)
             
-        return uri
+                ### URI ###
+                
+                comp_uri = URIRef(f"{uri}Composition")
+                
+                self.parser.dockerfile_path = path
+                
+                self.prev_instruction = None
+                self.mappings = []
+                
+                for inst in self.parser.structure:
+                    self.handle_inst(inst)
+                
+                FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=uri)
+                
+                # Indicate start
+                FnOBuilder.start(self.g, comp_uri, self.start)
+                    
+            return uri
+        else:
+            return super().describe_file(path)
     
     def handle_mapping(self, mapfrom, mapto):
         self.mappings.append(Mapping(mapfrom, mapto))

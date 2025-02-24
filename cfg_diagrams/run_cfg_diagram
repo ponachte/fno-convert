@@ -1,11 +1,19 @@
 digraph cluster_ {
 	graph [label=_]
 	10 [label="#10
-for n in numbers:
+stmts = []
 "]
 	11 [label="#11
-print(f'faculty sum of n = {n_sum(n)}')
+for n in args.numbers:
 "]
-	11 -> 10 [label=""]
-	10 -> 11 [label=numbers]
+	12 [label="#12
+stmts.append(f'faculty sum of n = {n_sum(n)}')
+"]
+	12 -> 11 [label=""]
+	11 -> 12 [label="args.numbers"]
+	13 [label="#13
+print(stmts)
+"]
+	11 -> 13 [label=""]
+	10 -> 11 [label=""]
 }

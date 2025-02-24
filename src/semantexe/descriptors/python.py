@@ -25,9 +25,11 @@ from ..util.python.scope import ScopeState
 from ..util.std_kg import STD_KG
 from ..graph import ExecutableGraph, get_name
 from ..prefix import Prefix
-from ..mappers import PythonMapper
+from ..mappers import PythonMapper, FileMapper
+from ..descriptors.file import AbstractFileDescriptor
+from .resource import AbstractResourceDescriptor
 
-class PythonDescriptor:
+class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
 
     @staticmethod
     def name_node(name: str):
@@ -62,8 +64,72 @@ class PythonDescriptor:
             raise RuntimeError("No saved state to restore.")
         self.scope = self.state.pop()
     
-    def from_object(self, obj):
-        return self.from_function(obj.__name__, obj.__name__, obj)
+    def describe_resource(self, resource):
+        try:
+            return self.from_function(resource.__name__, resource.__name__, resource)
+        except Exception as e:
+            print(f"Unable to describe resource {resource} as Python object.")
+            traceback.print_exc()
+            return super().describe_resource(resource)
+    
+    def describe_file(self, file_path):
+        if file_path.endswith(".py"):
+            name = os.path.basename(file_path).rstrip(".py")
+            file_uri = FileMapper.uri(name, file_path)
+            if not self.g.exists(file_uri):
+                file_name, suff = os.path.splitext(os.path.basename(file_path))
+                
+                ### IMPORT ###
+
+                try:
+                    self.importer.import_from_file(file_path)
+                except Exception as e:
+                    print(f"Error importing from {file_path}: {e}")
+                    print(traceback.format_exc())
+                    
+                ### PARSE SOURCE CODE ###
+                
+                with open(file_path, 'r') as file:
+                    source_code = file.read()
+                source_code, args = self.rewriter.rewrite(source_code)
+                
+                # URI
+                fun_uri = Prefix.base()[f"{file_name}"]
+                comp_uri = Prefix.base()[f"{file_name}Composition"]
+                
+                # FnO Parameters
+                parameters = []
+                for i, arg in enumerate(args):
+                    uri = URIRef(f"{fun_uri}Parameter{i}")
+                    pred = arg["name"].lstrip('-')
+                    # TODO Type inferrence
+                    type = PythonMapper.any(self.g)
+                    # if "nargs" in arg:
+                    #     type = PythonMapper.obj_to_fno(self.g, List)
+                    FnOBuilder.describe_parameter(self.g, uri, type, pred)
+                    parameters.append(uri)
+                
+                # FnO Output
+                output_uri = URIRef(f"{fun_uri}Output")
+                output_pred = "output"
+                output_type = PythonMapper.any(self.g)
+                FnOBuilder.describe_output(self.g, output_uri, output_type, output_pred)
+                
+                # FnO Function
+                FnOBuilder.describe_function(self.g, fun_uri, f"{file_name}{suff}", parameters, [output_uri])
+                
+                # FnO Implementation
+                PythonBuilder.describe_file(self.g, file_uri, file_path)
+                
+                # FnO Mapping
+                PythonMapper.map_with_parse_args(self.g, fun_uri, file_uri, output_uri, args)
+                
+                # FnO Composition
+                self.describe_composition("_", file_path, fun_uri, comp_uri, source_code, alt_name=file_name)
+            
+            return file_uri
+        else:
+            return super().describe_file(file_path)
 
     def from_function(self, name, context, obj, num=0, keywords=[]):
         
@@ -88,57 +154,6 @@ class PythonDescriptor:
         self.describe_composition(name, path, fun_uri, comp_uri, src)
 
         return fun_uri
-
-    def from_file(self, file_path, file_uri):
-        file_name, suff = os.path.splitext(os.path.basename(file_path))
-        
-        ### IMPORT ###
-
-        try:
-            self.importer.import_from_file(file_path)
-        except Exception as e:
-            print(f"Error importing from {file_path}: {e}")
-            print(traceback.format_exc())
-            
-        ### PARSE SOURCE CODE ###
-        
-        with open(file_path, 'r') as file:
-            source_code = file.read()
-        source_code, args = self.rewriter.rewrite(source_code)
-        
-        # URI
-        fun_uri = Prefix.base()[f"{file_name}"]
-        comp_uri = Prefix.base()[f"{file_name}Composition"]
-        
-        # FnO Parameters
-        parameters = []
-        for i, arg in enumerate(args):
-            uri = URIRef(f"{fun_uri}Parameter{i}")
-            pred = arg["name"].lstrip('-')
-            # TODO Type inferrence
-            type = PythonMapper.any(self.g)
-            # if "nargs" in arg:
-            #     type = PythonMapper.obj_to_fno(self.g, List)
-            FnOBuilder.describe_parameter(self.g, uri, type, pred)
-            parameters.append(uri)
-        
-        # FnO Output
-        output_uri = URIRef(f"{fun_uri}Output")
-        output_pred = Prefix.base()["output"]
-        output_type = PythonMapper.any(self.g)
-        FnOBuilder.describe_output(self.g, output_uri, output_type, output_pred)
-        
-        # FnO Function
-        FnOBuilder.describe_function(self.g, fun_uri, f"{file_name}{suff}", parameters, [output_uri])
-        
-        # FnO Implementation
-        PythonBuilder.describe_file(self.g, file_uri, file_path)
-        
-        # FnO Mapping
-        PythonMapper.map_with_parse_args(self.g, fun_uri, file_uri, output_uri, args)
-        
-        # FnO Composition
-        self.describe_composition("_", file_path, fun_uri, comp_uri, source_code, alt_name=file_name)
     
     def describe_composition(self, name, path, fun_uri, comp_uri, source, alt_name=None):
         
@@ -395,7 +410,7 @@ class PythonDescriptor:
         if callable(obj):
             # Add full description for extra provenance
             if obj.__name__ not in self.g.f_counter:
-                self.from_object(obj)
+                self.describe_resource(obj)
             # Return the object without context
             return MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, obj))
         

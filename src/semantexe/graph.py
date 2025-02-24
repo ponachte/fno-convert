@@ -73,6 +73,9 @@ class ExecutableGraph(Graph):
     def exists(self, uri):
         return uri in self.subjects() or uri in self.objects() or uri in self.predicates()
     
+    def type(self, uri):
+        return [ x['type'] for x in self.query(f'''SELECT ?type WHERE {{ {uri} a ?type . }}''', initNs=Prefix.NAMESPACES) ]
+    
     def functions(self):
         return [ x['fun'] for x in self.query(f'''SELECT ?fun WHERE {{ ?fun a fno:Function . }}''', initNs=Prefix.NAMESPACES) ]
     
@@ -709,32 +712,27 @@ class ExecutableGraph(Graph):
     ### IMPLEMENTATION ###
      
     def fun_to_imp(self, fun):
-          """
-          Retrieve the implementation details of a function.
+        """
+        Retrieve all possible implementations of a function.
 
-          Args:
-               f (str): The URI of the function.
+        Args:
+            f (str): The URI of the function.
 
-          Returns:
-               tuple: A tuple containing the URI of the mapping and the implementation URI.
-                    If no implementation is found, returns (None, None).
-          """
-          try:
-               fun = self.check_call(fun)
+        Returns:
+            Tuple[]: A list of tuples where each tuple contains the URI of a mapping and a corresponding implementation URI.
+        """
+        fun = self.check_call(fun)
 
-               result = [
-                    (x['mapping'], x['imp'])
-                    for x in self.query(f'''
-                         SELECT ?mapping ?imp WHERE {{
-                              ?mapping fno:function <{fun}> ;
-                                       fno:implementation ?imp .
-                         }}
-                    ''', initNs=Prefix.NAMESPACES) 
-               ]
-               return result
-          except ParseException as e:
-               print(f"Error while parsing query when fetching implementation for <{get_name(fun)}>: <{e}>")
-               return (None, None)
+        result = [
+            (x['mapping'], x['imp'])
+            for x in self.query(f'''
+                    SELECT ?mapping ?imp WHERE {{
+                        ?mapping fno:function <{fun}> ;
+                                fno:implementation ?imp .
+                    }}
+            ''', initNs=Prefix.NAMESPACES) 
+        ]
+        return result
     
     def imp_to_fun(self, imp):
         """
@@ -1236,6 +1234,9 @@ class ExecutableGraph(Graph):
     
     def is_dockerfile(self, uri: URIRef):
         return self.query(f"""ASK WHERE {{ <{uri}> a do:Dockerfile . }}""", initNs=Prefix.NAMESPACES)
+    
+    def is_dockerimage(self, uri: URIRef):
+        return self.query(f"""ASK WHERE {{ <{uri}> a fnoi:DockerImage . }}""", initNs=Prefix.NAMESPACES)
     
     ### IMPLEMENTATION ###
     

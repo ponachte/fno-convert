@@ -123,7 +123,7 @@ class PythonExecutor:
         if fun.comp:
             PythonExecutor.execute_comp(fun)
         else:            
-            # If there is a fun input, use the function object from that terminal'uri value
+            # If there is a fun input, use the function object from that terminal's uri value
             if fun.self_input is not None:
                 fun.f_object = getattr(fun.self_input.value, fun.name, None)
             

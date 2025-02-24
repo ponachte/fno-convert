@@ -12,5 +12,5 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    for n in args.numbers:
-        print(f"faculty sum of n = {n_sum(n)}")
+    stmts = [ f"faculty sum of n = {n_sum(n)}" for n in args.numbers ]
+    print(stmts)

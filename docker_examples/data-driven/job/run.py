@@ -10,16 +10,6 @@ from is_on_table_lib import is_on_table
 from library import rolling_acc
 from make_model import make_model
 
-### Dictionary for converting model predictions to text
-act_dict = {
-    "Lying"    : 0,
-    "Running"  : 1,
-    "Sitting"  : 2,
-    "Standing" : 3,
-    "Walking"  : 4
-}
-act_dict_inverse = {act_dict[key]:key for key in act_dict.keys()}
-
 def process_data(conf, events):
   
     ### take only accelerometer events
@@ -80,9 +70,8 @@ def process_data(conf, events):
         return None, None
 
 
-def controller(conf, model, data):
+def controller(conf, act_dict_inverse, model, data):
     
-    ### TODO REMOVE events from arg
     data = process_data(conf, data)
     if (data is not None):
         if (len(data) > conf['min_duration_s'] * conf['frequency']):
@@ -117,11 +106,10 @@ def controller(conf, model, data):
                         x_acc, y_acc, z_acc, timestamps = rolling_acc(chunk_df.copy(), conf['win_size_s'], conf['frequency'], conf['overlap'])
 
                         x_acc_df = pd.DataFrame(x_acc, columns = ['acc_x_' + str(x) for x in range(len(x_acc[0]))])
-                        del x_acc
                         y_acc_df = pd.DataFrame(y_acc, columns = ['acc_y_' + str(x) for x in range(len(y_acc[0]))])
-                        del y_acc
                         z_acc_df = pd.DataFrame(z_acc, columns = ['acc_z_' + str(x) for x in range(len(z_acc[0]))])
-                        del z_acc
+                        # Save memory
+                        x_acc = y_acc = z_acc = None
 
                         # Make predictions
                         model_input = np.stack([x_acc_df, y_acc_df, z_acc_df], axis=2)
@@ -153,8 +141,26 @@ def controller(conf, model, data):
 
 
 if __name__ == '__main__':
-    with open('config.json', 'r') as f:
-        conf = json.load(f)
+    ### Configuration
+    conf = {
+        "min_duration_s": 16,
+        "win_size_s": 15,
+        "frequency" : 32,
+        "overlap" : 0.5,
+        "amp_sdo" : 0.2,
+        "amp_do" : 0.1,
+        "amp_gn" : 1.0
+    }
+    
+    ### Dictionary for converting model predictions to text
+    act_dict = {
+        "Lying"    : 0,
+        "Running"  : 1,
+        "Sitting"  : 2,
+        "Standing" : 3,
+        "Walking"  : 4
+    }
+    act_dict_inverse = {act_dict[key]:key for key in act_dict.keys()}
 
     model = make_model(5, conf['amp_sdo'], conf['amp_do'], conf['amp_gn'])
     
@@ -164,4 +170,4 @@ if __name__ == '__main__':
     for i in range(reader.num_record_batches):
         df = reader.get_batch(i).to_pandas()
         i += 1
-        controller(conf, model, df)
+        controller(conf, act_dict_inverse, model, df)

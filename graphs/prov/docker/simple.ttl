@@ -2,14 +2,14 @@
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix do: <http://linkedcontainers.org/vocab#> .
 @prefix doap: <http://usefulinc.com/ns/doap#> .
-@prefix docker: <http://www.example.com/dockerfile#> .
+@prefix docker: <http://www.example.com/docker#> .
 @prefix ex: <http://www.example.com#> .
 @prefix fno: <https://w3id.org/function/ontology#> .
 @prefix fnoc: <https://w3id.org/function/vocabulary/composition#> .
 @prefix fnoi: <https://w3id.org/function/vocabulary/implementation#> .
 @prefix fnom: <https://w3id.org/function/vocabulary/mapping#> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
-@prefix python: <http://www.example.com/pythonfile#> .
+@prefix python: <http://www.example.com/python#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
@@ -19,17 +19,18 @@ ex:formatMapping a fno:Mapping ;
     fno:implementation python:formate513fb1f ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "format" ] ;
-    fno:parameterMapping [ a fnom:DefaultParameterMapping ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:formatParameter1 ;
+            fnom:implementationParameterPosition 1 ],
+        [ a fnom:DefaultParameterMapping ;
             fnom:defaultValue "" ;
             fnom:functionParameter ex:formatParameter1 ],
         [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:formatParameter0 ;
-            fnom:implementationParameterPosition 0 ],
-        [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:formatParameter1 ;
-            fnom:implementationParameterPosition 1 ] ;
+            fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:formatOutput ] .
+            fnom:functionOutput ex:formatOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:iterMapping a fno:Mapping ;
     fno:function ex:iter ;
@@ -40,7 +41,8 @@ ex:iterMapping a fno:Mapping ;
             fnom:functionParameter ex:iterParameter0 ;
             fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:iterOutput ] .
+            fnom:functionOutput ex:iterOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:joinstrMapping a fno:Mapping ;
     fno:function cf:joinstr ;
@@ -54,191 +56,84 @@ ex:joinstrMapping a fno:Mapping ;
             fnom:functionParameter cf:Delimiter ;
             fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput cf:JoinStringOutput ] .
+            fnom:functionOutput cf:JoinStringOutput ] ;
+    fnom:mappingMethod "default" .
 
-ex:mainComposition a fno:Composition ;
-    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:format_2 ;
-                    fnoc:functionOutput ex:formatOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:joinstr_2 ;
-                    fnoc:functionParameter cf:Strings ;
-                    fnoc:key 1 ;
-                    fnoc:mappingStrategy fnoc:toList ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_2 ;
-                    fnoc:functionOutput ex:iterOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:next_2 ;
-                    fnoc:functionParameter ex:nextParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:joinstr_2 ;
-                    fnoc:functionOutput cf:JoinStringOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:print_2 ;
-                    fnoc:functionParameter ex:printParameter0 ;
-                    fnoc:key 0 ;
-                    fnoc:mappingStrategy fnoc:toList ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:format_1 ;
-                    fnoc:functionOutput ex:formatOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:joinstr_1 ;
-                    fnoc:functionParameter cf:Strings ;
-                    fnoc:key 1 ;
-                    fnoc:mappingStrategy fnoc:toList ] ],
-        [ fnoc:mapFromTerm "faculty sum of n = " ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:joinstr_2 ;
-                    fnoc:functionParameter cf:Strings ;
-                    fnoc:key 0 ;
-                    fnoc:mappingStrategy fnoc:toList ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:main ;
-                    fnoc:functionParameter ex:mainParameter0 ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:iter_2 ;
-                    fnoc:functionParameter ex:iterParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:joinstr_1 ;
-                    fnoc:functionOutput cf:JoinStringOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:print_1 ;
-                    fnoc:functionParameter ex:printParameter0 ;
-                    fnoc:key 0 ;
-                    fnoc:mappingStrategy fnoc:toList ] ],
-        [ fnoc:mapFromTerm "" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:joinstr_2 ;
-                    fnoc:functionParameter cf:Delimiter ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:main ;
-                    fnoc:functionParameter ex:mainParameter0 ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:iter_4 ;
-                    fnoc:functionParameter ex:iterParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_4 ;
-                    fnoc:functionOutput ex:iterOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:next_4 ;
-                    fnoc:functionParameter ex:nextParameter0 ] ],
-        [ fnoc:mapFromTerm "" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:joinstr_1 ;
-                    fnoc:functionParameter cf:Delimiter ] ],
-        [ fnoc:mapFromTerm "faculty sum of n = " ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:joinstr_1 ;
-                    fnoc:functionParameter cf:Strings ;
-                    fnoc:key 0 ;
-                    fnoc:mappingStrategy fnoc:toList ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:n_sum_1 ;
-                    fnoc:functionOutput ex:n_sumOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:format_1 ;
-                    fnoc:functionParameter ex:formatParameter0 ] ],
-        [ fnoc:mapFromTerm "n" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:n_sum_1 ;
-                    fnoc:functionParameter ex:n_sumParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:n_sum_2 ;
-                    fnoc:functionOutput ex:n_sumOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:format_2 ;
-                    fnoc:functionParameter ex:formatParameter0 ] ],
-        [ fnoc:mapFromTerm "n" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:n_sum_2 ;
-                    fnoc:functionParameter ex:n_sumParameter0 ] ] ;
-    fnoc:represents ex:main ;
-    fnoc:start ex:iter_2,
-        ex:iter_4 .
-
-ex:mainMapping a fno:Mapping ;
-    fno:function ex:main ;
-    fno:implementation python:main48dd1e4e,
-        python:main5002591d ;
+ex:listMapping a fno:Mapping ;
+    fno:function cf:list ;
+    fno:implementation python:liste513fb1f ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
-            fnom:method-name "main" ],
-        [ a fnom:StringMethodMapping ;
-            fnom:method-name "main" ] ;
-    fno:parameterMapping [ a fnom:PropertyParameterMapping ;
-            fnom:functionParameter ex:mainParameter0 ;
-            fnom:implementationProperty "numbers" ],
-        [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:mainParameter0 ;
-            fnom:implementationParameterPosition 0 ],
-        [ a fnom:PropertyParameterMapping ;
-            fnom:functionParameter ex:mainParameter0 ;
-            fnom:implementationProperty "numbers" ],
-        [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:mainParameter0 ;
+            fnom:method-name "list" ] ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter cf:Elements ;
             fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:mainOutput ],
-        [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:mainOutput ] .
+            fnom:functionOutput cf:ListOutput ] ;
+    fnom:mappingMethod "default" .
+
+ex:list_appendMapping a fno:Mapping ;
+    fno:function ex:list_append ;
+    fno:implementation python:list_appende3b0c442 ;
+    fno:methodMapping [ a fnom:StringMethodMapping ;
+            fnom:method-name "append" ] ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:list_appendParameter1 ;
+            fnom:implementationParameterPosition 1 ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:list_appendParameterSelf ;
+            fnom:implementationParameterPosition 0 ] ;
+    fno:returnMapping [ a fnom:DefaultReturnMapping ;
+            fnom:functionOutput ex:list_appendOutput ],
+        [ a fnom:ValueReturnMapping ;
+            fnom:functionOutput ex:list_appendSelfOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:n_sumComposition a fno:Composition ;
-    fnoc:composedOf [ fnoc:mapFromTerm "i" ;
+    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionOutput ex:op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:n_sum ;
+                    fnoc:functionParameter ex:n_sumOutput ] ],
+        [ fnoc:mapFromTerm "i" ;
             fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionParameter ex:op_addParameter1 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:range_1 ;
-                    fnoc:functionOutput ex:rangeOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:iter_1 ;
-                    fnoc:functionParameter ex:iterParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_1 ;
-                    fnoc:functionOutput ex:iterOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:next_1 ;
-                    fnoc:functionParameter ex:nextParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:n_sum ;
-                    fnoc:functionParameter ex:n_sumParameter0 ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:range_2 ;
-                    fnoc:functionParameter ex:rangeParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionOutput ex:op_addOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:n_sum ;
-                    fnoc:functionParameter ex:n_sumOutput ] ],
-        [ fnoc:mapFromTerm 0 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionParameter ex:op_addParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_2 ;
-                    fnoc:functionOutput ex:op_addOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:n_sum ;
-                    fnoc:functionParameter ex:n_sumOutput ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_3 ;
-                    fnoc:functionOutput ex:iterOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:next_3 ;
-                    fnoc:functionParameter ex:nextParameter0 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:n_sum ;
                     fnoc:functionParameter ex:n_sumParameter0 ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:range_1 ;
                     fnoc:functionParameter ex:rangeParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:range_1 ;
+                    fnoc:functionOutput ex:rangeOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:iter_2 ;
+                    fnoc:functionParameter ex:iterParameter0 ] ],
+        [ fnoc:mapFromTerm 0 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_2 ;
+                    fnoc:functionOutput ex:iterOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:next_2 ;
+                    fnoc:functionParameter ex:nextParameter0 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionOutput ex:op_addOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionParameter ex:op_addParameter0 ] ;
-            fnoc:priority ex:op_add_1 ],
-        [ fnoc:mapFromTerm "i" ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_2 ;
-                    fnoc:functionParameter ex:op_addParameter1 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_2 ;
-                    fnoc:functionOutput ex:op_addOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_2 ;
-                    fnoc:functionParameter ex:op_addParameter0 ] ;
-            fnoc:priority ex:op_add_2 ],
-        [ fnoc:mapFromTerm 0 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_2 ;
-                    fnoc:functionParameter ex:op_addParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:range_2 ;
-                    fnoc:functionOutput ex:rangeOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:iter_3 ;
-                    fnoc:functionParameter ex:iterParameter0 ] ] ;
+            fnoc:priority ex:op_add_1 ] ;
     fnoc:represents ex:n_sum ;
-    fnoc:start ex:range_1,
-        ex:range_2 .
+    fnoc:start ex:range_1 .
 
 ex:n_sumMapping a fno:Mapping ;
     fno:function ex:n_sum ;
     fno:implementation python:n_sum48dd1e4e,
         python:n_sum5002591d ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
-            fnom:method-name "n_sum" ],
-        [ a fnom:StringMethodMapping ;
             fnom:method-name "n_sum" ] ;
     fno:parameterMapping [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:n_sumParameter0 ;
             fnom:implementationProperty "n" ],
         [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:n_sumParameter0 ;
-            fnom:implementationParameterPosition 0 ],
-        [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:n_sumParameter0 ;
-            fnom:implementationParameterPosition 0 ],
-        [ a fnom:PropertyParameterMapping ;
-            fnom:functionParameter ex:n_sumParameter0 ;
-            fnom:implementationProperty "n" ] ;
+            fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:n_sumOutput ],
-        [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:n_sumOutput ] .
+            fnom:functionOutput ex:n_sumOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:nextMapping a fno:Mapping ;
     fno:function ex:next ;
@@ -249,7 +144,8 @@ ex:nextMapping a fno:Mapping ;
             fnom:functionParameter ex:nextParameter0 ;
             fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:nextOutput ] .
+            fnom:functionOutput ex:nextOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:op_addMapping a fno:Mapping ;
     fno:function ex:op_add ;
@@ -257,30 +153,31 @@ ex:op_addMapping a fno:Mapping ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "add" ] ;
     fno:parameterMapping [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:op_addParameter0 ;
-            fnom:implementationParameterPosition 0 ],
-        [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:op_addParameter1 ;
-            fnom:implementationParameterPosition 1 ] ;
+            fnom:implementationParameterPosition 1 ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:op_addParameter0 ;
+            fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:op_addOutput ] .
+            fnom:functionOutput ex:op_addOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:printMapping a fno:Mapping ;
     fno:function ex:print ;
     fno:implementation python:printe513fb1f ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "print" ] ;
-    fno:parameterMapping [ a fnom:VarPositionalParameterMapping ;
+    fno:parameterMapping [ a fnom:DefaultParameterMapping ;
+            fnom:defaultValue " " ;
+            fnom:functionParameter ex:printParameter1 ],
+        [ a fnom:VarPositionalParameterMapping ;
             fnom:functionParameter ex:printParameter0 ],
         [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:printParameter3 ;
             fnom:implementationProperty "file" ],
-        [ a fnom:DefaultParameterMapping ;
-            fnom:defaultValue " " ;
-            fnom:functionParameter ex:printParameter1 ],
-        [ a fnom:DefaultParameterMapping ;
-            fnom:defaultValue false ;
-            fnom:functionParameter ex:printParameter4 ],
+        [ a fnom:PropertyParameterMapping ;
+            fnom:functionParameter ex:printParameter1 ;
+            fnom:implementationProperty "sep" ],
         [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:printParameter2 ;
             fnom:implementationProperty "end" ],
@@ -288,9 +185,9 @@ ex:printMapping a fno:Mapping ;
             fnom:defaultValue """
 """ ;
             fnom:functionParameter ex:printParameter2 ],
-        [ a fnom:PropertyParameterMapping ;
-            fnom:functionParameter ex:printParameter1 ;
-            fnom:implementationProperty "sep" ],
+        [ a fnom:DefaultParameterMapping ;
+            fnom:defaultValue false ;
+            fnom:functionParameter ex:printParameter4 ],
         [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:printParameter4 ;
             fnom:implementationProperty "flush" ],
@@ -298,7 +195,8 @@ ex:printMapping a fno:Mapping ;
             fnom:defaultValue "None"^^python:NoneTypee513fb1f ;
             fnom:functionParameter ex:printParameter3 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:printOutput ] .
+            fnom:functionOutput ex:printOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:rangeMapping a fno:Mapping ;
     fno:function ex:range ;
@@ -309,13 +207,89 @@ ex:rangeMapping a fno:Mapping ;
             fnom:functionParameter ex:rangeParameter0 ;
             fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:rangeOutput ] .
+            fnom:functionOutput ex:rangeOutput ] ;
+    fnom:mappingMethod "default" .
 
-docker:11df36485770 rdfs:label "simple:latest" ;
-    do:contains python:main5002591d,
+ex:runComposition a fno:Composition ;
+    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_1 ;
+                    fnoc:functionOutput ex:iterOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:next_1 ;
+                    fnoc:functionParameter ex:nextParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction cf:attribute_1 ;
+                    fnoc:functionOutput cf:AttributeOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:iter_1 ;
+                    fnoc:functionParameter ex:iterParameter0 ] ],
+        [ fnoc:mapFromTerm "n" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:n_sum_1 ;
+                    fnoc:functionParameter ex:n_sumParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:format_1 ;
+                    fnoc:functionOutput ex:formatOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:joinstr_1 ;
+                    fnoc:functionParameter cf:Strings ;
+                    fnoc:key 1 ;
+                    fnoc:mappingStrategy fnoc:toList ] ],
+        [ fnoc:mapFromTerm "" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:joinstr_1 ;
+                    fnoc:functionParameter cf:Delimiter ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:run ;
+                    fnoc:functionParameter ex:runParameter0 ] ;
+            fnoc:mapTo [ fnoc:constituentFunction cf:attribute_1 ;
+                    fnoc:functionParameter cf:AttributeParameter ] ],
+        [ fnoc:mapFromTerm "args" ;
+            fnoc:mapTo [ fnoc:constituentFunction cf:attribute_1 ;
+                    fnoc:functionParameter cf:ValueParameter ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:joinstr_1 ;
+                    fnoc:functionOutput cf:JoinStringOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:list_append_1 ;
+                    fnoc:functionParameter ex:list_appendParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:list_append_1 ;
+                    fnoc:functionOutput ex:list_appendSelfOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:list_append_1 ;
+                    fnoc:functionParameter ex:list_appendParameterSelf ] ;
+            fnoc:priority ex:list_append_1 ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:list_append_1 ;
+                    fnoc:functionOutput ex:list_appendSelfOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:print_1 ;
+                    fnoc:functionParameter ex:printParameter0 ;
+                    fnoc:key 0 ;
+                    fnoc:mappingStrategy fnoc:toList ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:list_1 ;
+                    fnoc:functionOutput cf:ListOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:list_append_1 ;
+                    fnoc:functionParameter ex:list_appendParameterSelf ] ],
+        [ fnoc:mapFromTerm "faculty sum of n = " ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:joinstr_1 ;
+                    fnoc:functionParameter cf:Strings ;
+                    fnoc:key 0 ;
+                    fnoc:mappingStrategy fnoc:toList ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:n_sum_1 ;
+                    fnoc:functionOutput ex:n_sumOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:format_1 ;
+                    fnoc:functionParameter ex:formatParameter0 ] ] ;
+    fnoc:represents ex:run ;
+    fnoc:start ex:list_1 .
+
+ex:runMapping a fno:Mapping ;
+    fno:function ex:run ;
+    fno:implementation ex:run5ff9ac2b,
+        ex:run79c35c8f ;
+    fno:methodMapping [ a fnom:CommandMethodMapping ;
+            fnom:command "python" ] ;
+    fno:parameterMapping [ a fnom:ArgumentMapping ;
+            fnom:functionParameter ex:runParameter0 ;
+            fnom:implementationParameterPosition 0 ;
+            fnom:nargs "+" ] ;
+    fno:returnMapping [ a fnom:DefaultReturnMapping ;
+            fnom:functionOutput ex:runOutput ] ;
+    fnom:mappingMethod "argparse" .
+
+docker:e709da263e87 a do:Image,
+        fnoi:DockerImage ;
+    rdfs:label "simple:latest" ;
+    do:defaultInput "4" ;
+    do:includes ex:run5ff9ac2b,
         python:n_sum5002591d ;
-    do:defaultInput "1" ;
-    prov:alternateOf python:main5002591d ;
+    prov:alternateOf ex:run5ff9ac2b ;
     prov:derivedFrom ex:simple5797f5aaDockerfileImplementation ;
     prov:wasGeneratedBy ex:Execution1 .
 
@@ -331,6 +305,20 @@ ex:Execution1 a prov:Activity ;
             prov:hadRole ex:implementation ] ;
     prov:used ex:simple5797f5aa ;
     prov:wasAssociatedWith ex:simple5797f5aaDockerfileImplementation .
+
+cf:AttributeSelfOutput a fno:Output ;
+    fno:predicate cf:self_output ;
+    fno:type rdf:Resource .
+
+cf:attribute a prov:Entity,
+        fno:Function ;
+    dcterms:description "The attrbiute functions access an attribute of an object." ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 cf:ValueParameter ;
+            rdf:_2 cf:AttributeParameter ] ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 cf:AttributeOutput ;
+            rdf:_2 cf:AttributeSelfOutput ] .
 
 python:formate513fb1f a fnoi:Implementation,
         fnoi:PythonFunction ;
@@ -383,6 +371,13 @@ The result is returned as a new string.
 Example: '.'.join(['ab', 'pq', 'rs']) -> 'ab.pq.rs'""" ;
     doap:name "joinstr" ;
     fnoi:methodOf python:stre513fb1f ;
+    fnoi:static false .
+
+python:list_appende3b0c442 a fnoi:Implementation,
+        fnoi:PythonMethod ;
+    dcterms:description "Append object to the end of the list." ;
+    doap:name "list_append" ;
+    fnoi:methodOf python:liste513fb1f ;
     fnoi:static false .
 
 python:nexte513fb1f a fnoi:Implementation,
@@ -443,42 +438,6 @@ errors defaults to 'strict'.""" ;
     doap:name "str" ;
     fnoi:module "builtins" .
 
-ex:nextOutput a fno:Output ;
-    fno:predicate ex:nextResult ;
-    fno:type python:Any41485baa .
-
-ex:printOutput a fno:Output ;
-    fno:predicate ex:printResult ;
-    fno:type python:Any41485baa .
-
-ex:print_1 fnoc:applies ex:print ;
-    fnoc:next ex:next_2 .
-
-ex:print_2 fnoc:applies ex:print ;
-    fnoc:next ex:next_4 .
-
-ex:simple5797f5aa a prov:Entity .
-
-python:main48dd1e4e a fnoi:Implementation,
-        fnoi:PythonFile,
-        fnoi:PythonFunction ;
-    doap:name "main" ;
-    fnoi:file <file:///home/ponachte/projects/py2rdf/docker_examples/simple/run.py> ;
-    fnoi:module "run" .
-
-python:n_sum48dd1e4e a fnoi:Implementation,
-        fnoi:PythonFunction ;
-    doap:name "n_sum" ;
-    fnoi:file <file:///home/ponachte/projects/py2rdf/docker_examples/simple/run.py> ;
-    fnoi:module "run" .
-
-python:n_sum5002591d a fnoi:Implementation,
-        fnoi:PythonFunction ;
-    doap:name "n_sum" ;
-    prov:alternateOf python:n_sum48dd1e4e ;
-    fnoi:file <file:///home/run.py> ;
-    fnoi:module "run" .
-
 ex:format a prov:Entity,
         fno:Function ;
     fno:expects [ a rdf:Seq ;
@@ -488,46 +447,26 @@ ex:format a prov:Entity,
     fno:returns [ a rdf:Seq ;
             rdf:_1 ex:formatOutput ] .
 
-ex:formatParameter1 a fno:Parameter ;
-    fno:predicate ex:format_spec ;
-    fno:required false ;
+ex:list_1 fnoc:applies cf:list ;
+    fnoc:next cf:attribute_1 .
+
+ex:list_append a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:list_appendParameterSelf ;
+            rdf:_2 ex:list_appendParameter1 ] ;
+    fno:name "append" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:list_appendOutput ;
+            rdf:_2 ex:list_appendSelfOutput ] .
+
+ex:list_appendOutput a fno:Output ;
+    fno:predicate ex:list_appendResult ;
     fno:type python:Any41485baa .
 
-ex:format_1 fnoc:applies ex:format ;
-    fnoc:next ex:joinstr_1 .
-
-ex:format_2 fnoc:applies ex:format ;
-    fnoc:next ex:joinstr_2 .
-
-ex:iter_1 fnoc:applies ex:iter ;
-    fnoc:next ex:next_1 .
-
-ex:iter_2 fnoc:applies ex:iter ;
-    fnoc:next ex:next_2 .
-
-ex:iter_3 fnoc:applies ex:iter ;
-    fnoc:next ex:next_3 .
-
-ex:iter_4 fnoc:applies ex:iter ;
-    fnoc:next ex:next_4 .
-
-ex:n_sum_1 fnoc:applies ex:n_sum ;
-    fnoc:next ex:format_1 .
-
-ex:n_sum_2 fnoc:applies ex:n_sum ;
-    fnoc:next ex:format_2 .
-
-ex:next_1 fnoc:applies ex:next ;
-    fnoc:iterate ex:op_add_1 .
-
-ex:next_2 fnoc:applies ex:next ;
-    fnoc:iterate ex:n_sum_1 .
-
-ex:next_3 fnoc:applies ex:next ;
-    fnoc:iterate ex:op_add_2 .
-
-ex:next_4 fnoc:applies ex:next ;
-    fnoc:iterate ex:n_sum_2 .
+ex:nextOutput a fno:Output ;
+    fno:predicate ex:nextResult ;
+    fno:type python:Any41485baa .
 
 ex:op_add a prov:Entity,
         fno:Function ;
@@ -550,6 +489,139 @@ ex:print a prov:Entity,
     fno:returns [ a rdf:Seq ;
             rdf:_1 ex:printOutput ] .
 
+ex:printOutput a fno:Output ;
+    fno:predicate ex:printResult ;
+    fno:type python:Any41485baa .
+
+ex:print_1 fnoc:applies ex:print .
+
+ex:range a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:rangeParameter0 ] ;
+    fno:name "range" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:rangeOutput ] .
+
+ex:run79c35c8f a fnoi:PythonFile ;
+    doap:name "run.py" ;
+    fnoi:file <file:///home/ponachte/projects/py2rdf/docker_examples/simple/run.py> .
+
+ex:runOutput a fno:Output ;
+    fno:predicate ex:output ;
+    fno:type python:Any41485baa .
+
+ex:simple5797f5aa a prov:Entity .
+
+cf:AttributeOutput a fno:Output ;
+    fno:predicate cf:attrResult ;
+    fno:type rdf:Resource .
+
+cf:AttributeParameter a fno:Parameter ;
+    fno:predicate cf:attr ;
+    fno:type xsd:string .
+
+cf:Elements a fno:Parameter ;
+    fno:predicate cf:elements ;
+    fno:required true .
+
+cf:ValueParameter a fno:Parameter ;
+    fno:predicate cf:value ;
+    fno:type rdf:Resource .
+
+cf:joinstr a prov:Entity,
+        fno:Function ;
+    dcterms:description "Join a list of strings with a given delimiter." ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 cf:Delimiter ;
+            rdf:_2 cf:Strings ] ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 cf:JoinStringOutput ] .
+
+cf:list a prov:Entity,
+        fno:Function ;
+    dcterms:descrition "ask GPT for description" ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 cf:Elements ] ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 cf:ListOutput ] .
+
+python:n_sum48dd1e4e a fnoi:Implementation,
+        fnoi:PythonFunction ;
+    doap:name "n_sum" ;
+    fnoi:file <file:///home/ponachte/projects/py2rdf/docker_examples/simple/run.py> ;
+    fnoi:module "run" .
+
+python:n_sum5002591d a fnoi:Implementation,
+        fnoi:PythonFunction ;
+    doap:name "n_sum" ;
+    prov:alternateOf python:n_sum48dd1e4e ;
+    fnoi:file <file:///home/run.py> ;
+    fnoi:module "run" .
+
+ex:formatOutput a fno:Output ;
+    fno:predicate ex:formatResult ;
+    fno:type python:Any41485baa .
+
+ex:formatParameter0 a fno:Parameter ;
+    fno:predicate ex:value ;
+    fno:required true ;
+    fno:type python:Any41485baa .
+
+ex:formatParameter1 a fno:Parameter ;
+    fno:predicate ex:format_spec ;
+    fno:required false ;
+    fno:type python:Any41485baa .
+
+ex:format_1 fnoc:applies ex:format ;
+    fnoc:next ex:joinstr_1 .
+
+ex:iter a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:iterParameter0 ] ;
+    fno:name "iter" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:iterOutput ] .
+
+ex:iter_1 fnoc:applies ex:iter ;
+    fnoc:next ex:next_1 .
+
+ex:iter_2 fnoc:applies ex:iter ;
+    fnoc:next ex:next_2 .
+
+ex:list_appendParameter1 a fno:Parameter ;
+    fno:predicate ex:object ;
+    fno:required true ;
+    fno:type python:Any41485baa .
+
+ex:n_sum_1 fnoc:applies ex:n_sum ;
+    fnoc:next ex:format_1 .
+
+ex:next a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:nextParameter0 ] ;
+    fno:name "next" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:nextOutput ] .
+
+ex:next_1 fnoc:applies ex:next ;
+    fnoc:iterate ex:n_sum_1 ;
+    fnoc:next ex:print_1 .
+
+ex:next_2 fnoc:applies ex:next ;
+    fnoc:iterate ex:op_add_1 .
+
+ex:op_addParameter1 a fno:Parameter ;
+    fno:predicate ex:b ;
+    fno:required true ;
+    fno:type python:Any41485baa .
+
+ex:printParameter0 a fno:Parameter ;
+    fno:predicate ex:args ;
+    fno:type python:Any41485baa .
+
 ex:printParameter1 a fno:Parameter ;
     fno:predicate ex:sep ;
     fno:required false ;
@@ -570,73 +642,6 @@ ex:printParameter4 a fno:Parameter ;
     fno:required false ;
     fno:type python:Any41485baa .
 
-ex:range a prov:Entity,
-        fno:Function ;
-    fno:expects [ a rdf:Seq ;
-            rdf:_1 ex:rangeParameter0 ] ;
-    fno:name "range" ;
-    fno:returns [ a rdf:Seq ;
-            rdf:_1 ex:rangeOutput ] .
-
-ex:range_1 fnoc:applies ex:range ;
-    fnoc:next ex:iter_1 .
-
-ex:range_2 fnoc:applies ex:range ;
-    fnoc:next ex:iter_3 .
-
-ex:simple5797f5aaDockerfileImplementation a prov:Agent .
-
-cf:joinstr a prov:Entity,
-        fno:Function ;
-    dcterms:description "Join a list of strings with a given delimiter." ;
-    fno:expects [ a rdf:Seq ;
-            rdf:_1 cf:Delimiter ;
-            rdf:_2 cf:Strings ] ;
-    fno:returns [ a rdf:Seq ;
-            rdf:_1 cf:JoinStringOutput ] .
-
-python:main5002591d a fnoi:Implementation,
-        fnoi:PythonFile,
-        fnoi:PythonFunction ;
-    doap:name "main" ;
-    prov:alternateOf python:main48dd1e4e ;
-    fnoi:file <file:///home/run.py> ;
-    fnoi:module "run" .
-
-ex:formatOutput a fno:Output ;
-    fno:predicate ex:formatResult ;
-    fno:type python:Any41485baa .
-
-ex:formatParameter0 a fno:Parameter ;
-    fno:predicate ex:value ;
-    fno:required true ;
-    fno:type python:Any41485baa .
-
-ex:main a prov:Entity,
-        fno:Function ;
-    fno:expects [ a rdf:Seq ;
-            rdf:_1 ex:mainParameter0 ],
-        [ a rdf:Seq ;
-            rdf:_1 ex:mainParameter0 ] ;
-    fno:name "main" ;
-    fno:returns [ a rdf:Seq ;
-            rdf:_1 ex:mainOutput ],
-        [ a rdf:Seq ;
-            rdf:_1 ex:mainOutput ] .
-
-ex:mainOutput a fno:Output ;
-    fno:predicate ex:mainResult ;
-    fno:type python:Any41485baa .
-
-ex:op_addParameter1 a fno:Parameter ;
-    fno:predicate ex:b ;
-    fno:required true ;
-    fno:type python:Any41485baa .
-
-ex:printParameter0 a fno:Parameter ;
-    fno:predicate ex:args ;
-    fno:type python:Any41485baa .
-
 ex:rangeOutput a fno:Output ;
     fno:predicate ex:rangeResult ;
     fno:type python:Any41485baa .
@@ -645,6 +650,29 @@ ex:rangeParameter0 a fno:Parameter ;
     fno:predicate ex:param0 ;
     fno:required true ;
     fno:type python:Any41485baa .
+
+ex:range_1 fnoc:applies ex:range ;
+    fnoc:next ex:iter_2 .
+
+ex:run a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 ex:runParameter0 ] ;
+    fno:name "run.py" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_1 ex:runOutput ] .
+
+ex:run5ff9ac2b a fnoi:PythonFile ;
+    doap:name "run.py" ;
+    prov:alternateOf ex:run79c35c8f ;
+    fnoi:file <file:///home/run.py> .
+
+ex:runParameter0 a fno:Parameter ;
+    fno:predicate ex:numbers ;
+    fno:required true ;
+    fno:type python:Any41485baa .
+
+ex:simple5797f5aaDockerfileImplementation a prov:Agent .
 
 cf:Delimiter a fno:Parameter ;
     fno:predicate cf:self ;
@@ -655,27 +683,9 @@ cf:JoinStringOutput a fno:Output ;
     fno:predicate cf:joinstrResult ;
     fno:type xsd:string .
 
-ex:iter a prov:Entity,
-        fno:Function ;
-    fno:expects [ a rdf:Seq ;
-            rdf:_1 ex:iterParameter0 ] ;
-    fno:name "iter" ;
-    fno:returns [ a rdf:Seq ;
-            rdf:_1 ex:iterOutput ] .
-
-ex:joinstr_1 fnoc:applies cf:joinstr ;
-    fnoc:next ex:print_1 .
-
-ex:joinstr_2 fnoc:applies cf:joinstr ;
-    fnoc:next ex:print_2 .
-
-ex:next a prov:Entity,
-        fno:Function ;
-    fno:expects [ a rdf:Seq ;
-            rdf:_1 ex:nextParameter0 ] ;
-    fno:name "next" ;
-    fno:returns [ a rdf:Seq ;
-            rdf:_1 ex:nextOutput ] .
+cf:ListOutput a fno:Output ;
+    fno:predicate cf:listResult ;
+    fno:type rdf:List .
 
 ex:iterOutput a fno:Output ;
     fno:predicate ex:iterResult ;
@@ -684,6 +694,19 @@ ex:iterOutput a fno:Output ;
 ex:iterParameter0 a fno:Parameter ;
     fno:predicate ex:param0 ;
     fno:required true ;
+    fno:type python:Any41485baa .
+
+ex:list_appendParameterSelf a fno:Parameter ;
+    fno:predicate ex:self ;
+    fno:required true ;
+    fno:type python:liste513fb1f .
+
+ex:list_appendSelfOutput a fno:Output ;
+    fno:predicate ex:self_output ;
+    fno:type python:liste513fb1f .
+
+ex:n_sumOutput a fno:Output ;
+    fno:predicate ex:n_sumResult ;
     fno:type python:Any41485baa .
 
 ex:nextParameter0 a fno:Parameter ;
@@ -705,37 +728,39 @@ cf:Strings a fno:Parameter ;
     fno:required true ;
     fno:type rdfs:list .
 
-ex:op_add_1 fnoc:applies ex:op_add ;
-    fnoc:next ex:next_1 .
+cf:attribute_1 fnoc:applies cf:attribute ;
+    fnoc:next ex:iter_1 .
 
-ex:op_add_2 fnoc:applies ex:op_add ;
-    fnoc:next ex:next_3 .
+python:liste513fb1f a fnoi:Implementation,
+        fnoi:PythonClass ;
+    dcterms:description """Built-in mutable sequence.
 
-ex:mainParameter0 a fno:Parameter ;
-    fno:predicate ex:numbers ;
-    fno:required true ;
-    fno:type python:Any41485baa .
+If no argument is given, the constructor creates a new empty list.
+The argument must be an iterable if specified.""" ;
+    doap:name "list" ;
+    fnoi:module "builtins" .
+
+ex:joinstr_1 fnoc:applies cf:joinstr ;
+    fnoc:next ex:list_append_1 .
 
 ex:n_sum a prov:Entity,
         fno:Function ;
     fno:expects [ a rdf:Seq ;
-            rdf:_1 ex:n_sumParameter0 ],
-        [ a rdf:Seq ;
             rdf:_1 ex:n_sumParameter0 ] ;
     fno:name "n_sum" ;
     fno:returns [ a rdf:Seq ;
-            rdf:_1 ex:n_sumOutput ],
-        [ a rdf:Seq ;
             rdf:_1 ex:n_sumOutput ] .
-
-ex:n_sumOutput a fno:Output ;
-    fno:predicate ex:n_sumResult ;
-    fno:type python:Any41485baa .
 
 ex:n_sumParameter0 a fno:Parameter ;
     fno:predicate ex:n ;
     fno:required true ;
     fno:type python:inte513fb1f .
+
+ex:list_append_1 fnoc:applies ex:list_append ;
+    fnoc:next ex:next_1 .
+
+ex:op_add_1 fnoc:applies ex:op_add ;
+    fnoc:next ex:next_2 .
 
 python:Any41485baa a fnoi:Implementation,
         fnoi:PythonClass ;

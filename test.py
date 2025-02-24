@@ -1,20 +1,29 @@
 import traceback
 
-from semantexe.descriptors import Descriptor
+from semantexe.descriptors import ResourceDescriptor
 from semantexe.graph import ExecutableGraph
 from semantexe.executors.docker import DockerfileExecutor
 from semantexe.executors.executeable import Function
 
 DD_DOCKERFILE = "docker_examples/data-driven/Dockerfile"
+DD_PY_FILE = "docker_examples/data-driven/job/run.py"
 SIMPLE_DOCKERFILE = "docker_examples/simple/Dockerfile"
-PY_FILE = "docker_examples/simple/run.py"
+SIMPLE_PY_FILE = "docker_examples/simple/run.py"
 
 if __name__ == "__main__":
   
   g = ExecutableGraph()
-  descriptor = Descriptor()
-  fun_uri = descriptor.describe(g, PY_FILE)
-  g.serialize("graphs/python/run.ttl", format="turtle")
+  descriptor = ResourceDescriptor(g)
+  print("Describing resource...")
+  fun_uri = descriptor.describe(SIMPLE_DOCKERFILE)
+  g.serialize("graphs/docker/simple.ttl", format="turtle")
+  print("Done!")
+  
+  print("Executing FnO Function with DockerfileExecutor...")
+  executor = DockerfileExecutor(g, fun_uri)
+  pg = executor.execute(tag="simple")
+  pg.serialize("graphs/prov/docker/simple.ttl", format="turtle")
+  print("Done!")
   
   # try to create executable model
   """fun = None

@@ -11,6 +11,3 @@ if __name__ == "__main__":
   with open(PY_FILE, 'r') as file:
     source_code = file.read()
   updated, args = rewriter.rewrite(source_code)
-  
-  for arg in args:
-    print(arg)
