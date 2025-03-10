@@ -1566,9 +1566,10 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         # Create a variable for the targets
         if isinstance(target, ast.Tuple):
             for i, elt in enumerate(target.elts):
-                elt_output = self.handle_stmt(elt)
-                self.handle_assignment(next_output.set_strategy("toList", i), [self.name_node(elt_output.get_value())])
+                self.handle_assignment(next_output.set_strategy("toList", i), [elt])
                 next_output.set_strategy(None)
+        elif isinstance(target, ast.Name):
+            self.handle_assignment(next_output, [target])
         else:
             target_output = self.handle_stmt(target)
             self.handle_assignment(next_output, [self.name_node(target_output.get_value())])

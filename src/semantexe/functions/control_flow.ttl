@@ -5,13 +5,14 @@
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix fno: <https://w3id.org/function/ontology#> .
 @prefix fnoc: <https://w3id.org/function/vocabulary/composition#> .
-@prefix fnoi: <https://w3id.org/function/vocabulary/implementation#> .
 @prefix fnom: <https://w3id.org/function/vocabulary/mapping#> .
+@prefix ptoi: <https://w3id.org/function/vocabulary/implementation#> .
 @prefix ptype: <http://example.com/ptype#> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
 
 cf:Is a fno:Function ;
       a prov:Entity ;
+      fno:name "is" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:ObjectParameter1 ;
                     rdf:_2 cf:ObjectParameter2 ] ;
@@ -21,6 +22,7 @@ cf:Is a fno:Function ;
 
 cf:IsNot a fno:Function ;
          a prov:Entity ;
+         fno:name "isNot" ;
          fno:expects [ a rdf:Seq ;
                        rdf:_1 cf:ObjectParameter1 ;
                        rdf:_2 cf:ObjectParameter2 ] ;
@@ -40,6 +42,7 @@ cf:ObjectParameter2 a fno:Parameter ;
 
 cf:for a fno:Function ;
        a prov:Entity ;
+       fno:name "for" ;
        fno:expects [ a rdf:Seq ;
                      rdf:_1 cf:IterParameter ] ;
        fno:returns [ a rdf:Seq ;
@@ -58,6 +61,7 @@ cf:TargetOutput a fno:Output ;
 
 cf:if a fno:Function ;
       a prov:Entity ;
+      fno:name "if" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:TestParameter ] .
 
@@ -91,6 +95,7 @@ cf:IfExprOutput a fno:Output ;
 
 cf:slice a fno:Function ;
          a prov:Entity ;
+         fno:name "slice" ;
          fno:expects [ a rdf:Seq ;
                        rdf:_1 cf:LowerIndexParameter ;
                        rdf:_2 cf:UpperIndexParameter ;
@@ -119,6 +124,7 @@ cf:SliceOutput a fno:Output ;
 
 cf:list a fno:Function ;
       a prov:Entity ;
+      fno:name "list" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:Elements ] ;
       fno:returns [ a rdf:Seq ;
@@ -134,6 +140,7 @@ cf:ListOutput a fno:Output ;
 
 cf:tuple a fno:Function ;
       a prov:Entity ;
+      fno:name "tuple" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:Elements ] ;
       fno:returns [ a rdf:Seq ;
@@ -164,6 +171,7 @@ cf:DictOutput a fno:Output ;
 
 cf:attribute a fno:Function ;
       a prov:Entity ;
+      fno:name "attr" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:ValueParameter ;
                     rdf:_2 cf:AttributeParameter ] ;
@@ -192,6 +200,7 @@ cf:AttributeSelfOutput a fno:Output ;
 
 cf:joinstr a fno:Function ;
       a prov:Entity ;
+      fno:name "joinstr" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:Delimiter ;
                     rdf:_2 cf:Strings ] ;

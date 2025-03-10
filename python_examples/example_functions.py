@@ -7,7 +7,7 @@ def divide(numerator: int, denominator: int):
     else:
         return "niet delen door 0!"
 
-def binarycount1(bits):
+def binarycount(bits):
 
     count = 0
     for i, bit in enumerate(bits):

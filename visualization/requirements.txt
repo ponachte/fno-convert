@@ -1,0 +1,6 @@
+rdflib
+setuptools
+python-scalpel
+numpy
+pandas
+ipyelk

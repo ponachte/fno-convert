@@ -5,7 +5,7 @@ from typing import Set
 
 class Composition:
 
-    def __init__(self, g: ExecutableGraph, comp: URIRef, rep: "Function" = None) -> None:
+    def __init__(self, g: ExecutableGraph, comp: URIRef, rep: "Function | AppliedFunction" = None) -> None:
         self.uri = comp
         self.name = get_name(comp)
         self.rep = rep
@@ -15,19 +15,17 @@ class Composition:
             if len(reps) > 1:
                 raise Exception(f"Composition has multiple representaitons {reps}")
             elif len(reps) == 1:
-                self.scope = reps[0]
+                self.rep = reps[0]
             else:
-                self.scope = comp
-        else:
-            self.scope = rep.fun_uri
+                self.rep = comp
 
         ### USED FUNCTIONS ###
         self.functions = {}
 
         # Get all the used functions
         for call in g.get_used_functions(self.uri):
-            if call != self.scope and call not in self.functions:
-                self.functions[call] = AppliedFunction(g, call, self.scope)
+            if call != self.rep.fun_uri and call not in self.functions:
+                self.functions[call] = AppliedFunction(g, call, rep)
 
         ### MAPPINGS ###
 
@@ -93,7 +91,79 @@ class Composition:
                 self.mappings[input].execute()            
     
     def get_terminal(self, call, ter):
-        return  self.functions[call][ter] if call != self.scope else self.rep[ter]
+        return  self.functions[call][ter] if call != self.rep.fun_uri else self.rep[ter]
+    
+    def json_elk(self, json_elk = None):
+        if json_elk is None:
+            json_elk = self.rep.json_elk()
+         
+        json_elk["children"] = []
+        child_index_map = {}
+        for i, fun in enumerate(self.functions.values()):
+            json_elk["children"].append(fun.json_elk())
+            child_index_map[fun.id()] = i
+            
+        json_elk["edges"] = []
+        for mapping in self.mappings.values():
+            json_elk["edges"].extend(mapping.json_elk())
+        
+        for fun in self.functions.values():
+            # Only visualize control flow for nodes with non-linear control flow
+            if fun.iftrue or fun.iffalse or fun.iterate:
+                if fun.next:
+                    self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.next], "next")
+                if fun.iterate:
+                    self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.iterate], "iterate")
+                if fun.iftrue:
+                    self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.iftrue], "iftrue")
+                if fun.iffalse:
+                    self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.iffalse], "iffalse")
+            # Or nodes at the end of a for-loop
+            elif fun.next and self.functions[fun.next].iterate:
+                self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.next], "next")
+        
+        return json_elk
+                
+    def json_elk_controlflow(self, json_elk, child_index_map, source, target, label):
+        # create ports
+        i = child_index_map[source.id()]
+        json_elk["children"][i]["ports"].append({
+            "id": f"{source.id()}_{label}_out",
+            "width": 0,
+            "height":0,
+            "layoutOptions": {
+                "allowNonFlowPortsToSwitchSides": "true",
+                "port.side": "SOUTH"
+            }
+        })
+        
+        i = child_index_map[target.id()]
+        json_elk["children"][i]["ports"].append({
+            "id": f"{source.id()}_{label}_in",
+            "width": 0,
+            "height":0,
+            "layoutOptions": {
+                "allowNonFlowPortsToSwitchSides": "true",
+                "port.side": "SOUTH"
+            }
+        })
+        
+        # create edge
+        json_elk["edges"].append({
+            "id": f"{source.id()}_{target.id()}_{label}",
+            "target": target.id(),
+            "targetPort": f"{source.id()}_{label}_in",
+            "source": source.id(),
+            "sourcePort": f"{source.id()}_{label}_out",
+            "labels": [{
+                "text": label,
+                "layoutOptions": {
+                    "edgeLabels.placement": "TAIL"
+                }
+            }]
+        })
+                
+        return json_elk
     
     def __hash__(self) -> int:
         return hash(self.uri)
@@ -164,6 +234,30 @@ class Function:
         
         raise KeyError(f"No terminal found with key '{key}'")
     
+    def id(self):
+        # TODO Format prefix
+        return get_name(self.fun_uri)
+
+    def json_elk(self):
+        json_elk = {
+            "id": self.id(),
+            "ports": [ ter.json_elk() for ter in self.terminals.values() ],
+            "labels": [{ "text": self.name }],
+            "children": [],
+            "layoutOptions": {
+                "nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS]",
+                "portConstraints": "FIXED_SIDE",
+                "portLabels.placement": "[INSIDE]",
+                "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]",
+                "elk.padding": "[top=0.0,left=20.0,bottom=15.0,right=20.0]"
+            }
+        }
+        
+        if self.comp:
+            json_elk = self.comp.json_elk(json_elk)
+
+        return json_elk
+    
     def __hash__(self) -> int:
         return hash(self.fun_uri)
     
@@ -173,21 +267,28 @@ class Function:
     
 class AppliedFunction(Function):
     
-    def __init__(self, g: ExecutableGraph, call: URIRef, scope: URIRef, internal=False) -> None:
+    def __init__(self, g: ExecutableGraph, call: URIRef, scope: "URIRef | Function | AppliedFunction") -> None:
         fun = g.check_call(call)
-        super().__init__(g, fun)
-        
         self.call_uri = call
         self.scope = scope
         
-        if internal:
-            self.init_composition(g)
+        super().__init__(g, fun)
         
         self._next = None
         self.next, self.iterate, self.iftrue, self.iffalse = g.get_order(call)
     
     def next_executeable(self):
         return self._next
+    
+    def id(self):
+        if isinstance(self.scope, (Function, AppliedFunction)):
+            return f"{self.scope.id()}_{get_name(self.call_uri)}"
+        return f"{get_name(self.scope)}_{get_name(self.call_uri)}"
+    
+    def json_elk(self):
+        json_elk = super().json_elk()
+        json_elk["id"] = self.id()
+        return json_elk
     
     def __hash__(self) -> int:
         return hash(self.call_uri)

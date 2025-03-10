@@ -13,52 +13,50 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 ex:binarycountComposition a fno:Composition ;
-    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_eq_1 ;
+    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_1 ;
+                    fnoc:functionOutput ex:iterOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:next_1 ;
+                    fnoc:functionParameter ex:nextParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:enumerate_1 ;
+                    fnoc:functionOutput ex:enumerateOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:iter_1 ;
+                    fnoc:functionParameter ex:iterParameter0 ] ],
+        [ fnoc:mapFromTerm 2 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
+                    fnoc:functionParameter ex:op_powParameter0 ] ],
+        [ fnoc:mapFromTerm 0 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:binarycount ;
+                    fnoc:functionParameter ex:binarycountParameter0 ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:enumerate_1 ;
+                    fnoc:functionParameter ex:enumerateParameter0 ] ],
+        [ fnoc:mapFromTerm 1 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
+                    fnoc:functionParameter ex:op_eqParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionOutput ex:op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter0 ] ;
+            fnoc:priority ex:op_add_1 ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionOutput ex:op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:binarycount ;
+                    fnoc:functionParameter ex:binarycountOutput ] ],
+        [ fnoc:mapFromTerm "i" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
+                    fnoc:functionParameter ex:op_powParameter1 ] ],
+        [ fnoc:mapFromTerm "bit" ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
+                    fnoc:functionParameter ex:op_eqParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_eq_1 ;
                     fnoc:functionOutput ex:op_eqOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction cf:if_1 ;
                     fnoc:functionParameter cf:TestParameter ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_pow_1 ;
                     fnoc:functionOutput ex:op_powOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionParameter ex:op_addParameter1 ] ],
-        [ fnoc:mapFromTerm 1 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
-                    fnoc:functionParameter ex:op_eqParameter1 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
-                    fnoc:functionOutput ex:nextOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
-                    fnoc:functionParameter ex:op_eqParameter0 ] ],
-        [ fnoc:mapFromTerm 0 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionParameter ex:op_addParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
-                    fnoc:functionOutput ex:nextOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
-                    fnoc:functionParameter ex:op_powParameter1 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:enumerate_1 ;
-                    fnoc:functionOutput ex:enumerateOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:iter_1 ;
-                    fnoc:functionParameter ex:iterParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionOutput ex:op_addOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:binarycount ;
-                    fnoc:functionParameter ex:binarycountOutput ] ],
-        [ fnoc:mapFromTerm 2 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
-                    fnoc:functionParameter ex:op_powParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_1 ;
-                    fnoc:functionOutput ex:iterOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:next_1 ;
-                    fnoc:functionParameter ex:nextParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionOutput ex:op_addOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionParameter ex:op_addParameter0 ] ;
-            fnoc:priority ex:op_add_1 ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:binarycount ;
-                    fnoc:functionParameter ex:binarycountParameter0 ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:enumerate_1 ;
-                    fnoc:functionParameter ex:enumerateParameter0 ] ] ;
+                    fnoc:functionParameter ex:op_addParameter1 ] ] ;
     fnoc:represents ex:binarycount ;
     fnoc:start ex:enumerate_1 .
 
@@ -67,12 +65,12 @@ ex:binarycountMapping a fno:Mapping ;
     fno:implementation python:binarycount184ba669 ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "binarycount" ] ;
-    fno:parameterMapping [ a fnom:PropertyParameterMapping ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:binarycountParameter0 ;
-            fnom:implementationProperty "bits" ],
-        [ a fnom:PositionParameterMapping ;
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:binarycountParameter0 ;
-            fnom:implementationParameterPosition 0 ] ;
+            fnom:implementationProperty "bits" ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
             fnom:functionOutput ex:binarycountOutput ] ;
     fnom:mappingMethod "default" .
@@ -86,11 +84,11 @@ ex:enumerateMapping a fno:Mapping ;
             fnom:functionParameter ex:enumerateParameter0 ;
             fnom:implementationProperty "iterable" ],
         [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:enumerateParameter1 ;
-            fnom:implementationParameterPosition 1 ],
-        [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:enumerateParameter0 ;
             fnom:implementationParameterPosition 0 ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:enumerateParameter1 ;
+            fnom:implementationParameterPosition 1 ],
         [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:enumerateParameter1 ;
             fnom:implementationProperty "start" ],
@@ -146,11 +144,11 @@ ex:op_eqMapping a fno:Mapping ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "eq" ] ;
     fno:parameterMapping [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:op_eqParameter1 ;
-            fnom:implementationParameterPosition 1 ],
-        [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:op_eqParameter0 ;
-            fnom:implementationParameterPosition 0 ] ;
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:op_eqParameter1 ;
+            fnom:implementationParameterPosition 1 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
             fnom:functionOutput ex:op_eqOutput ] ;
     fnom:mappingMethod "default" .
@@ -243,6 +241,10 @@ ex:next a prov:Entity,
     fno:name "next" ;
     fno:returns [ a rdf:Seq ;
             rdf:_1 ex:nextOutput ] .
+
+ex:nextOutput a fno:Output ;
+    fno:predicate ex:nextResult ;
+    fno:type python:Any41485baa .
 
 ex:op_add a prov:Entity,
         fno:Function ;
@@ -378,9 +380,8 @@ ex:enumerateParameter1 a fno:Parameter ;
     fno:required false ;
     fno:type python:Any41485baa .
 
-ex:nextOutput a fno:Output ;
-    fno:predicate ex:nextResult ;
-    fno:type python:Any41485baa .
+ex:next_1 fnoc:applies ex:next ;
+    fnoc:iterate ex:op_eq_1 .
 
 ex:op_addOutput a fno:Output ;
     fno:predicate ex:op_addResult ;
@@ -396,9 +397,6 @@ ex:op_eq_1 fnoc:applies ex:op_eq ;
 
 ex:op_pow_1 fnoc:applies ex:op_pow ;
     fnoc:next ex:op_add_1 .
-
-ex:next_1 fnoc:applies ex:next ;
-    fnoc:iterate ex:op_eq_1 .
 
 ex:op_add_1 fnoc:applies ex:op_add ;
     fnoc:next ex:next_1 .

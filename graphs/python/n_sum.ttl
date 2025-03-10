@@ -1,110 +1,115 @@
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
 @prefix ex: <http://www.example.com#> .
 @prefix fno: <https://w3id.org/function/ontology#> .
 @prefix fnoc: <https://w3id.org/function/vocabulary/composition#> .
 @prefix fnoi: <https://w3id.org/function/vocabulary/implementation#> .
 @prefix fnom: <https://w3id.org/function/vocabulary/mapping#> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix python: <http://www.example.com/python#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 ex:iterMapping a fno:Mapping ;
     fno:function ex:iter ;
-    fno:implementation ex:iterPythonImplementation ;
+    fno:implementation python:itere513fb1f ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "iter" ] ;
     fno:parameterMapping [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:iterParameter0 ;
             fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:iterOutput ] .
+            fnom:functionOutput ex:iterOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:n_sumComposition a fno:Composition ;
-    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionOutput ex:op_addOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:n_sum ;
-                    fnoc:functionParameter ex:n_sumOutput ] ],
+    fnoc:composedOf [ fnoc:mapFromTerm 0 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter0 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:n_sum ;
                     fnoc:functionParameter ex:n_sumParameter0 ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:range_1 ;
                     fnoc:functionParameter ex:rangeParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
-                    fnoc:functionOutput ex:nextOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionParameter ex:op_addParameter1 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionOutput ex:op_addOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionParameter ex:op_addParameter0 ] ;
             fnoc:priority ex:op_add_1 ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
+                    fnoc:functionOutput ex:nextOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter1 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_1 ;
                     fnoc:functionOutput ex:iterOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:next_1 ;
                     fnoc:functionParameter ex:nextParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionOutput ex:op_addOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:n_sum ;
+                    fnoc:functionParameter ex:n_sumOutput ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:range_1 ;
                     fnoc:functionOutput ex:rangeOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:iter_1 ;
-                    fnoc:functionParameter ex:iterParameter0 ] ],
-        [ fnoc:mapFromTerm 0 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionParameter ex:op_addParameter0 ] ] ;
+                    fnoc:functionParameter ex:iterParameter0 ] ] ;
     fnoc:represents ex:n_sum ;
     fnoc:start ex:range_1 .
 
 ex:n_sumMapping a fno:Mapping ;
     fno:function ex:n_sum ;
-    fno:implementation ex:n_sumPythonImplementation ;
+    fno:implementation python:n_sum816c3048 ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "n_sum" ] ;
-    fno:parameterMapping [ a fnom:PropertyParameterMapping ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:n_sumParameter0 ;
-            fnom:implementationProperty "n" ],
-        [ a fnom:PositionParameterMapping ;
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:n_sumParameter0 ;
-            fnom:implementationParameterPosition 0 ] ;
+            fnom:implementationProperty "n" ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:n_sumOutput ] .
+            fnom:functionOutput ex:n_sumOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:nextMapping a fno:Mapping ;
     fno:function ex:next ;
-    fno:implementation ex:nextPythonImplementation ;
+    fno:implementation python:nexte513fb1f ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "next" ] ;
     fno:parameterMapping [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:nextParameter0 ;
             fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:nextOutput ] .
+            fnom:functionOutput ex:nextOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:op_addMapping a fno:Mapping ;
     fno:function ex:op_add ;
-    fno:implementation ex:op_addPythonImplementation ;
+    fno:implementation python:op_add3c3209e3 ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "add" ] ;
     fno:parameterMapping [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:op_addParameter0 ;
-            fnom:implementationParameterPosition 0 ],
-        [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:op_addParameter1 ;
-            fnom:implementationParameterPosition 1 ] ;
+            fnom:implementationParameterPosition 1 ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:op_addParameter0 ;
+            fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:op_addOutput ] .
+            fnom:functionOutput ex:op_addOutput ] ;
+    fnom:mappingMethod "default" .
 
 ex:rangeMapping a fno:Mapping ;
     fno:function ex:range ;
-    fno:implementation ex:rangePythonClass ;
+    fno:implementation python:rangee513fb1f ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "range" ] ;
     fno:parameterMapping [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:rangeParameter0 ;
             fnom:implementationParameterPosition 0 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
-            fnom:functionOutput ex:rangeOutput ] .
+            fnom:functionOutput ex:rangeOutput ] ;
+    fnom:mappingMethod "default" .
 
-ex:intPythonClass a prov:Agent,
+python:inte513fb1f a fnoi:Implementation,
         fnoi:PythonClass ;
-    rdfs:label "int" ;
     dcterms:description """int([x]) -> integer
 int(x, base=10) -> integer
 
@@ -119,42 +124,42 @@ by whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.
 Base 0 means to interpret the base from the string as an integer literal.
 >>> int('0b100', base=0)
 4""" ;
+    doap:name "int" ;
     fnoi:module "builtins" .
 
-ex:iterPythonImplementation a prov:Agent,
+python:itere513fb1f a fnoi:Implementation,
         fnoi:PythonFunction ;
-    rdfs:label "iter" ;
     dcterms:description """Get an iterator from an object.
 
 In the first form, the argument must supply its own iterator, or be a sequence.
 In the second form, the callable is called until it returns the sentinel.""" ;
+    doap:name "iter" ;
     fnoi:module "builtins" .
 
-ex:n_sumPythonImplementation a prov:Agent,
+python:n_sum816c3048 a fnoi:Implementation,
         fnoi:PythonFunction ;
-    rdfs:label "n_sum" ;
-    dcterms:description "None" ;
-    fnoi:file "/home/ponachte/projects/py2rdf/describe_functions.py" ;
-    fnoi:module "__main__" .
+    doap:name "n_sum" ;
+    fnoi:file <file:///home/ponachte/projects/py2rdf/python_examples/for_loop.py> ;
+    fnoi:module "python_examples.for_loop" ;
+    fnoi:package "python_examples" .
 
-ex:nextPythonImplementation a prov:Agent,
+python:nexte513fb1f a fnoi:Implementation,
         fnoi:PythonFunction ;
-    rdfs:label "next" ;
     dcterms:description """Return the next item from the iterator.
 
 If default is given and the iterator is exhausted,
 it is returned instead of raising StopIteration.""" ;
+    doap:name "next" ;
     fnoi:module "builtins" .
 
-ex:op_addPythonImplementation a prov:Agent,
+python:op_add3c3209e3 a fnoi:Implementation,
         fnoi:PythonFunction ;
-    rdfs:label "add" ;
     dcterms:description "Same as a + b." ;
+    doap:name "op_add" ;
     fnoi:module "_operator" .
 
-ex:rangePythonClass a prov:Agent,
+python:rangee513fb1f a fnoi:Implementation,
         fnoi:PythonClass ;
-    rdfs:label "range" ;
     dcterms:description """range(stop) -> range object
 range(start, stop[, step]) -> range object
 
@@ -163,6 +168,7 @@ to stop (exclusive) by step.  range(i, j) produces i, i+1, i+2, ..., j-1.
 start defaults to 0, and stop is omitted!  range(4) produces 0, 1, 2, 3.
 These are exactly the valid indices for a list of 4 elements.
 When step is given, it specifies the increment (or decrement).""" ;
+    doap:name "range" ;
     fnoi:module "builtins" .
 
 ex:iter a prov:Entity,
@@ -200,42 +206,42 @@ ex:range a prov:Entity,
 
 ex:iterOutput a fno:Output ;
     fno:predicate ex:iterResult ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:iterParameter0 a fno:Parameter ;
-    fno:predicate ex:iterParameterPred0 ;
+    fno:predicate ex:param0 ;
     fno:required true ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:iter_1 fnoc:applies ex:iter ;
     fnoc:next ex:next_1 .
 
 ex:n_sumOutput a fno:Output ;
     fno:predicate ex:n_sumResult ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:nextOutput a fno:Output ;
     fno:predicate ex:nextResult ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:nextParameter0 a fno:Parameter ;
-    fno:predicate ex:nextParameterPred0 ;
+    fno:predicate ex:param0 ;
     fno:required true ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:op_addParameter1 a fno:Parameter ;
     fno:predicate ex:b ;
     fno:required true ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:rangeOutput a fno:Output ;
     fno:predicate ex:rangeResult ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:rangeParameter0 a fno:Parameter ;
-    fno:predicate ex:rangeParameterPred0 ;
+    fno:predicate ex:param0 ;
     fno:required true ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:range_1 fnoc:applies ex:range ;
     fnoc:next ex:iter_1 .
@@ -251,26 +257,25 @@ ex:n_sum a prov:Entity,
 ex:n_sumParameter0 a fno:Parameter ;
     fno:predicate ex:n ;
     fno:required true ;
-    fno:type ex:intPythonClass .
+    fno:type python:inte513fb1f .
 
 ex:next_1 fnoc:applies ex:next ;
     fnoc:iterate ex:op_add_1 .
 
 ex:op_addOutput a fno:Output ;
     fno:predicate ex:op_addResult ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:op_addParameter0 a fno:Parameter ;
     fno:predicate ex:a ;
     fno:required true ;
-    fno:type ex:AnyPythonClass .
+    fno:type python:Any41485baa .
 
 ex:op_add_1 fnoc:applies ex:op_add ;
     fnoc:next ex:next_1 .
 
-ex:AnyPythonClass a prov:Agent,
+python:Any41485baa a fnoi:Implementation,
         fnoi:PythonClass ;
-    rdfs:label "Any" ;
     dcterms:description """Special type indicating an unconstrained type.
 
     - Any is compatible with every type.
@@ -281,6 +286,7 @@ ex:AnyPythonClass a prov:Agent,
     static type checkers. At runtime, Any should not be used with instance
     checks.
     """ ;
-    fnoi:file "/home/ponachte/anaconda3/lib/python3.12/typing.py" ;
+    doap:name "Any" ;
+    fnoi:file <file:///home/ponachte/anaconda3/lib/python3.12/typing.py> ;
     fnoi:module "typing" .
 

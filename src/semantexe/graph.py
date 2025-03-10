@@ -145,12 +145,23 @@ class ExecutableGraph(Graph):
         result = [x['name'].value for x in self.query(
             f'''
             SELECT ?name WHERE {{
+                <{f}> fno:name ?name ;
+            }}''', 
+            initNs=Prefix.NAMESPACES
+        )]
+        
+        """
+        result = [x['name'].value for x in self.query(
+            f'''
+            SELECT ?name WHERE {{
                 ?mapping fno:function <{f}> ;
                          fno:methodMapping ?methodmap .
                 ?methodmap fnom:method-name ?name .
             }}''', 
             initNs=Prefix.NAMESPACES
         )]
+        """
+        
         return result[0] if len(result) > 0 else None
     
     def is_function(self, s) -> bool:
@@ -596,7 +607,7 @@ class ExecutableGraph(Graph):
          ''', initNs=Prefix.NAMESPACES)
          return True if result else False
      
-    def get_start(self, c: URIRef) -> bool:
+    def get_start(self, c: URIRef) -> URIRef:
         result = [
             x['start']
             for x in self.query(f'''
@@ -608,9 +619,11 @@ class ExecutableGraph(Graph):
         
         if len(result) > 1:
             raise Exception(f"Composition has multiple starts: {result}")
-        if len(result) == 1:
-            return result[0]
-     
+        if len(result) == 0:
+            raise Exception(f"Composition has no start defined")
+        return result[0]
+        
+    
     def get_representations(self, c: URIRef) -> URIRef:
         result = [
             x['f']

@@ -41,16 +41,19 @@ class DirectoryDescriptor(AbstractResourceDescriptor):
         self._fileDescriptor = FileDescriptor(g)
     
     def describe_resource(self, resource):
-        if os.path.isdir(resource):
-            descriptions = []
-            for file_path in get_all_filepaths(resource):
-                try:
-                    descriptions.append(self._fileDescriptor.describe_resource(file_path))
-                except ValueError as e:
-                    descriptions.append(file_path)
-            return descriptions
-        else:
-            return super().describe_resource(resource)
+        try:
+            if os.path.isdir(resource):
+                descriptions = []
+                for file_path in get_all_filepaths(resource):
+                    try:
+                        descriptions.append(self._fileDescriptor.describe_resource(file_path))
+                    except ValueError as e:
+                        descriptions.append(file_path)
+                return descriptions
+        except:
+            pass
+        
+        return super().describe_resource(resource)
         
 class FileDescriptor(AbstractResourceDescriptor):
     
@@ -64,11 +67,14 @@ class FileDescriptor(AbstractResourceDescriptor):
         self._start.set_next(DockerfileDescriptor(g))
        
     def describe_resource(self, resource):
-        if os.path.isfile(resource):
-            try:
-                return self._start.describe_file(resource)
-            except ValueError as e:
-                print(e)
-                return None
-        else:
-            return super().describe_resource(resource)
+        try:
+            if os.path.isfile(resource):
+                try:
+                    return self._start.describe_file(resource)
+                except ValueError as e:
+                    print(e)
+                    return None
+        except:
+            pass
+        
+        return super().describe_resource(resource)

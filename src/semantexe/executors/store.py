@@ -52,6 +52,26 @@ class Mapping:
     def execute(self):
         for source, src_strat, src_key, tar_start, tar_key in self.sources[self.priority]:
             self.target.set(source.get(src_strat, src_key), tar_start, tar_key)
+    
+    def list_sources(self):
+        sources = set()
+        for priority in self.sources:
+            for source, _, _, _, _ in self.sources[priority]:
+                sources.add(source)
+        return sources
+            
+    def json_elk(self):
+        edges = []
+        for source in self.list_sources():
+            if isinstance(source, Terminal):
+                edges.append({
+                    "id": f"{source.id()}_{self.target.id()}",
+                    "target": self.target.fun.id(),
+                    "targetPort": self.target.id(),
+                    "source": source.fun.id(),
+                    "sourcePort": source.id()
+                })
+        return edges
 
 class ValueStore:
     
@@ -106,7 +126,22 @@ class Terminal(ValueStore):
         for i, val in self.value.items():
             indexed.append((i, val))
         return [ x[1] for x in sorted(indexed, key=lambda x: x[0]) ]
+    
+    def id(self):
+        return f"{self.fun.id()}_{get_name(self.uri)}"
                 
+    def json_elk(self):
+        return {
+            "id": self.id(),
+            "width": 5,
+            "height":5,
+            "labels": [{
+                "text":  get_name(self.pred)
+            }] if not self.is_output else [],
+            "layoutOptions": {
+                "port.side": "EAST" if self.is_output else "WEST"
+            }
+        }
 
     def __hash__(self) -> int:
         return hash(self.uri)
