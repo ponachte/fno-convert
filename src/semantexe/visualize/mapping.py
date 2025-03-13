@@ -1,35 +1,184 @@
-from math import atan2, cos, sin
+import math
 from pyqtgraph import GraphicsObject, Point
 import pyqtgraph.functions as fn
-from PyQt6.QtCore import QPointF, QLineF
 from PyQt6.QtGui import QPainterPath, QPainterPathStroker
+from PyQt6.QtWidgets import QGraphicsTextItem
+from PyQt6.QtCore import Qt
 
-from .store import StoreGraphicsItem, VariableGraphicsItem, TerminalGraphicsItem
-from .composition import CompositionGraphicsItem
-from .process import ProcessGraphicsItem
-from ..executors.process import FunctionLink
+from .store import TerminalGraphicsItem
 
 STD_COLOR = (100, 100, 250)
-LINK_COLOR = (250, 100, 100)
+LINK_COLOR = (250, 50, 50)
 
 class MappingGraphicsItem(GraphicsObject):
 
-    def __init__(self, source: StoreGraphicsItem, target: StoreGraphicsItem, flow_view):
+    def __init__(self):
         GraphicsObject.__init__(self)
-        self.source = source
-        self.target = target
-        self.flow_view = flow_view
 
         self.length = 0
         self.path = None
         self.shapePath = None
+        self.style = {}
+    
+    def layer(self, elk):        
+        # TODO multiple sections?
+        sections = elk.get("sections", [])
+        if len(sections) == 0:
+            return
+        if len(sections) > 1:
+            print("Multiple sections not handled!!!")
+            
+        start = Point(sections[0]["startPoint"]["x"], sections[0]["startPoint"]["y"])
+        stop = Point(sections[0]["endPoint"]["x"], sections[0]["endPoint"]["y"])
+        bendPoints = sections[0].get("bendPoints", [])
+        
+        self.path = QPainterPath()
+        self.path.moveTo(start)
+        for point in bendPoints:
+            self.path.lineTo(Point(point["x"], point["y"]))
+        self.path.lineTo(stop)
+        
+        self.shapePath = None
+        self.update()
+    
+    def keyPressEvent(self, ev):
+        ev.ignore()
+        return
+
+    def mousePressEvent(self, ev):
+        ev.ignore()
+        return
+
+    def mouseClickEvent(self, ev):
+        ev.ignore()
+        return
+    
+    def boundingRect(self):
+        return self.shape().boundingRect()
+    
+    def viewRangeChanged(self):
+        self.shapePath = None
+        self.prepareGeometryChange()
+
+    def shape(self):
+        if self.shapePath is None:
+            if self.path is None:
+                return QPainterPath()
+            stroker = QPainterPathStroker()
+            px = self.pixelWidth()
+            stroker.setWidth(px * 8)
+            self.shapePath = stroker.createStroke(self.path)
+        return self.shapePath
+    
+    def paint(self, p, *args):
+        if self.path is None:
+            return
+        
+        p.setPen(fn.mkPen(self.style['color'], width=self.style['width']))
+        p.drawPath(self.path)
+
+class ControlMappingGraphicsItem(MappingGraphicsItem):
+    
+    def __init__(self, source, target, type):
+        super().__init__()
+        
+        color = LINK_COLOR
+        self.style = {
+            'shape': 'line',
+            'color': color,
+            'width': 2.0
+        }
+        
+        self.label = QGraphicsTextItem(type, self)
+        self.label.setScale(0.7)
+        self.label.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        
+        self.source = source
+        source.control_mappings.add(self)
+        self.target = target
+        target.control_mappings.add(self)
+        
+    def id(self):
+        return f"{self.source.function.id()}_{self.target.function.id()}_{self.label.toPlainText()}"
+    
+    def elk(self):
+        return {
+            "id": self.id(),
+            "target": self.target.function.id(),
+            # "targetPort": f"{self.source.function.id()}_{self.label.toPlainText()}_in",
+            "source": self.source.function.id(),
+            # "sourcePort": f"{self.source.function.id()}_{self.label.toPlainText()}_out",
+            "labels": [{
+                "text": self.label.toPlainText(),
+                "width": self.label.boundingRect().width(),
+                "height": self.label.boundingRect().height(),
+                "layoutOptions": {
+                    "edgeLabels.placement": "TAIL"
+                }
+            }]
+        }
+    
+    def port(self, call):
+        return {
+            "id": f"{self.source.function.id()}_{self.label.toPlainText()}_{"in" if call == self.target else "out"}",
+            "width": 0,
+            "height": 0,
+            "layoutOptions": {
+                "allowNonFlowPortsToSwitchSides": "true",
+                "port.side": "SOUTH"
+            }
+        }
+    
+    def layer(self, elk):
+        super().layer(elk)
+        
+        # Set label
+        self.label.setPos(elk["labels"][0]["x"], elk["labels"][0]["y"])
+        
+        self.add_arrowhead()
+    
+    def add_arrowhead(self):
+        # Get last two points of the path
+        end = self.path.currentPosition()  # Get last point
+        if self.path.elementCount() > 1:
+            lastElement = self.path.elementAt(self.path.elementCount() - 2)
+            start = Point(lastElement.x, lastElement.y)
+        
+            arrow_size = 10  # Arrowhead length
+
+            # Compute direction vector
+            dx = end.x() - start.x()
+            dy = end.y() - start.y()
+            angle = math.atan2(dy, dx)
+
+            # Compute arrowhead points
+            left = Point(end.x() - arrow_size * math.cos(angle - math.pi / 6), 
+                        end.y() - arrow_size * math.sin(angle - math.pi / 6))
+            right = Point(end.x() - arrow_size * math.cos(angle + math.pi / 6), 
+                            end.y() - arrow_size * math.sin(angle + math.pi / 6))
+
+            # Append arrow lines to the path
+            self.path.lineTo(left)
+            self.path.moveTo(end)
+            self.path.lineTo(right)
+            
+            self.update()
+
+class DataMappingGraphicsItem(MappingGraphicsItem):
+    
+    def __init__(self, source: TerminalGraphicsItem, target: TerminalGraphicsItem):
+        super().__init__()
+        
         color = STD_COLOR
         self.style = {
             'shape': 'line',
             'color': color,
             'width': 2.0
         }
-
+        
+        self.source = source
+        self.target = target
+        
         if self.source.getViewBox():
             self.source.getViewBox().addItem(self)
         else:
@@ -38,310 +187,17 @@ class MappingGraphicsItem(GraphicsObject):
         
         self.source.mappings[target] = self
         self.target.mappings[source] = self
-
-        self.source.visibleChanged.connect(self.checkVisible)
-        self.target.visibleChanged.connect(self.checkVisible)
         
-        self.updateLine()
         self.setZValue(1)
     
-    def updateLine(self):
-        start = Point(self.source.sourcePoint())
-        stop = Point(self.target.targetPoint())
-
-        self.prepareGeometryChange()
-
-        self.path = self.generatePath(start, stop)
-        self.shapePath = None
-        self.update()
-
-    def generatePath(self, start, stop):
-        # Step 1: Initialize a new QPainterPath starting at 'start'
-        path = QPainterPath()
-        path.moveTo(start)
-
-        # Step 2: Set up some variables
-        current_point = start
-        next_point = None
-
-        # Step 3: Get all items in the ViewBox (this is your obstacle set)
-        obstacles = [item for item in self.flow_view.process.values()
-                     if item.isVisible() 
-                     if item not in [self.source.parentItem(), self.target.parentItem()]]
-
-        # Step 4: Break the path into horizontal and vertical segments (Manhattan-style routing)
-        mid_x = (start.x() + stop.x()) / 2
-
-        # Move horizontally first, then vertically (for example)
-        points = [
-            QPointF(mid_x, start.y()),  # Move horizontally to the middle
-            QPointF(mid_x, stop.y()),   # Move vertically to align with the target
-            stop                        # Final segment to the stop point
-        ]
-
-        # Step 5: Check for collisions and adjust segments
-        i = 0
-        while i < len(points):
-            segment = points[i:i+2]
-
-            """# Check if the first part of the segment collides
-            collision = self.collidesWithObstacles(segment[0], segment[1], obstacles)
-
-            if collision:
-                # If there is a collision, adjust the path (for simplicity, we move around obstacles)
-                next_point = self.adjustPathAroundObstacle(current_point, next_point, collision)"""
-            
-            next_point = segment[0]
-            i += 1
-            # Add this segment to the path
-            path.lineTo(next_point)
-            current_point = next_point
-
-        # Step 6: Add arrowhead at the end (optional)
-        self.addArrowhead(path, stop, current_point)
-
-        return path
-
-    def collidesWithObstacles(self, start, end, obstacles):
-        # Create a QPainterPath for the line between start and end
-        line_path = QPainterPath()
-        line_path.moveTo(start)
-        line_path.lineTo(end)
-
-        for obstacle in obstacles:
-            # Check if line intersects with the obstacle bounds
-            obstacle_bounds = obstacle.mapRectToParent(obstacle.boundingRect())
-            if line_path.intersects(obstacle_bounds):
-                return obstacle  # Return the first obstacle we hit
-
-        return None  # No collisions
+    def id(self):
+        return f"{self.source.store.id()}_{self.target.store.id()}"
     
-    def adjustPathAroundObstacle(self, start, mid, end, obstacle):
-        pass
-    
-    def addArrowhead(self, path, stop, direction):
-        arrow_length = 10
-        arrow_angle = 70
-
-        # Calculate the points for the two sides of the arrowhead
-        side1 = stop + QPointF(
-            -arrow_length * cos(arrow_angle + atan2(direction.y(), direction.x())),
-            -arrow_length * sin(arrow_angle + atan2(direction.y(), direction.x()))
-        )
-        side2 = stop + QPointF(
-            -arrow_length * cos(-arrow_angle + atan2(direction.y(), direction.x())),
-            -arrow_length * sin(-arrow_angle + atan2(direction.y(), direction.x()))
-        )
-
-        # Add the arrowhead and the line to the path
-        path.lineTo(stop)
-        path.lineTo(side1)
-        path.moveTo(stop)
-        path.lineTo(side2)
-    
-    def edge(self):
-        if isinstance(self.source, VariableGraphicsItem):
-            return (self.source, self.target.parentItem())
-        if isinstance(self.target, VariableGraphicsItem):
-            return (self.source.parentItem(), self.target)
-        return (self.source.parentItem(), self.target.parentItem())
-    
-    def checkVisible(self):
-        self.setVisible(self.source.isVisible() and self.target.isVisible())
-    
-    def keyPressEvent(self, ev):
-        ev.ignore()
-        return
-
-    def mousePressEvent(self, ev):
-        ev.ignore()
-        return
-
-    def mouseClickEvent(self, ev):
-        ev.ignore()
-        return
-    
-    def boundingRect(self):
-        return self.shape().boundingRect()
-    
-    def viewRangeChanged(self):
-        self.shapePath = None
-        self.prepareGeometryChange()
-
-    def shape(self):
-        if self.shapePath is None:
-            if self.path is None:
-                return QPainterPath()
-            stroker = QPainterPathStroker()
-            px = self.pixelWidth()
-            stroker.setWidth(px * 8)
-            self.shapePath = stroker.createStroke(self.path)
-        return self.shapePath
-    
-    def paint(self, p, *args):
-        p.setPen(fn.mkPen(self.style['color'], width=self.style['width']))
-        p.drawPath(self.path)
-
-class ControlFlowGraphicsItem(GraphicsObject):
-
-    def __init__(self, source: CompositionGraphicsItem, target: CompositionGraphicsItem, label: str, flow_view):
-        GraphicsObject.__init__(self)
-        self.source = source
-        self.target = target
-        self.flow_view = flow_view
-
-        self.length = 0
-        self.path = None
-        self.shapePath = None
-        self.style = {
-            'shape': 'line',
-            'color': (250, 175, 100),
-            'width': 2.0
+    def elk(self):
+        return {
+            "id": f"{self.source.store.id()}_{self.target.store.id()}",
+            "target": self.target.store.fun.id(),
+            "targetPort": self.target.store.id(),
+            "source": self.source.store.fun.id(),
+            "sourcePort": self.source.store.id()
         }
-
-        if self.source.getViewBox():
-            self.source.getViewBox().addItem(self)
-        else:
-            self.target.getViewBox().addItem(self)
-            self.target.getViewBox().addItem(self.source)
-        
-        self.source.control_flows[target] = self
-        self.target.control_flows[source] = self
-
-        self.source.visibleChanged.connect(self.checkVisible)
-        self.target.visibleChanged.connect(self.checkVisible)
-        
-        self.updateLine()
-        self.setZValue(1)
-    
-    def updateLine(self):
-        start = Point(self.source.sourcePoint())
-        stop = Point(self.target.targetPoint())
-
-        self.prepareGeometryChange()
-
-        self.path = self.generatePath(start, stop)
-        self.shapePath = None
-        self.update()
-
-    def generatePath(self, start, stop):
-        # Step 1: Initialize a new QPainterPath starting at 'start'
-        path = QPainterPath()
-        path.moveTo(start)
-
-        # Step 2: Set up some variables
-        current_point = start
-        next_point = None
-
-        # Step 3: Get all items in the ViewBox (this is your obstacle set)
-        obstacles = [item for item in self.flow_view.process.values()
-                     if item.isVisible() 
-                     if item not in [self.source.parentItem(), self.target.parentItem()]]
-
-        # Step 4: Break the path into horizontal and vertical segments (Manhattan-style routing)
-        mid_x = (start.x() + stop.x()) / 2
-
-        # Move horizontally first, then vertically (for example)
-        points = [
-            QPointF(mid_x, start.y()),  # Move horizontally to the middle
-            QPointF(mid_x, stop.y()),   # Move vertically to align with the target
-            stop                        # Final segment to the stop point
-        ]
-
-        # Step 5: Check for collisions and adjust segments
-        i = 0
-        while i < len(points):
-            segment = points[i:i+2]
-
-            """# Check if the first part of the segment collides
-            collision = self.collidesWithObstacles(segment[0], segment[1], obstacles)
-
-            if collision:
-                # If there is a collision, adjust the path (for simplicity, we move around obstacles)
-                next_point = self.adjustPathAroundObstacle(current_point, next_point, collision)"""
-            
-            next_point = segment[0]
-            i += 1
-            # Add this segment to the path
-            path.lineTo(next_point)
-            current_point = next_point
-
-        # Step 6: Add arrowhead at the end (optional)
-        self.addArrowhead(path, stop, current_point)
-
-        return path
-
-    def collidesWithObstacles(self, start, end, obstacles):
-        # Create a QPainterPath for the line between start and end
-        line_path = QPainterPath()
-        line_path.moveTo(start)
-        line_path.lineTo(end)
-
-        for obstacle in obstacles:
-            # Check if line intersects with the obstacle bounds
-            obstacle_bounds = obstacle.mapRectToParent(obstacle.boundingRect())
-            if line_path.intersects(obstacle_bounds):
-                return obstacle  # Return the first obstacle we hit
-
-        return None  # No collisions
-    
-    def adjustPathAroundObstacle(self, start, mid, end, obstacle):
-        pass
-    
-    def addArrowhead(self, path, stop, direction):
-        arrow_length = 10
-        arrow_angle = 70
-
-        # Calculate the points for the two sides of the arrowhead
-        side1 = stop + QPointF(
-            -arrow_length * cos(arrow_angle + atan2(direction.y(), direction.x())),
-            -arrow_length * sin(arrow_angle + atan2(direction.y(), direction.x()))
-        )
-        side2 = stop + QPointF(
-            -arrow_length * cos(-arrow_angle + atan2(direction.y(), direction.x())),
-            -arrow_length * sin(-arrow_angle + atan2(direction.y(), direction.x()))
-        )
-
-        # Add the arrowhead and the line to the path
-        path.lineTo(stop)
-        path.lineTo(side1)
-        path.moveTo(stop)
-        path.lineTo(side2)
-    
-    def checkVisible(self):
-        self.setVisible(self.source.isVisible() and self.target.isVisible())
-    
-    def keyPressEvent(self, ev):
-        ev.ignore()
-        return
-
-    def mousePressEvent(self, ev):
-        ev.ignore()
-        return
-
-    def mouseClickEvent(self, ev):
-        ev.ignore()
-        return
-    
-    def boundingRect(self):
-        return self.shape().boundingRect()
-    
-    def viewRangeChanged(self):
-        self.shapePath = None
-        self.prepareGeometryChange()
-
-    def shape(self):
-        if self.shapePath is None:
-            if self.path is None:
-                return QPainterPath()
-            stroker = QPainterPathStroker()
-            px = self.pixelWidth()
-            stroker.setWidth(px * 8)
-            self.shapePath = stroker.createStroke(self.path)
-        return self.shapePath
-    
-    def paint(self, p, *args):
-        p.setPen(fn.mkPen(self.style['color'], width=self.style['width']))
-        p.drawPath(self.path)
-
-

@@ -13,52 +13,52 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 ex:binarycountComposition a fno:Composition ;
-    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_eq_1 ;
-                    fnoc:functionOutput ex:op_eqOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction cf:if_1 ;
-                    fnoc:functionParameter cf:TestParameter ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_pow_1 ;
-                    fnoc:functionOutput ex:op_powOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionParameter ex:op_addParameter1 ] ],
-        [ fnoc:mapFromTerm 1 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
-                    fnoc:functionParameter ex:op_eqParameter1 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
+    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
                     fnoc:functionOutput ex:nextOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
                     fnoc:functionParameter ex:op_eqParameter0 ] ],
-        [ fnoc:mapFromTerm 0 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
-                    fnoc:functionParameter ex:op_addParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
-                    fnoc:functionOutput ex:nextOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
-                    fnoc:functionParameter ex:op_powParameter1 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:enumerate_1 ;
                     fnoc:functionOutput ex:enumerateOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:iter_1 ;
                     fnoc:functionParameter ex:iterParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_pow_1 ;
+                    fnoc:functionOutput ex:op_powOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
+                    fnoc:functionOutput ex:nextOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
+                    fnoc:functionParameter ex:op_powParameter1 ] ],
+        [ fnoc:mapFromTerm 1 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
+                    fnoc:functionParameter ex:op_eqParameter1 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionOutput ex:op_addOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:binarycount ;
                     fnoc:functionParameter ex:binarycountOutput ] ],
-        [ fnoc:mapFromTerm 2 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
-                    fnoc:functionParameter ex:op_powParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:binarycount ;
+                    fnoc:functionParameter ex:binarycountParameter0 ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:enumerate_1 ;
+                    fnoc:functionParameter ex:enumerateParameter0 ] ],
+        [ fnoc:mapFromTerm 0 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
+                    fnoc:functionParameter ex:op_addParameter0 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_eq_1 ;
+                    fnoc:functionOutput ex:op_eqOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction cf:if_1 ;
+                    fnoc:functionParameter cf:TestParameter ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_1 ;
                     fnoc:functionOutput ex:iterOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:next_1 ;
                     fnoc:functionParameter ex:nextParameter0 ] ],
+        [ fnoc:mapFromTerm 2 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
+                    fnoc:functionParameter ex:op_powParameter0 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionOutput ex:op_addOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionParameter ex:op_addParameter0 ] ;
-            fnoc:priority ex:op_add_1 ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:binarycount ;
-                    fnoc:functionParameter ex:binarycountParameter0 ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:enumerate_1 ;
-                    fnoc:functionParameter ex:enumerateParameter0 ] ] ;
+            fnoc:priority ex:op_add_1 ] ;
     fnoc:represents ex:binarycount ;
     fnoc:start ex:enumerate_1 .
 
@@ -67,12 +67,12 @@ ex:binarycountMapping a fno:Mapping ;
     fno:implementation python:binarycount184ba669 ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "binarycount" ] ;
-    fno:parameterMapping [ a fnom:PropertyParameterMapping ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:binarycountParameter0 ;
-            fnom:implementationProperty "bits" ],
-        [ a fnom:PositionParameterMapping ;
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:binarycountParameter0 ;
-            fnom:implementationParameterPosition 0 ] ;
+            fnom:implementationProperty "bits" ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
             fnom:functionOutput ex:binarycountOutput ] ;
     fnom:mappingMethod "default" .
@@ -82,21 +82,21 @@ ex:enumerateMapping a fno:Mapping ;
     fno:implementation python:enumeratee513fb1f ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "enumerate" ] ;
-    fno:parameterMapping [ a fnom:PropertyParameterMapping ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:enumerateParameter0 ;
-            fnom:implementationProperty "iterable" ],
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:DefaultParameterMapping ;
+            fnom:defaultValue 0 ;
+            fnom:functionParameter ex:enumerateParameter1 ],
         [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:enumerateParameter1 ;
             fnom:implementationParameterPosition 1 ],
-        [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:enumerateParameter0 ;
-            fnom:implementationParameterPosition 0 ],
         [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:enumerateParameter1 ;
             fnom:implementationProperty "start" ],
-        [ a fnom:DefaultParameterMapping ;
-            fnom:defaultValue 0 ;
-            fnom:functionParameter ex:enumerateParameter1 ] ;
+        [ a fnom:PropertyParameterMapping ;
+            fnom:functionParameter ex:enumerateParameter0 ;
+            fnom:implementationProperty "iterable" ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
             fnom:functionOutput ex:enumerateOutput ] ;
     fnom:mappingMethod "default" .

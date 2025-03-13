@@ -1,0 +1,617 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "algorithm": "layered",
+    "elk.direction": "RIGHT",
+    "edgeRouting": "ORTHOGONAL",
+    "hierarchyHandling": "SEPERATE_CHILDREN",
+    "elk.spacing.edgeNode": 50,
+    "elk.spacing.nodeNode": 30,
+    "elk.layered.feedbackEdges": true
+  },
+  "children": [
+    {
+      "id": "filter_list",
+      "uri": "http://www.example.com#filter_list",
+      "ports": [
+        {
+          "id": "filter_list_filter_listParameter0",
+          "uri": "http://www.example.com#filter_listParameter0",
+          "width": 11.0,
+          "height": 11.0,
+          "layoutOptions": {
+            "port.side": "WEST"
+          },
+          "labels": [
+            {
+              "text": "numbers",
+              "width": 61.03125,
+              "height": 22.0
+            }
+          ]
+        },
+        {
+          "id": "filter_list_filter_listParameter1",
+          "uri": "http://www.example.com#filter_listParameter1",
+          "width": 11.0,
+          "height": 11.0,
+          "layoutOptions": {
+            "port.side": "WEST"
+          },
+          "labels": [
+            {
+              "text": "min",
+              "width": 30.609375,
+              "height": 22.0
+            }
+          ]
+        },
+        {
+          "id": "filter_list_filter_listOutput",
+          "uri": "http://www.example.com#filter_listOutput",
+          "width": 11.0,
+          "height": 11.0,
+          "layoutOptions": {
+            "port.side": "EAST"
+          },
+          "labels": [
+            {
+              "text": "filter_listResult",
+              "width": 96.53125,
+              "height": 22.0
+            }
+          ]
+        }
+      ],
+      "children": [
+        {
+          "id": "filter_list_if_1",
+          "uri": "http://www.example.com/controlflow#if",
+          "ports": [
+            {
+              "id": "filter_list_if_1_TestParameter",
+              "uri": "http://www.example.com/controlflow#TestParameter",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "WEST"
+              },
+              "labels": [
+                {
+                  "text": "test",
+                  "width": 31.03125,
+                  "height": 22.0
+                }
+              ]
+            }
+          ],
+          "children": [],
+          "edges": [],
+          "layoutOptions": {
+            "nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS]",
+            "portConstraints": "FIXED_SIDE",
+            "portLabels.placement": "[INSIDE]",
+            "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]",
+            "elk.spacing.portPort": 15,
+            "elk.padding": "[top=0.0,left=0.0,bottom=0.0,right=0.0]"
+          },
+          "labels": [
+            {
+              "text": "if",
+              "width": 16.546875,
+              "height": 22.0
+            }
+          ]
+        },
+        {
+          "id": "filter_list_op_ge_1",
+          "uri": "http://www.example.com#op_ge",
+          "ports": [
+            {
+              "id": "filter_list_op_ge_1_op_geParameter0",
+              "uri": "http://www.example.com#op_geParameter0",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "WEST"
+              },
+              "labels": [
+                {
+                  "text": "a",
+                  "width": 15.34375,
+                  "height": 22.0
+                }
+              ]
+            },
+            {
+              "id": "filter_list_op_ge_1_op_geParameter1",
+              "uri": "http://www.example.com#op_geParameter1",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "WEST"
+              },
+              "labels": [
+                {
+                  "text": "b",
+                  "width": 15.609375,
+                  "height": 22.0
+                }
+              ]
+            },
+            {
+              "id": "filter_list_op_ge_1_op_geOutput",
+              "uri": "http://www.example.com#op_geOutput",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "EAST"
+              },
+              "labels": [
+                {
+                  "text": "op_geResult",
+                  "width": 80.96875,
+                  "height": 22.0
+                }
+              ]
+            }
+          ],
+          "children": [],
+          "edges": [],
+          "layoutOptions": {
+            "nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS]",
+            "portConstraints": "FIXED_SIDE",
+            "portLabels.placement": "[INSIDE]",
+            "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]",
+            "elk.spacing.portPort": 15,
+            "elk.padding": "[top=0.0,left=0.0,bottom=0.0,right=0.0]"
+          },
+          "labels": [
+            {
+              "text": "ge",
+              "width": 22.984375,
+              "height": 22.0
+            }
+          ]
+        },
+        {
+          "id": "filter_list_next_1",
+          "uri": "http://www.example.com#next",
+          "ports": [
+            {
+              "id": "filter_list_next_1_nextParameter0",
+              "uri": "http://www.example.com#nextParameter0",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "WEST"
+              },
+              "labels": [
+                {
+                  "text": "param0",
+                  "width": 54.53125,
+                  "height": 22.0
+                }
+              ]
+            },
+            {
+              "id": "filter_list_next_1_nextOutput",
+              "uri": "http://www.example.com#nextOutput",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "EAST"
+              },
+              "labels": [
+                {
+                  "text": "nextResult",
+                  "width": 71.609375,
+                  "height": 22.0
+                }
+              ]
+            }
+          ],
+          "children": [],
+          "edges": [],
+          "layoutOptions": {
+            "nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS]",
+            "portConstraints": "FIXED_SIDE",
+            "portLabels.placement": "[INSIDE]",
+            "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]",
+            "elk.spacing.portPort": 15,
+            "elk.padding": "[top=0.0,left=0.0,bottom=0.0,right=0.0]"
+          },
+          "labels": [
+            {
+              "text": "next",
+              "width": 34.5625,
+              "height": 22.0
+            }
+          ]
+        },
+        {
+          "id": "filter_list_list_1",
+          "uri": "http://www.example.com/controlflow#list",
+          "ports": [
+            {
+              "id": "filter_list_list_1_Elements",
+              "uri": "http://www.example.com/controlflow#Elements",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "WEST"
+              },
+              "labels": [
+                {
+                  "text": "elements",
+                  "width": 63.6875,
+                  "height": 22.0
+                }
+              ]
+            },
+            {
+              "id": "filter_list_list_1_ListOutput",
+              "uri": "http://www.example.com/controlflow#ListOutput",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "EAST"
+              },
+              "labels": [
+                {
+                  "text": "listResult",
+                  "width": 62.65625,
+                  "height": 22.0
+                }
+              ]
+            }
+          ],
+          "children": [],
+          "edges": [],
+          "layoutOptions": {
+            "nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS]",
+            "portConstraints": "FIXED_SIDE",
+            "portLabels.placement": "[INSIDE]",
+            "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]",
+            "elk.spacing.portPort": 15,
+            "elk.padding": "[top=0.0,left=0.0,bottom=0.0,right=0.0]"
+          },
+          "labels": [
+            {
+              "text": "list",
+              "width": 25.609375,
+              "height": 22.0
+            }
+          ]
+        },
+        {
+          "id": "filter_list_iter_1",
+          "uri": "http://www.example.com#iter",
+          "ports": [
+            {
+              "id": "filter_list_iter_1_iterParameter0",
+              "uri": "http://www.example.com#iterParameter0",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "WEST"
+              },
+              "labels": [
+                {
+                  "text": "param0",
+                  "width": 54.53125,
+                  "height": 22.0
+                }
+              ]
+            },
+            {
+              "id": "filter_list_iter_1_iterOutput",
+              "uri": "http://www.example.com#iterOutput",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "EAST"
+              },
+              "labels": [
+                {
+                  "text": "iterResult",
+                  "width": 65.375,
+                  "height": 22.0
+                }
+              ]
+            }
+          ],
+          "children": [],
+          "edges": [],
+          "layoutOptions": {
+            "nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS]",
+            "portConstraints": "FIXED_SIDE",
+            "portLabels.placement": "[INSIDE]",
+            "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]",
+            "elk.spacing.portPort": 15,
+            "elk.padding": "[top=0.0,left=0.0,bottom=0.0,right=0.0]"
+          },
+          "labels": [
+            {
+              "text": "iter",
+              "width": 28.328125,
+              "height": 22.0
+            }
+          ]
+        },
+        {
+          "id": "filter_list_list_append_1",
+          "uri": "http://www.example.com#list_append",
+          "ports": [
+            {
+              "id": "filter_list_list_append_1_list_appendParameter1",
+              "uri": "http://www.example.com#list_appendParameter1",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "WEST"
+              },
+              "labels": [
+                {
+                  "text": "object",
+                  "width": 44.9375,
+                  "height": 22.0
+                }
+              ]
+            },
+            {
+              "id": "filter_list_list_append_1_list_appendParameterSelf",
+              "uri": "http://www.example.com#list_appendParameterSelf",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "WEST"
+              },
+              "labels": [
+                {
+                  "text": "self",
+                  "width": 30.171875,
+                  "height": 22.0
+                }
+              ]
+            },
+            {
+              "id": "filter_list_list_append_1_list_appendOutput",
+              "uri": "http://www.example.com#list_appendOutput",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "EAST"
+              },
+              "labels": [
+                {
+                  "text": "list_appendResult",
+                  "width": 113.796875,
+                  "height": 22.0
+                }
+              ]
+            },
+            {
+              "id": "filter_list_list_append_1_list_appendSelfOutput",
+              "uri": "http://www.example.com#list_appendSelfOutput",
+              "width": 11.0,
+              "height": 11.0,
+              "layoutOptions": {
+                "port.side": "EAST"
+              },
+              "labels": [
+                {
+                  "text": "self_output",
+                  "width": 74.703125,
+                  "height": 22.0
+                }
+              ]
+            }
+          ],
+          "children": [],
+          "edges": [],
+          "layoutOptions": {
+            "nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS]",
+            "portConstraints": "FIXED_SIDE",
+            "portLabels.placement": "[INSIDE]",
+            "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]",
+            "elk.spacing.portPort": 15,
+            "elk.padding": "[top=0.0,left=0.0,bottom=0.0,right=0.0]"
+          },
+          "labels": [
+            {
+              "text": "append",
+              "width": 53.140625,
+              "height": 22.0
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "id": "filter_list_next_1_nextOutput_filter_list_op_ge_1_op_geParameter0",
+          "target": "filter_list_op_ge_1",
+          "targetPort": "filter_list_op_ge_1_op_geParameter0",
+          "source": "filter_list_next_1",
+          "sourcePort": "filter_list_next_1_nextOutput"
+        },
+        {
+          "id": "filter_list_next_1_nextOutput_filter_list_list_append_1_list_appendParameter1",
+          "target": "filter_list_list_append_1",
+          "targetPort": "filter_list_list_append_1_list_appendParameter1",
+          "source": "filter_list_next_1",
+          "sourcePort": "filter_list_next_1_nextOutput"
+        },
+        {
+          "id": "filter_list_list_1_ListOutput_filter_list_list_append_1_list_appendParameterSelf",
+          "target": "filter_list_list_append_1",
+          "targetPort": "filter_list_list_append_1_list_appendParameterSelf",
+          "source": "filter_list_list_1",
+          "sourcePort": "filter_list_list_1_ListOutput"
+        },
+        {
+          "id": "filter_list_list_append_1_list_appendSelfOutput_filter_list_list_append_1_list_appendParameterSelf",
+          "target": "filter_list_list_append_1",
+          "targetPort": "filter_list_list_append_1_list_appendParameterSelf",
+          "source": "filter_list_list_append_1",
+          "sourcePort": "filter_list_list_append_1_list_appendSelfOutput"
+        },
+        {
+          "id": "filter_list_filter_listParameter0_filter_list_iter_1_iterParameter0",
+          "target": "filter_list_iter_1",
+          "targetPort": "filter_list_iter_1_iterParameter0",
+          "source": "filter_list",
+          "sourcePort": "filter_list_filter_listParameter0"
+        },
+        {
+          "id": "filter_list_op_ge_1_op_geOutput_filter_list_if_1_TestParameter",
+          "target": "filter_list_if_1",
+          "targetPort": "filter_list_if_1_TestParameter",
+          "source": "filter_list_op_ge_1",
+          "sourcePort": "filter_list_op_ge_1_op_geOutput"
+        },
+        {
+          "id": "filter_list_list_append_1_list_appendSelfOutput_filter_list_filter_listOutput",
+          "target": "filter_list",
+          "targetPort": "filter_list_filter_listOutput",
+          "source": "filter_list_list_append_1",
+          "sourcePort": "filter_list_list_append_1_list_appendSelfOutput"
+        },
+        {
+          "id": "filter_list_iter_1_iterOutput_filter_list_next_1_nextParameter0",
+          "target": "filter_list_next_1",
+          "targetPort": "filter_list_next_1_nextParameter0",
+          "source": "filter_list_iter_1",
+          "sourcePort": "filter_list_iter_1_iterOutput"
+        },
+        {
+          "id": "filter_list_filter_listParameter1_filter_list_op_ge_1_op_geParameter1",
+          "target": "filter_list_op_ge_1",
+          "targetPort": "filter_list_op_ge_1_op_geParameter1",
+          "source": "filter_list",
+          "sourcePort": "filter_list_filter_listParameter1"
+        },
+        {
+          "id": "filter_list_if_1_filter_list_list_append_1_iftrue",
+          "target": "filter_list_list_append_1",
+          "source": "filter_list_if_1",
+          "labels": [
+            {
+              "text": "iftrue",
+              "width": 39.9375,
+              "height": 22.0,
+              "layoutOptions": {
+                "edgeLabels.placement": "TAIL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "filter_list_if_1_filter_list_next_1_iffalse",
+          "target": "filter_list_next_1",
+          "source": "filter_list_if_1",
+          "labels": [
+            {
+              "text": "iffalse",
+              "width": 43.890625,
+              "height": 22.0,
+              "layoutOptions": {
+                "edgeLabels.placement": "TAIL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "filter_list_op_ge_1_filter_list_if_1_next",
+          "target": "filter_list_if_1",
+          "source": "filter_list_op_ge_1",
+          "labels": [
+            {
+              "text": "next",
+              "width": 34.5625,
+              "height": 22.0,
+              "layoutOptions": {
+                "edgeLabels.placement": "TAIL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "filter_list_next_1_filter_list_op_ge_1_iterate",
+          "target": "filter_list_op_ge_1",
+          "source": "filter_list_next_1",
+          "labels": [
+            {
+              "text": "iterate",
+              "width": 47.75,
+              "height": 22.0,
+              "layoutOptions": {
+                "edgeLabels.placement": "TAIL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "filter_list_list_1_filter_list_iter_1_next",
+          "target": "filter_list_iter_1",
+          "source": "filter_list_list_1",
+          "labels": [
+            {
+              "text": "next",
+              "width": 34.5625,
+              "height": 22.0,
+              "layoutOptions": {
+                "edgeLabels.placement": "TAIL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "filter_list_iter_1_filter_list_next_1_next",
+          "target": "filter_list_next_1",
+          "source": "filter_list_iter_1",
+          "labels": [
+            {
+              "text": "next",
+              "width": 34.5625,
+              "height": 22.0,
+              "layoutOptions": {
+                "edgeLabels.placement": "TAIL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "filter_list_list_append_1_filter_list_next_1_next",
+          "target": "filter_list_next_1",
+          "source": "filter_list_list_append_1",
+          "labels": [
+            {
+              "text": "next",
+              "width": 34.5625,
+              "height": 22.0,
+              "layoutOptions": {
+                "edgeLabels.placement": "TAIL"
+              }
+            }
+          ]
+        }
+      ],
+      "layoutOptions": {
+        "nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS]",
+        "portConstraints": "FIXED_SIDE",
+        "portLabels.placement": "[INSIDE]",
+        "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]",
+        "elk.spacing.portPort": 15,
+        "elk.padding": "[top=10.0,left=20.0,bottom=10.0,right=20.0]"
+      },
+      "labels": [
+        {
+          "text": "filter_list",
+          "width": 59.484375,
+          "height": 22.0
+        }
+      ]
+    }
+  ]
+}

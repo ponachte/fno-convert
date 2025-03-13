@@ -4,12 +4,12 @@ from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from rdflib import URIRef
 from pyqtgraph import TreeWidget
 
-from ..executors.flow import FnOFlow
+from ..executors import Function
 from ..executors.store import Terminal
 from ..graph import ExecutableGraph
-from .flowview import FlowViewWidget
+from .flowview import ExeViewWidget
 
-class FlowCtrlWidget(QWidget):
+class ExeCtrlWidget(QWidget):
 
     def __init__(self) -> None:
         QWidget.__init__(self)
@@ -18,9 +18,9 @@ class FlowCtrlWidget(QWidget):
 
         self.inputWidget = InputWidget()
         self.grid.addWidget(self.inputWidget, 0, 0)
-        self.viewWidget = FlowViewWidget(self)
+        self.viewWidget = ExeViewWidget(self)
         self.grid.addWidget(self.viewWidget, 0, 1, 2, 1)
-        self.functionList = FunctionList()
+        self.functionList = FunctionList(self.viewWidget)
         self.grid.addWidget(self.functionList, 1, 0)
 
         self.grid.setRowStretch(0, 1)
@@ -32,11 +32,11 @@ class FlowCtrlWidget(QWidget):
         self.inputWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.viewWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-    def setFlow(self, g: ExecutableGraph, uri: URIRef):
-        self.flow = FnOFlow(g, uri)
-        self.viewWidget.setFlow(self.flow)
-        self.inputWidget.setFlow(self.flow)
-        self.functionList.setFlow(self.flow)
+    def setExe(self, g: ExecutableGraph, uri: URIRef):
+        self.exe = Function(g, uri)
+        self.viewWidget.setExe(self.exe)
+        self.inputWidget.setExe(self.exe)
+        self.functionList.setExe(self.exe)
 
 class InputWidget(QWidget):
 
@@ -58,10 +58,10 @@ class InputWidget(QWidget):
         layout.addWidget(execute)
         self.setLayout(layout)
     
-    def setFlow(self, flow: FnOFlow):
+    def setExe(self, exe: Function):
         self.inputList.clear()
-        self.flow = flow
-        inputs = { inp for inp in flow.input.outputs() }
+        self.exe = exe
+        inputs = exe.inputs()
         for inp in inputs:
             inp_type = getattr(inp.type, '__name__', str(inp.type))
             item = QTreeWidgetItem([inp.name, inp_type, ''])
@@ -70,10 +70,11 @@ class InputWidget(QWidget):
             self.inputList.setItemWidget(item, 2, convertItem)
             self.items[inp] = convertItem
     
+    # TODO Use correct executor
     def execute(self):
         for inp, item in self.items.items():
-            inp.setValue(item.getInput())
-        self.flow.execute()
+            inp.set(item.getInput())
+        self.exe.execute()
 
 
 class ConvertWidget(QWidget):
@@ -104,45 +105,55 @@ class ConvertWidget(QWidget):
 
 class FunctionList(QWidget):
 
-    def __init__(self) -> None:
+    def __init__(self, view) -> None:
         super().__init__()
+        self.view = view
 
         self.list = TreeWidget(self)
-        self.list.headerItem().setText(0, 'Function')
-        self.list.headerItem().setText(1, 'Expand/Collapse')
+        self.list.setColumnCount(2)
+        self.list.setHeaderLabels(["Functions", ""])
         self.list.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.list.setUniformRowHeights(True)
 
         layout = QVBoxLayout()
         layout.addWidget(self.list)
         self.setLayout(layout)
     
-    def setFlow(self, flow: FnOFlow):
+    def setExe(self, exe: Function):
         self.list.clear()
-        self.flow = flow
+        self.exe = exe
+        
+        self.add_function_item(exe)
 
-        for fun, int_flow in flow.internals.items():
-            item = QTreeWidgetItem([fun.name, ''])
+    def add_function_item(self, fun: Function, parent=None):
+        item = QTreeWidgetItem([fun.name, ""])
+        
+        if parent:
+            parent.addChild(item)
+        else:
             self.list.addTopLevelItem(item)
 
+        if fun.comp_uri:
+            fun.setInternal(False)
             expandButton = QPushButton('Expand')
-            expandButton.setCheckable(True)
             expandButton.setFixedWidth(50)
-
-            item.expandButton = expandButton
             expandButton.fun = fun
-            expandButton.flow = int_flow
-            expandButton.setChecked(False)
-            expandButton.clicked.connect(self.expandClicked)
-
+            expandButton.item = item
+            expandButton.clicked.connect(self.toggleChildren)
             self.list.setItemWidget(item, 1, expandButton)
     
-    def expandClicked(self):
+    def toggleChildren(self):
         btn = QObject.sender(self)
-        if not btn.isChecked():
-            btn.setText('Expand')
-            btn.flow.close()
-            btn.fun.open()
+        
+        if btn.text() == "Expand":
+            btn.fun.setInternal(True)
+            for call in btn.fun.comp.functions.values():
+                self.add_function_item(call, btn.item)
+            btn.item.setExpanded(True)
+            btn.setText("Hide")
         else:
-            btn.setText('Collapse')
-            btn.fun.close()
-            btn.flow.open()
+            btn.fun.setInternal(False)
+            btn.item.takeChildren()
+            btn.setText("Expand")
+        
+        self.view.draw()

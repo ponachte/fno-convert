@@ -93,78 +93,6 @@ class Composition:
     def get_terminal(self, call, ter):
         return  self.functions[call][ter] if call != self.rep.fun_uri else self.rep[ter]
     
-    def json_elk(self, json_elk = None):
-        if json_elk is None:
-            json_elk = self.rep.json_elk()
-         
-        json_elk["children"] = []
-        child_index_map = {}
-        for i, fun in enumerate(self.functions.values()):
-            json_elk["children"].append(fun.json_elk())
-            child_index_map[fun.id()] = i
-            
-        json_elk["edges"] = []
-        for mapping in self.mappings.values():
-            json_elk["edges"].extend(mapping.json_elk())
-        
-        for fun in self.functions.values():
-            # Only visualize control flow for nodes with non-linear control flow
-            if fun.iftrue or fun.iffalse or fun.iterate:
-                if fun.next:
-                    self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.next], "next")
-                if fun.iterate:
-                    self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.iterate], "iterate")
-                if fun.iftrue:
-                    self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.iftrue], "iftrue")
-                if fun.iffalse:
-                    self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.iffalse], "iffalse")
-            # Or nodes at the end of a for-loop
-            elif fun.next and self.functions[fun.next].iterate:
-                self.json_elk_controlflow(json_elk, child_index_map, fun, self.functions[fun.next], "next")
-        
-        return json_elk
-                
-    def json_elk_controlflow(self, json_elk, child_index_map, source, target, label):
-        # create ports
-        i = child_index_map[source.id()]
-        json_elk["children"][i]["ports"].append({
-            "id": f"{source.id()}_{label}_out",
-            "width": 0,
-            "height":0,
-            "layoutOptions": {
-                "allowNonFlowPortsToSwitchSides": "true",
-                "port.side": "SOUTH"
-            }
-        })
-        
-        i = child_index_map[target.id()]
-        json_elk["children"][i]["ports"].append({
-            "id": f"{source.id()}_{label}_in",
-            "width": 0,
-            "height":0,
-            "layoutOptions": {
-                "allowNonFlowPortsToSwitchSides": "true",
-                "port.side": "SOUTH"
-            }
-        })
-        
-        # create edge
-        json_elk["edges"].append({
-            "id": f"{source.id()}_{target.id()}_{label}",
-            "target": target.id(),
-            "targetPort": f"{source.id()}_{label}_in",
-            "source": source.id(),
-            "sourcePort": f"{source.id()}_{label}_out",
-            "labels": [{
-                "text": label,
-                "layoutOptions": {
-                    "edgeLabels.placement": "TAIL"
-                }
-            }]
-        })
-                
-        return json_elk
-    
     def __hash__(self) -> int:
         return hash(self.uri)
     
@@ -173,11 +101,12 @@ class Composition:
 
 class Function:
 
-    def __init__(self, g: ExecutableGraph, fun: URIRef, map: URIRef = None, imp: URIRef = None, internal=True) -> None:
+    def __init__(self, g: ExecutableGraph, fun: URIRef, map: URIRef = None, imp: URIRef = None, internal=False) -> None:
         self.fun_uri = fun
         self.name = g.get_name(fun)
         self.map = map
         self.imp = imp
+        self.g = g
 
         ### TERMINALS ###
 
@@ -207,20 +136,33 @@ class Function:
         
         ### COMPOSITION ###
         
+        self.comp = None
         if g.has_composition(fun):
             # TODO Function is represented by multiple compositions
             self.comp_uri = g.get_compositions(fun)[0]
-            if internal:
-                self.comp = Composition(g, self.comp_uri, self)
         else:
             self.comp_uri = None
-            self.comp = None
+        self.setInternal(internal)
+    
+    def setInternal(self, internal: bool):
+        # Wether or not to capture the internal flow of the function
+        if internal:
+            if self.comp_uri is not None:
+                self.internal = True
+                if self.internal and self.comp is None:
+                    self.comp = Composition(self.g, self.comp_uri, self)
+                    print(f"Created composition for {self.name}")
+            else:
+                self.internal = False
+                print(f"Function {self.name} has no composition")
+        else:
+            self.internal = False
 
     def inputs(self) -> Set[Terminal]:
-        return { self.terminals[name] for name in self.terminals if not self.terminals[name].is_output }
+        return { self.terminals[id] for id in self.terminals if not self.terminals[id].is_output }
 
     def outputs(self) -> Set[Terminal]:
-        return { self.terminals[name] for name in self.terminals if self.terminals[name].is_output }
+        return { self.terminals[id] for id in self.terminals if self.terminals[id].is_output }
     
     def __getitem__(self, key) -> Terminal:
         # Based on parameter URI
@@ -237,29 +179,9 @@ class Function:
     def id(self):
         # TODO Format prefix
         return get_name(self.fun_uri)
-
-    def json_elk(self):
-        json_elk = {
-            "id": self.id(),
-            "ports": [ ter.json_elk() for ter in self.terminals.values() ],
-            "labels": [{ "text": self.name }],
-            "children": [],
-            "layoutOptions": {
-                "nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS]",
-                "portConstraints": "FIXED_SIDE",
-                "portLabels.placement": "[INSIDE]",
-                "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]",
-                "elk.padding": "[top=0.0,left=20.0,bottom=15.0,right=20.0]"
-            }
-        }
-        
-        if self.comp:
-            json_elk = self.comp.json_elk(json_elk)
-
-        return json_elk
     
     def __hash__(self) -> int:
-        return hash(self.fun_uri)
+        return hash(self.id())
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Function) and self.fun_uri == other.fun_uri
@@ -285,13 +207,8 @@ class AppliedFunction(Function):
             return f"{self.scope.id()}_{get_name(self.call_uri)}"
         return f"{get_name(self.scope)}_{get_name(self.call_uri)}"
     
-    def json_elk(self):
-        json_elk = super().json_elk()
-        json_elk["id"] = self.id()
-        return json_elk
-    
     def __hash__(self) -> int:
-        return hash(self.call_uri)
+        return hash(self.id())
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, AppliedFunction) and self.call_uri == other.call_uri and self.scope == other.scope

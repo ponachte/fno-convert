@@ -133,18 +133,20 @@ class Terminal(ValueStore):
     def json_elk(self):
         return {
             "id": self.id(),
-            "width": 5,
-            "height":5,
+            "uri": self.uri,
+            "width": 10,
+            "height":10,
+            # TODO better output labels
             "labels": [{
                 "text":  get_name(self.pred)
-            }] if not self.is_output else [],
+            }],
             "layoutOptions": {
                 "port.side": "EAST" if self.is_output else "WEST"
             }
         }
 
     def __hash__(self) -> int:
-        return hash(self.uri)
+        return hash(self.id())
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Terminal) and self.uri == other.uri and self.fun == other.fun

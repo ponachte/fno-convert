@@ -2,9 +2,9 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QScrollArea, QTextEdit, QVBoxLayout, QPushButton, 
                              QFileDialog, QMessageBox, QComboBox, QLineEdit, QSizePolicy)
 from PyQt6.QtGui import QTextCursor, QColor, QTextCharFormat
-from ..prefix import ImpMap
+from ..mappers import PythonMapper
 from ..graph import ExecutableGraph
-from ..util import ASTUtil
+from ..util.python.ast import ASTUtil
 from ..descriptors.python import PythonDescriptor
 from rdflib import URIRef
 
@@ -72,7 +72,8 @@ class FunctionPicker(QWidget):
             selected_function = locals().get(function_name)
             if selected_function and callable(selected_function):
                 start = time.time()
-                graph, uri = PythonDescriptor().from_function(selected_function)
+                graph = ExecutableGraph()
+                uri = PythonDescriptor(graph).describe_resource(selected_function)
                 stop = time.time()
                 print(f"gen time: {(stop-start)*1000}")
                 print(f"num of triples: {len(graph)}")
@@ -138,9 +139,10 @@ class ScrollWidget(QWidget):
         self.text.setPlainText(g.serialize(format='turtle'))
     
     def setSource(self, g: ExecutableGraph, fun_uri: URIRef):
-        _, imp_uri = g.fun_to_imp(fun_uri)
+        # TODO What if there are multiple imps?
+        _, imp_uri = g.fun_to_imp(fun_uri)[0]
         if imp_uri is not None:
-            obj = ImpMap.rdf_to_imp(g, imp_uri)
+            obj = PythonMapper.fno_to_obj(g, imp_uri)
             text = inspect.getsource(obj)
             self.text.setPlainText(text)
 

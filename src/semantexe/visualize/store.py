@@ -3,7 +3,7 @@ from PyQt6.QtCore import QRectF, Qt, QPoint
 from PyQt6.QtGui import QColor, QPen, QBrush
 from pyqtgraph import GraphicsObject
 
-from ..executors.store import Terminal, Variable, ValueStore
+from ..executors.store import Terminal, ValueStore
 from .colors import *
 
 from abc import abstractmethod
@@ -36,13 +36,13 @@ class TerminalGraphicsItem(StoreGraphicsItem):
 
         self.box = QGraphicsRectItem(0, 0, 10, 10, self)
         self.box.setBrush(self.brush)
-        self.label = QGraphicsTextItem(terminal.name, self)
+        self.label = QGraphicsTextItem(terminal.name, self.box)
         self.label.setScale(0.7)
         self.label.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.setFiltersChildEvents(True) # pick up mouse events on rectitem
         self.setZValue(1)
 
-        terminal.valueChange.connect(self.valueChange)
+        # terminal.valueChange.connect(self.valueChange)
 
     def boundingRect(self) -> QRectF:
         # Return the smallest rectangle that contains both the label and the box
@@ -57,11 +57,13 @@ class TerminalGraphicsItem(StoreGraphicsItem):
         lr = self.label.mapRectToParent(self.label.boundingRect())
 
         if not self.store.is_output:
-            self.box.setPos(pos.x(), pos.y() - br.height()/2.)
-            self.label.setPos(pos.x() + br.width(), pos.y() - lr.height()/2.)
+        # Input: Box is to the left, Label is to the right
+            self.box.setPos(pos.x() - br.width(), pos.y() - br.height() / 2.)
+            self.label.setPos(pos.x(), pos.y() - lr.height() / 2.)
         else:
-            self.box.setPos(pos.x() - br.width(), pos.y() - br.height()/2.)
-            self.label.setPos(pos.x() - br.width()-lr.width(), pos.y() - lr.height()/2.)
+            # Output: Box is to the right, Label is to the left
+            self.box.setPos(pos.x(), pos.y() - br.height() / 2.)
+            self.label.setPos(pos.x() - lr.width(), pos.y() - lr.height() / 2.)
         # self.updateConnections()
     
     def sourcePoint(self):
@@ -105,118 +107,26 @@ class TerminalGraphicsItem(StoreGraphicsItem):
         else:
             self.box.setBrush(self.brush)
         self.update()
-
-class VariableGraphicsItem(StoreGraphicsItem):
-
-    def __init__(self, var: Variable, parent=None):
-        StoreGraphicsItem.__init__(self, var, parent)
-
-        self.hovered = False
-        self.pen = None
-        self.brush = None
-        self.hoverBrush = None
-        self.selectPen = None
-        self.selectBrush = None
-        self.setColor(STD_COLOR)
-
-        flags = self.GraphicsItemFlag.ItemIsMovable | self.GraphicsItemFlag.ItemIsSelectable | self.GraphicsItemFlag.ItemIsFocusable | self.GraphicsItemFlag.ItemSendsGeometryChanges
-        self.setFlags(flags)
-
-        self.nameItem = QGraphicsTextItem(var.name, self)
-        self.nameItem.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
-        self.nameItem.setDefaultTextColor(QColor(50, 50, 50))
-        name_width = self.nameItem.boundingRect().width()
-        name_height = self.nameItem.boundingRect().height()
-        radius = max(name_width + 10, name_height + 10)
-        self.circle = QGraphicsEllipseItem(0, 0, radius, radius, self)
-        self.circle.setBrush(self.brush)
+    
+    def elk(self):
+        return {
+            "id": self.store.id(),
+            "uri": self.store.uri,
+            "width": self.box.boundingRect().width(),
+            "height": self.box.boundingRect().height(),
+            "layoutOptions": {
+                "port.side": "EAST" if self.store.is_output else "WEST"
+            },
+            "labels": [{
+                "text": self.label.toPlainText(),
+                "width": self.label.boundingRect().width(),
+                "height": self.label.boundingRect().height(),
+            }]
+        }
+    
+    def layer(self, elk):
+        # set box
+        self.box.setPos(elk["x"], elk["y"])
         
-        circle_center = self.circle.mapToParent(self.circle.boundingRect().center())      
-        self.nameItem.setPos(circle_center.x() - name_width/2, circle_center.y() - name_height/2)
-        self.nameItem.setZValue(1)
-        self.circle.setZValue(0)
-        
-        self.compositions = set()
-    
-    def setColor(self, color: QColor):
-        pen_color = color.darker(105)
-        brush_color = color.lighter(105)
-        brush_color.setAlpha(150)
-        hover_color = color.lighter(105)
-        hover_color.setAlpha(200)
-
-        self.setPenColor(pen_color)
-        self.setBrushColor(brush_color)
-        self.setHoverColor(hover_color)
-    
-    def setPenColor(self, color: QColor):
-        self.pen = QPen(color)
-        self.selectPen = QPen(color, 2)
-        self.update()
-
-    def setBrushColor(self, color: QColor):
-        self.brush = QBrush(color)
-        select_color = color.lighter(115)
-        select_color.setAlpha(200)
-        self.selectBrush = QBrush(select_color)
-        self.update()
-    
-    def setHoverColor(self, color: QColor):
-        self.hoverBrush = QBrush(color)
-        self.update()
-    
-    def boundingRect(self) -> QRectF:
-        return self.circle.mapRectToParent(self.circle.boundingRect()).adjusted(-5, -5, 5, 5)
-    
-    def sourcePoint(self):
-        return self.mapToView(self.mapFromItem(self.circle, self.circle.boundingRect().right(), self.circle.boundingRect().center().y()))
-    
-    def targetPoint(self):
-        return self.mapToView(self.mapFromItem(self.circle, self.circle.boundingRect().left(), self.circle.boundingRect().center().y()))
-    
-    def paint(self, p, *args):
-        if self.isSelected():
-            p.setPen(self.selectPen)
-            p.setBrush(self.selectBrush)
-        else:
-            p.setPen(self.pen)
-            if self.hovered:
-                p.setBrush(self.hoverBrush)
-            else:
-                p.setBrush(self.brush)
-        p.drawEllipse(self.circle.boundingRect())
-    
-    def mousePressEvent(self, event):
-        event.ignore()
-
-    def mouseClickEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            event.accept()
-            selected = self.isSelected()
-            self.setSelected(True)
-            if not selected and self.isSelected():
-                self.update()
-    
-    def mouseDragEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            event.accept()
-            self.setPos(self.pos() + self.mapToParent(event.pos()) - self.mapToParent(event.lastPos()))
-    
-    def hoverEvent(self, event):
-        if not event.isExit() and event.acceptClicks(Qt.MouseButton.LeftButton):
-            event.acceptDrags(Qt.MouseButton.LeftButton)
-            self.hovered = True
-        else:
-            self.hovered = False
-        self.update()
-    
-    def keyPressEvent(self, event) -> None:
-        event.ignore()
-
-    def itemChange(self, change, value):
-        if change == self.GraphicsItemChange.ItemPositionHasChanged:
-            for mapping in self.mappings.values():
-                mapping.updateLine()
-            for comp in self.compositions:
-                comp.updateBounds()
-        return GraphicsObject.itemChange(self, change, value)
+        # set label
+        self.label.setPos(elk["labels"][0]["x"], elk["labels"][0]["y"])

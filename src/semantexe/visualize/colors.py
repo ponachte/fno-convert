@@ -1,7 +1,7 @@
 from PyQt6.QtGui import QColor
 from pyqtgraph import mkColor
 
-STD_COLOR = QColor(170, 170, 170)
+STD_COLOR = QColor(200, 200, 200)
 
 TERMINAL_COLOR = QColor(0, 0, 0)
 TERMINAL_HOVER = mkColor('b')

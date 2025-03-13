@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QHBoxLayout, QTabWidget
+from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QTabWidget
 
-from .flowctrl import FlowCtrlWidget
+from .flowctrl import ExeCtrlWidget
 from .load import ScrollWidget, FunctionPicker
 
 class PY2RDFWindow(QMainWindow):
@@ -16,6 +16,7 @@ class PY2RDFWindow(QMainWindow):
         layout1 = QGridLayout()
         loadTab.setLayout(layout1)
 
+        # TODO Expand visualizer input with simple file
         codeViewer = ScrollWidget()
         rdfViewer = ScrollWidget()
         funPicker = FunctionPicker()
@@ -25,13 +26,13 @@ class PY2RDFWindow(QMainWindow):
         layout1.addWidget(rdfViewer, 0, 5, 1, 4)
 
         # Tab to view flow
-        viewTab = FlowCtrlWidget()
+        viewTab = ExeCtrlWidget()
 
         # Event handling
         funPicker.file_loaded.connect(codeViewer.setText)
         funPicker.function_loaded.connect(codeViewer.setSource)
         funPicker.function_loaded.connect(rdfViewer.setGraph)
-        funPicker.function_loaded.connect(viewTab.setFlow)
+        funPicker.function_loaded.connect(viewTab.setExe)
 
         # Add Tabs
         tabWidget = QTabWidget()
