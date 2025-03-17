@@ -36,9 +36,15 @@ class TerminalGraphicsItem(StoreGraphicsItem):
 
         self.box = QGraphicsRectItem(0, 0, 10, 10, self)
         self.box.setBrush(self.brush)
-        self.label = QGraphicsTextItem(terminal.name, self.box)
+        
+        if terminal.is_output:
+            name = terminal.name if terminal.name == "self_output" else "out"
+        else:
+            name = terminal.name
+        self.label = QGraphicsTextItem(name, self.box)
         self.label.setScale(0.7)
         self.label.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        
         self.setFiltersChildEvents(True) # pick up mouse events on rectitem
         self.setZValue(1)
 
@@ -47,8 +53,8 @@ class TerminalGraphicsItem(StoreGraphicsItem):
     def boundingRect(self) -> QRectF:
         # Return the smallest rectangle that contains both the label and the box
         br = self.box.mapRectToParent(self.box.boundingRect())
-        lr = self.label.mapRectToParent(self.label.boundingRect())
-        return br | lr
+        # lr = self.label.mapRectToParent(self.label.boundingRect())
+        return br
     
     def setAnchor(self, x, y):
         pos = QPoint(x, y)

@@ -244,7 +244,10 @@ class Importer:
             module_name = self._asname[module_name]
 
         if module_name not in self._modules:
-            self.handle_import(ast.alias(name=module_name))
+            try:
+                self.handle_import(ast.alias(name=module_name))
+            except Exception as e:
+                return None
 
         return self._modules[module_name]
 

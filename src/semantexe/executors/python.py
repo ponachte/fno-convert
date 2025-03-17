@@ -1,4 +1,5 @@
-from .executeable import Composition, Function, AppliedFunction
+from .executeable import Function, AppliedFunction
+from .std import Executor
 from .store import MappingType
 from ..graph import ExecutableGraph
 from ..prefix import Prefix
@@ -7,6 +8,7 @@ import importlib
 import importlib.util
 import sys
 
+from urllib.parse import urlparse
 from datetime import datetime
 from typing import Any
 from types import NoneType
@@ -37,7 +39,7 @@ def load_function_from_source(file_path, function_name):
     except AttributeError as e:
         return
 
-class PythonExecutor:
+class PythonExecutor(Executor):
     
     @staticmethod
     def python_object(g: ExecutableGraph, uri):
@@ -51,13 +53,13 @@ class PythonExecutor:
             (x['label'].value, 
              x['module'].value if x['module'] is not None else None, 
              x['package'].value if x['package'] is not None else None,
-             x['file'].value if x['file'] is not None else None,
+             urlparse(x['file']).path if x['file'] is not None else None,
              x['self_class'])
             for x in g.query(f'''
             SELECT ?type ?label ?module ?package ?file ?self_class WHERE {{
                 VALUES ?type {{ fnoi:PythonClass fnoi:PythonFunction fnoi:PythonMethod }}
                 <{uri}> a ?type ;
-                      rdfs:label ?label ;
+                      doap:name ?label ;
                 OPTIONAL {{ <{uri}> fnoi:module ?module . }}
                 OPTIONAL {{ <{uri}> fnoi:package ?package . }}
                 OPTIONAL {{ <{uri}> fnoi:file ?file . }}
@@ -84,44 +86,39 @@ class PythonExecutor:
             return Any
             
         return Any
-    
-    @staticmethod
-    def execute(g: ExecutableGraph, exe):
-        if isinstance(exe, Composition):
-            if g.represents_python(exe.uri):
-                # Try to get python implementations for all functions
-                return PythonExecutor.execute_comp(g, exe)
-        elif isinstance(exe, Function):
-            return PythonExecutor.execute_fun(exe)
-        elif isinstance(exe, AppliedFunction):
-            return PythonExecutor.execute_applied(exe)
-    
-    @staticmethod
-    def execute_comp(comp: Composition):
-        # Execute each function and follow the control flow until no new function can be selected
-        call = comp.start
-        while call is not None:
-            # Get the FnO Function Executeable
-            fun = comp.functions[call]
-            # Fetch inputs from mappings
-            comp.ingest(fun)
-            # Execute
-            PythonExecutor.execute(fun)
-            # Signify execution to relevant mappings
-            if call in comp.priorities:
-                for mapping in comp.priorities[call]:
-                    mapping.set_priority(call)
-            # Get the URI of the next executeable
-            call = fun.next_executable()
         
-        # If this composition represents the internal flow of a function, set the output
-        if comp.rep:
-            comp.ingest(comp.scope)
+    def accepts(self, mapping, imp):
+        # TODO is the mapping OK based on the scope?
+        return self.g.is_python(imp)
     
-    @staticmethod
-    def execute_fun(fun: Function):
-        if fun.comp:
-            PythonExecutor.execute_comp(fun)
+    def map(self, fun: Function):
+        # TODO what with file imp?
+        # TODO use PythonMapper
+        try:
+            fun.f_object = PythonExecutor.python_object(self.g, fun.imp)
+        except Exception as e:
+            print(f"Error while trying to get implementation from {fun.imp.split('#')[-1]}: {e}")
+            fun.f_object = None
+
+    def execute(self, fun: Function, *args, **kwargs):
+        self.pg = ExecutableGraph()        
+        super().execute(fun, *args, **kwargs)
+        return self.pg
+    
+    def execute_function(self, fun: Function, *_args, **_keyargs):
+        # Set input and output based on arguments
+        for param in fun.inputs():
+            mapping = param.param_mapping
+            if mapping.get_type() == MappingType.KEYWORD:
+                if mapping.get_property() in _keyargs:
+                    param.set(_keyargs[mapping.get_property()])
+            elif mapping.get_type() == MappingType.POSITIONAL:
+                if mapping.get_property() < len(_args):
+                    param.set(_args[mapping.get_property()])
+        
+        # If internal provenance is captured, you do not need to execute the function
+        if fun.internal:
+            fun.comp.execute(self)
         else:            
             # If there is a fun input, use the function object from that terminal's uri value
             if fun.self_input is not None:
@@ -139,8 +136,6 @@ class PythonExecutor:
                     if not param.value_set:
                         if mapping.has_default:
                             param.set(mapping.default)
-                        else:
-                            raise Exception(f"Parameter {param.name} not set.")
                     value = param.get()
 
                     if mapping.get_type() == MappingType.VARPOSITIONAL:
@@ -164,15 +159,15 @@ class PythonExecutor:
                         args = args[1:]
                 
                 try:
-                    fun.startedAt = datetime.now()
+                    fun.prov.startedAt = datetime.now()
                     ret = fun.f_object(*args, *vargs, **keyargs, **vkeyargs)
-                    fun.endedAt = datetime.now()
+                    fun.prov.endedAt = datetime.now()
                     
                     fun.output.set(ret)
                     if fun.self_output is not None:
                         fun.self_output.set(fun.self_input.get())
                 except StopIteration as e:
-                    raise e
+                    fun.stop_iteration = True
                 except Exception as e:
                     print(f"Error while executing {fun.name} with")
                     print(f"\targs: {args}")
@@ -181,17 +176,20 @@ class PythonExecutor:
                     print(f"\tvkeyargs: {",".join([f"{key}={arg}" for key, arg in vkeyargs.items()])}")
                     raise e
     
-    @staticmethod
-    def execute_applied(fun: AppliedFunction):
+    def execute_applied(self, fun: AppliedFunction):
+        # Control flow
         if fun.iterate is not None:
-            try:
-                PythonExecutor.execute_fun(fun)
-                fun._next = fun.iterate
-            except StopIteration:
+            self.execute(fun)
+            if hasattr(fun, 'stop_iteration'):
                 fun._next = fun.next
+            else:
+                fun._next = fun.iterate
         elif fun.iftrue is not None:
-            PythonExecutor.execute_fun(fun)
+            self.execute(fun)
             fun._next = fun.iftrue if fun.output.value else fun.iffalse
         else:
-            PythonExecutor.execute_fun(fun)
+            self.execute(fun)
             fun._next = fun.next
+    
+    def alt_executor(self, fun: Function):
+        raise Exception("No alternative executors")

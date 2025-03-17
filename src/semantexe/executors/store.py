@@ -39,19 +39,23 @@ class Mapping:
 
     def __init__(self, sources, target: "Terminal") -> None:
         self.priority = None
+        self.target = target
         self.sources = {}
-        for source, priority, src_strat, src_key, tar_start, tar_key in sources:
+        for source, priority, src_strat, src_key, tar_strat, tar_key in sources:
             if priority not in self.sources:
                 self.sources[priority] = []
-            self.sources[priority].append((source, src_strat, src_key, tar_start, tar_key))
-        self.target = target
+            self.sources[priority].append((source, src_strat, src_key, tar_strat, tar_key))
+            
+            # Set default term values
+            if not isinstance(source, Terminal) and priority is None:
+                self.target.set(source.get(src_strat, src_key), tar_strat, tar_key)
     
     def set_priority(self, priority):
         self.priority = priority
     
     def execute(self):
-        for source, src_strat, src_key, tar_start, tar_key in self.sources[self.priority]:
-            self.target.set(source.get(src_strat, src_key), tar_start, tar_key)
+        for source, src_strat, src_key, tar_strat, tar_key in self.sources[self.priority]:
+            self.target.set(source.get(src_strat, src_key), tar_strat, tar_key)
     
     def list_sources(self):
         sources = set()
@@ -59,19 +63,6 @@ class Mapping:
             for source, _, _, _, _ in self.sources[priority]:
                 sources.add(source)
         return sources
-            
-    def json_elk(self):
-        edges = []
-        for source in self.list_sources():
-            if isinstance(source, Terminal):
-                edges.append({
-                    "id": f"{source.id()}_{self.target.id()}",
-                    "target": self.target.fun.id(),
-                    "targetPort": self.target.id(),
-                    "source": source.fun.id(),
-                    "sourcePort": source.id()
-                })
-        return edges
 
 class ValueStore:
     
@@ -97,6 +88,7 @@ class Terminal(ValueStore):
         self.pred = pred
         self.is_output = is_output
         self.param_mapping = param_mapping
+        self.strat = None
     
     def set(self, value, strat=None, key=None):
         if strat is None:
@@ -119,6 +111,8 @@ class Terminal(ValueStore):
         return super().get(strat, key)
     
     def to_list(self):
+        if not self.value_set:
+            return []
         if self.strat != "toList":
             raise Exception(f"Terminal does not represent a list: {self.strat}")
         

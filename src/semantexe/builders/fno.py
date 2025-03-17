@@ -139,7 +139,7 @@ class FnOBuilder():
         g.add((uri, Prefix.ns('fno')['expects'], c_expects.uri))
         g.add((uri, Prefix.ns('fno')['returns'], c_returns.uri))
         if name is not None:
-            g.add((uri, Prefix.ns('fno')['name'], Literal(name)))
+            g.add((uri, Prefix.ns('rdfs')['label'], Literal(name)))
 
         return uri
 

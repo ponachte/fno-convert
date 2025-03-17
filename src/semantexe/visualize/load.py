@@ -5,15 +5,16 @@ from PyQt6.QtGui import QTextCursor, QColor, QTextCharFormat
 from ..mappers import PythonMapper
 from ..graph import ExecutableGraph
 from ..util.python.ast import ASTUtil
-from ..descriptors.python import PythonDescriptor
+from ..descriptors import PythonDescriptor, DockerfileDescriptor
 from rdflib import URIRef
 
 import os, sys, ast, inspect, time
 
-class FunctionPicker(QWidget):
+class Descripter(QWidget):
 
     file_loaded = pyqtSignal(str) # signal that a file is loaded
-    function_loaded = pyqtSignal(ExecutableGraph, URIRef) # signal that a new function is loaded
+    resource_described = pyqtSignal(ExecutableGraph, URIRef, list, URIRef, str) # signal that a resource has been described
+    # function_loaded = pyqtSignal(ExecutableGraph, URIRef, list, URIRef) # signal that a new function is loaded
     
     def __init__(self) -> None:
         super().__init__()
@@ -21,7 +22,7 @@ class FunctionPicker(QWidget):
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
-        self.file_button = QPushButton("Select Python File")
+        self.file_button = QPushButton("Select File")
         self.file_button.clicked.connect(self.select_file)
         self.layout.addWidget(self.file_button)
 
@@ -36,20 +37,34 @@ class FunctionPicker(QWidget):
 
         self.file_path = None
 
+    # TODO Allow turtle files
     def select_file(self):
-        self.file_path, _ = QFileDialog.getOpenFileName(self, "Select Python File", "", "Python Files (*.py)")
+        self.file_path, _ = QFileDialog.getOpenFileName(self, "Select File", "", "Python Files (*.py);;Dockerfile;;Turtle Files (*.ttl)")
         if self.file_path:
             file_dir = os.path.dirname(self.file_path)
             sys.path.append(file_dir)  # Add the file directory to the Python path
+            
+            if self.file_path.endswith(".py"):
+                with open(self.file_path, "r") as file:
+                    source = file.read()
+                    self.file_loaded.emit(source)
+                    """tree = ast.parse(source)
 
-            with open(self.file_path, "r") as file:
-                source = file.read()
-                self.file_loaded.emit(source)
-                tree = ast.parse(source)
-
-            used_functions = ASTUtil(tree).used_functions()
-            self.function_select.clear()
-            self.function_select.addItems(used_functions)
+                used_functions = ASTUtil(tree).used_functions()
+                self.function_select.clear()
+                self.function_select.addItems(used_functions)"""
+                
+                g = ExecutableGraph()
+                fun_uri, [map_uris], imp_uri = PythonDescriptor(g).describe_file(self.file_path)
+                self.resource_described.emit(g, fun_uri, [map_uris], imp_uri, "python")
+            
+            if self.file_path.endswith("Dockerfile"):
+                with open(self.file_path, "r") as file:
+                    source = file.read()
+                    self.file_loaded.emit(source)
+                g = ExecutableGraph()
+                fun_uri, [map_uris], imp_uri = DockerfileDescriptor(g).describe_file(self.file_path)
+                self.resource_described.emit(g, fun_uri, [map_uris], imp_uri, "dockerfile")
 
     def load_function(self):
         function_name = self.function_select.currentText()
@@ -142,6 +157,7 @@ class ScrollWidget(QWidget):
         # TODO What if there are multiple imps?
         _, imp_uri = g.fun_to_imp(fun_uri)[0]
         if imp_uri is not None:
+            # TODO DockerMapper
             obj = PythonMapper.fno_to_obj(g, imp_uri)
             text = inspect.getsource(obj)
             self.text.setPlainText(text)

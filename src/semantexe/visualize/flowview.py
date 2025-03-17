@@ -82,19 +82,15 @@ class ExeViewWidget(DockArea):
     def viewBox(self):
         return self._viewBox
     
-    def setExe(self, exe: Function):
-        self.exe = exe
+    def setFunction(self, function: Function):
+        self.function = function
         self.items = {}
-        self.internal_flows = {}
-        self.flow_items = {}
         self.terminals = {}
-        self.compositions = {}
         self.mappings = set()
-        self.control_flows = set()
         self.viewBox().clear()
 
-        self.exe = exe
-        exe.setInternal(False)
+        self.function = function
+        function.setInternal(False)
         
         self.draw()
     
@@ -126,7 +122,7 @@ class ExeViewWidget(DockArea):
         self.viewBox().clear()
         self.nextZVal = 10
               
-        root = self.draw_function(self.exe)
+        root = self.draw_function(self.function)
         
         elk = {
             "id": "root",
@@ -142,13 +138,13 @@ class ExeViewWidget(DockArea):
             "children": [root.elk()]
         }
         
-        with open("no_layout.json", "w") as f:
-            json.dump(elk, f, indent=2)
+        # with open("no_layout.json", "w") as f:
+        #     json.dump(elk, f, indent=2)
         
         elk = elk_layout(elk)
         
-        with open("with_layout.json", "w") as f:
-            json.dump(elk, f, indent=2)
+        # with open("with_layout.json", "w") as f:
+        #     json.dump(elk, f, indent=2)
         
         root.layer(elk["children"][0])
     

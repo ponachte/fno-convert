@@ -82,7 +82,10 @@ class Composition:
         
         # If this composition represents the internal flow of a function, set the output
         if self.rep:
-            self.ingest(self.rep)
+            if self.rep.output in self.mappings:
+                self.mappings[self.rep.output].execute()
+            if self.rep.self_output is not None:
+                self.rep.self_output.set(self.rep.self_output.get())
         
     
     def ingest(self, fun):
@@ -143,6 +146,9 @@ class Function:
         else:
             self.comp_uri = None
         self.setInternal(internal)
+        
+        ### PROVENANCE ###
+        self.prov = Provenance()
     
     def setInternal(self, internal: bool):
         # Wether or not to capture the internal flow of the function
@@ -154,7 +160,7 @@ class Function:
                     print(f"Created composition for {self.name}")
             else:
                 self.internal = False
-                print(f"Function {self.name} has no composition")
+                print(f"Function {self.name} has no composition available")
         else:
             self.internal = False
 
@@ -196,6 +202,10 @@ class AppliedFunction(Function):
         
         super().__init__(g, fun)
         
+        if g.has_composition(call):
+            self.comp_uri = g.get_compositions(call, True)
+            self.setInternal(self.internal)
+        
         self._next = None
         self.next, self.iterate, self.iftrue, self.iffalse = g.get_order(call)
     
@@ -212,3 +222,21 @@ class AppliedFunction(Function):
     
     def __eq__(self, other: object) -> bool:
         return isinstance(other, AppliedFunction) and self.call_uri == other.call_uri and self.scope == other.scope
+
+class Provenance:
+    
+    @property
+    def startedAt(self):
+        return self._startedAt
+    
+    @startedAt.setter
+    def startedAt(self, value):
+        self._startedAt = value
+    
+    @property
+    def endedAt(self):
+        return self._endedAt
+    
+    @endedAt.setter
+    def endedAt(self, value):
+        self._endedAt = value

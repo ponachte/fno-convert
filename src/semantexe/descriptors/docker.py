@@ -25,15 +25,16 @@ class DockerfileDescriptor(AbstractFileDescriptor):
     def describe_file(self, path):
         if path.endswith("Dockerfile"):
             name = os.path.basename(os.path.dirname(path))
-            uri = FileMapper.uri(name, path)
-            if not self.g.exists(uri):
+            file_uri = FileMapper.uri(name, path)
+            fun_uri = Prefix.base()[f"{name}Dockerfile"]
+            if not self.g.exists(file_uri):
                 
                 ### DOCKERFILE ###
-                DockerBuilder.describe_dockerfile(self.g, path, uri)
+                map_uri = DockerBuilder.describe_dockerfile(self.g, path, fun_uri, file_uri)
             
                 ### URI ###
                 
-                comp_uri = URIRef(f"{uri}Composition")
+                comp_uri = URIRef(f"{file_uri}Composition")
                 
                 self.parser.dockerfile_path = path
                 
@@ -43,12 +44,12 @@ class DockerfileDescriptor(AbstractFileDescriptor):
                 for inst in self.parser.structure:
                     self.handle_inst(inst)
                 
-                FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=uri)
+                FnOBuilder.describe_composition(self.g, comp_uri, self.mappings, represents=file_uri)
                 
                 # Indicate start
                 FnOBuilder.start(self.g, comp_uri, self.start)
                     
-            return uri
+            return fun_uri, [map_uri], file_uri
         else:
             return super().describe_file(path)
     

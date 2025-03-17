@@ -12,7 +12,7 @@
 
 cf:Is a fno:Function ;
       a prov:Entity ;
-      fno:name "is" ;
+      rdfs:label "is" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:ObjectParameter1 ;
                     rdf:_2 cf:ObjectParameter2 ] ;
@@ -22,7 +22,7 @@ cf:Is a fno:Function ;
 
 cf:IsNot a fno:Function ;
          a prov:Entity ;
-         fno:name "isNot" ;
+         rdfs:label "isNot" ;
          fno:expects [ a rdf:Seq ;
                        rdf:_1 cf:ObjectParameter1 ;
                        rdf:_2 cf:ObjectParameter2 ] ;
@@ -42,7 +42,7 @@ cf:ObjectParameter2 a fno:Parameter ;
 
 cf:for a fno:Function ;
        a prov:Entity ;
-       fno:name "for" ;
+       rdfs:label "for" ;
        fno:expects [ a rdf:Seq ;
                      rdf:_1 cf:IterParameter ] ;
        fno:returns [ a rdf:Seq ;
@@ -61,9 +61,11 @@ cf:TargetOutput a fno:Output ;
 
 cf:if a fno:Function ;
       a prov:Entity ;
-      fno:name "if" ;
+      rdfs:label "if" ;
       fno:expects [ a rdf:Seq ;
-                    rdf:_1 cf:TestParameter ] .
+                    rdf:_1 cf:TestParameter ] ;
+      fno:returns [ a rdf:Seq ;
+                    rdf:_2 cf:BoolOutput ] .
 
 cf:ifexpr a fno:Function ;
           a prov:Entity ;
@@ -91,11 +93,15 @@ cf:IfExprOutput a fno:Output ;
                 fno:predicate cf:ifExprResult ;
                 fno:type ptype:Any .
 
+cf:BoolOutput a fno:Output ;
+              fno:predicate cf:bool ;
+              fno:type ptype:bool .
+
 # CONTAINTERS
 
 cf:slice a fno:Function ;
          a prov:Entity ;
-         fno:name "slice" ;
+         rdfs:label "slice" ;
          fno:expects [ a rdf:Seq ;
                        rdf:_1 cf:LowerIndexParameter ;
                        rdf:_2 cf:UpperIndexParameter ;
@@ -124,7 +130,7 @@ cf:SliceOutput a fno:Output ;
 
 cf:list a fno:Function ;
       a prov:Entity ;
-      fno:name "list" ;
+      rdfs:label "list" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:Elements ] ;
       fno:returns [ a rdf:Seq ;
@@ -140,7 +146,7 @@ cf:ListOutput a fno:Output ;
 
 cf:tuple a fno:Function ;
       a prov:Entity ;
-      fno:name "tuple" ;
+      rdfs:label "tuple" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:Elements ] ;
       fno:returns [ a rdf:Seq ;
@@ -171,7 +177,7 @@ cf:DictOutput a fno:Output ;
 
 cf:attribute a fno:Function ;
       a prov:Entity ;
-      fno:name "attr" ;
+      rdfs:label "attr" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:ValueParameter ;
                     rdf:_2 cf:AttributeParameter ] ;
@@ -200,7 +206,7 @@ cf:AttributeSelfOutput a fno:Output ;
 
 cf:joinstr a fno:Function ;
       a prov:Entity ;
-      fno:name "joinstr" ;
+      rdfs:label "joinstr" ;
       fno:expects [ a rdf:Seq ;
                     rdf:_1 cf:Delimiter ;
                     rdf:_2 cf:Strings ] ;

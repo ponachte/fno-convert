@@ -24,6 +24,7 @@
 
 
 do:build a fno:Function ;
+    rdfs:label "BUILD" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:dockerfileInputParam ] ;
     fno:returns [ a rdf:Seq ;
@@ -36,6 +37,7 @@ do:dockerfileInputParam a fno:Parameter ;
 ##
 
 do:from a fno:Function, do:Instruction ;
+    rdfs:label "FROM" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ] ;
     fno:returns [ a rdf:Seq ;
@@ -44,6 +46,7 @@ do:from a fno:Function, do:Instruction ;
 ##
 
 do:entrypoint a fno:Function, do:Instruction ;
+    rdfs:label "ENTRYPOINT" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ;
                   rdf:_2 do:entrypointInputCommand ;
@@ -62,6 +65,7 @@ do:entrypointInputParamList a fno:Parameter ;
 ##
 
 do:user a fno:Function, do:Instruction ;
+    rdfs:label "USER" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ] ;
     fno:returns [ a rdf:Seq ;
@@ -70,6 +74,7 @@ do:user a fno:Function, do:Instruction ;
 ##
 
 do:add a fno:Function, do:Instruction ;
+    rdfs:label "ADD" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ;
                   rdf:_2 do:add_src ;
@@ -88,6 +93,7 @@ do:add_dest a fno:Parameter ;
 ##
 
 do:label a fno:Function, do:Instruction ;
+    rdfs:label "LABEL" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ;
                   rdf:_2 do:labelKey ;
@@ -106,6 +112,7 @@ do:labelVal a fno:Parameter ;
 ##
 
 do:workdir a fno:Function, do:Instruction ;
+    rdfs:label "WORKDIR" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ;
                   rdf:_2 do:workdirInput ] ;
@@ -125,6 +132,7 @@ do:arg a fno:Function, do:Instruction ;
 ##
 
 do:cmd a fno:Function, do:Instruction ;
+    rdfs:label "CMD" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ;
                   rdf:_3 do:cmdInputParamList ] ;
@@ -138,6 +146,7 @@ do:cmdInputParamList a fno:Parameter ;
 ##
 
 do:run a fno:Function, do:Instruction ;
+    rdfs:label "RUN" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ;
                   rdf:_2 do:runInputCommand ] ;
@@ -151,6 +160,7 @@ do:runInputCommand a fno:Parameter ;
 ##
 
 do:env a fno:Function, do:Instruction ;
+    rdfs:label "ENV" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ] ;
     fno:returns [ a rdf:Seq ;
@@ -167,6 +177,7 @@ do:envValue a fno:Parameter ;
 ##
 
 do:port a fno:Function, do:Instruction ;
+    rdfs:label "PORT" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ;
                   rdf:_2 do:portValue ] ;
@@ -180,6 +191,7 @@ do:portValue a fno:Parameter ;
 ##
 
 do:volume a fno:Function, do:Instruction ;
+    rdfs:label "VOLUME" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ] ;
     fno:returns [ a rdf:Seq ;
@@ -188,6 +200,7 @@ do:volume a fno:Function, do:Instruction ;
 ##
 
 do:copy a fno:Function, do:Instruction ;
+    rdfs:label "COPY" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ;
                   rdf:_2 do:copySrc ;
@@ -206,12 +219,14 @@ do:copyDest a fno:Parameter ;
 ##
 
 do:maintainer a fno:Function, do:Instruction ;
+    rdfs:label "MAINTAINER" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ] ;
     fno:returns [ a rdf:Seq ;
                   rdf:_1 do:imageOutputParam ] .
 
 do:expose a fno:Function, do:Instruction ;
+    rdfs:label "EXPOSE" ;
     fno:expects [ a rdf:Seq ;
                   rdf:_1 do:imageInputParam ] ;
     fno:returns [ a rdf:Seq ;

@@ -1,11 +1,13 @@
 from PyQt6.QtCore import QObject
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QHeaderView, QTreeWidgetItem, QVBoxLayout, QLineEdit, QPushButton, QGridLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, QHeaderView, QTreeWidgetItem, QVBoxLayout, QLineEdit, QPushButton, QGridLayout, QComboBox
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from rdflib import URIRef
 from pyqtgraph import TreeWidget
+import os
 
 from ..executors import Function
 from ..executors.store import Terminal
+from ..executors import PythonExecutor, DockerfileExecutor
 from ..graph import ExecutableGraph
 from .flowview import ExeViewWidget
 
@@ -31,14 +33,26 @@ class ExeCtrlWidget(QWidget):
         # Make the widgets fill available space
         self.inputWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.viewWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
+        self.executor = None
 
-    def setExe(self, g: ExecutableGraph, uri: URIRef):
-        self.exe = Function(g, uri)
-        self.viewWidget.setExe(self.exe)
-        self.inputWidget.setExe(self.exe)
-        self.functionList.setExe(self.exe)
+    def setFunction(self, g: ExecutableGraph, fun_uri, map_uris, imp_uri, executor):
+        self.inputWidget.executor.setCurrentText(executor)
+        
+        # TODO what if multiple mappings are accepted for the current executor?
+        if len(map_uris) == 1:
+            self.function = Function(g, fun_uri, map_uris[0], imp_uri)
+        else:
+            self.function = Function(g, fun_uri, imp_uri=imp_uri)
+        
+        self.viewWidget.setFunction(self.function)
+        self.inputWidget.setFunction(g, self.function)
+        self.functionList.setFunction(self.function)
 
 class InputWidget(QWidget):
+
+    # TODO Allow more executors
+    # TODO Accept input
 
     def __init__(self) -> None:
         QWidget.__init__(self)
@@ -49,19 +63,27 @@ class InputWidget(QWidget):
         self.inputList.headerItem().setText(1, 'Type')
         self.inputList.headerItem().setText(2, 'Input')
         self.inputList.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        
+        self.executors = {
+            "python": PythonExecutor,
+            "dockerfile": DockerfileExecutor
+        }
+        self.executor = QComboBox(self)
+        self.executor.addItems(self.executors.keys())
 
         execute = QPushButton('Execute', self)
         execute.clicked.connect(self.execute)
 
         layout = QVBoxLayout()
         layout.addWidget(self.inputList)
+        layout.addWidget(self.executor)
         layout.addWidget(execute)
         self.setLayout(layout)
     
-    def setExe(self, exe: Function):
+    def setFunction(self, g, function: Function):
         self.inputList.clear()
-        self.exe = exe
-        inputs = exe.inputs()
+        self.function = function
+        inputs = function.inputs()
         for inp in inputs:
             inp_type = getattr(inp.type, '__name__', str(inp.type))
             item = QTreeWidgetItem([inp.name, inp_type, ''])
@@ -70,12 +92,12 @@ class InputWidget(QWidget):
             self.inputList.setItemWidget(item, 2, convertItem)
             self.items[inp] = convertItem
     
-    # TODO Use correct executor
     def execute(self):
-        for inp, item in self.items.items():
-            inp.set(item.getInput())
-        self.exe.execute()
-
+        if self.executor is None:
+            # TODO error alert pick executor first
+            pass
+        exe = self.executors[self.executor.currentText()](self.function.g)
+        exe.execute(self.function)
 
 class ConvertWidget(QWidget):
 
@@ -119,11 +141,11 @@ class FunctionList(QWidget):
         layout.addWidget(self.list)
         self.setLayout(layout)
     
-    def setExe(self, exe: Function):
+    def setFunction(self, function: Function):
         self.list.clear()
-        self.exe = exe
+        self.function = function
         
-        self.add_function_item(exe)
+        self.add_function_item(function)
 
     def add_function_item(self, fun: Function, parent=None):
         item = QTreeWidgetItem([fun.name, ""])

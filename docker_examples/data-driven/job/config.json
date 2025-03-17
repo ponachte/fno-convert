@@ -1,9 +1,0 @@
-{
-  "min_duration_s": 16,
-  "win_size_s": 15,
-  "frequency" : 32,
-  "overlap" : 0.5,
-  "amp_sdo" : 0.2,
-  "amp_do" : 0.1,
-  "amp_gn" : 1.0
-}

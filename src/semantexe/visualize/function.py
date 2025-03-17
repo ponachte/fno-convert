@@ -116,10 +116,10 @@ class FunctionGraphicsItem(GraphicsObject):
     def mouseClickEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             event.accept()
-            selected = self.isSelected()
+            """selected = self.isSelected()
             self.setSelected(True)
             if not selected and self.isSelected():
-                self.update()
+                self.update()"""
     
     def hoverEvent(self, event):
         if not event.isExit() and event.acceptClicks(Qt.MouseButton.LeftButton):

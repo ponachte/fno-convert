@@ -13,25 +13,17 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 ex:binarycountComposition a fno:Composition ;
-    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
-                    fnoc:functionOutput ex:nextOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
-                    fnoc:functionParameter ex:op_eqParameter0 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:enumerate_1 ;
-                    fnoc:functionOutput ex:enumerateOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:iter_1 ;
-                    fnoc:functionParameter ex:iterParameter0 ] ],
+    fnoc:composedOf [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_1 ;
+                    fnoc:functionOutput ex:iterOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:next_1 ;
+                    fnoc:functionParameter ex:nextParameter0 ] ],
+        [ fnoc:mapFromTerm 2 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
+                    fnoc:functionParameter ex:op_powParameter0 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_pow_1 ;
                     fnoc:functionOutput ex:op_powOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionParameter ex:op_addParameter1 ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
-                    fnoc:functionOutput ex:nextOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
-                    fnoc:functionParameter ex:op_powParameter1 ] ],
-        [ fnoc:mapFromTerm 1 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
-                    fnoc:functionParameter ex:op_eqParameter1 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionOutput ex:op_addOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:binarycount ;
@@ -47,18 +39,26 @@ ex:binarycountComposition a fno:Composition ;
                     fnoc:functionOutput ex:op_eqOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction cf:if_1 ;
                     fnoc:functionParameter cf:TestParameter ] ],
-        [ fnoc:mapFrom [ fnoc:constituentFunction ex:iter_1 ;
-                    fnoc:functionOutput ex:iterOutput ] ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:next_1 ;
-                    fnoc:functionParameter ex:nextParameter0 ] ],
-        [ fnoc:mapFromTerm 2 ;
-            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
-                    fnoc:functionParameter ex:op_powParameter0 ] ],
         [ fnoc:mapFrom [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionOutput ex:op_addOutput ] ;
             fnoc:mapTo [ fnoc:constituentFunction ex:op_add_1 ;
                     fnoc:functionParameter ex:op_addParameter0 ] ;
-            fnoc:priority ex:op_add_1 ] ;
+            fnoc:priority ex:op_add_1 ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
+                    fnoc:functionOutput ex:nextOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_pow_1 ;
+                    fnoc:functionParameter ex:op_powParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:enumerate_1 ;
+                    fnoc:functionOutput ex:enumerateOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:iter_1 ;
+                    fnoc:functionParameter ex:iterParameter0 ] ],
+        [ fnoc:mapFromTerm 1 ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
+                    fnoc:functionParameter ex:op_eqParameter1 ] ],
+        [ fnoc:mapFrom [ fnoc:constituentFunction ex:next_1 ;
+                    fnoc:functionOutput ex:nextOutput ] ;
+            fnoc:mapTo [ fnoc:constituentFunction ex:op_eq_1 ;
+                    fnoc:functionParameter ex:op_eqParameter0 ] ] ;
     fnoc:represents ex:binarycount ;
     fnoc:start ex:enumerate_1 .
 
@@ -82,23 +82,35 @@ ex:enumerateMapping a fno:Mapping ;
     fno:implementation python:enumeratee513fb1f ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "enumerate" ] ;
-    fno:parameterMapping [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:enumerateParameter0 ;
-            fnom:implementationParameterPosition 0 ],
-        [ a fnom:DefaultParameterMapping ;
-            fnom:defaultValue 0 ;
-            fnom:functionParameter ex:enumerateParameter1 ],
+    fno:parameterMapping [ a fnom:PropertyParameterMapping ;
+            fnom:functionParameter ex:enumerateParameter1 ;
+            fnom:implementationProperty "start" ],
         [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:enumerateParameter1 ;
             fnom:implementationParameterPosition 1 ],
         [ a fnom:PropertyParameterMapping ;
-            fnom:functionParameter ex:enumerateParameter1 ;
-            fnom:implementationProperty "start" ],
-        [ a fnom:PropertyParameterMapping ;
             fnom:functionParameter ex:enumerateParameter0 ;
-            fnom:implementationProperty "iterable" ] ;
+            fnom:implementationProperty "iterable" ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:enumerateParameter0 ;
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:DefaultParameterMapping ;
+            fnom:defaultValue 0 ;
+            fnom:functionParameter ex:enumerateParameter1 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
             fnom:functionOutput ex:enumerateOutput ] ;
+    fnom:mappingMethod "default" .
+
+ex:ifMapping a fno:Mapping ;
+    fno:function cf:if ;
+    fno:implementation python:boole513fb1f ;
+    fno:methodMapping [ a fnom:StringMethodMapping ;
+            fnom:method-name "if" ] ;
+    fno:parameterMapping [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter cf:TestParameter ;
+            fnom:implementationParameterPosition 0 ] ;
+    fno:returnMapping [ a fnom:DefaultReturnMapping ;
+            fnom:functionOutput cf:BoolOutput ] ;
     fnom:mappingMethod "default" .
 
 ex:iterMapping a fno:Mapping ;
@@ -127,54 +139,54 @@ ex:nextMapping a fno:Mapping ;
 
 ex:op_addMapping a fno:Mapping ;
     fno:function ex:op_add ;
-    fno:implementation python:op_add3c3209e3 ;
+    fno:implementation python:add3c3209e3 ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "add" ] ;
     fno:parameterMapping [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:op_addParameter1 ;
-            fnom:implementationParameterPosition 1 ],
-        [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:op_addParameter0 ;
-            fnom:implementationParameterPosition 0 ] ;
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:op_addParameter1 ;
+            fnom:implementationParameterPosition 1 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
             fnom:functionOutput ex:op_addOutput ] ;
     fnom:mappingMethod "default" .
 
 ex:op_eqMapping a fno:Mapping ;
     fno:function ex:op_eq ;
-    fno:implementation python:op_eq3c3209e3 ;
+    fno:implementation python:eq3c3209e3 ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "eq" ] ;
     fno:parameterMapping [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:op_eqParameter1 ;
-            fnom:implementationParameterPosition 1 ],
-        [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:op_eqParameter0 ;
-            fnom:implementationParameterPosition 0 ] ;
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:op_eqParameter1 ;
+            fnom:implementationParameterPosition 1 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
             fnom:functionOutput ex:op_eqOutput ] ;
     fnom:mappingMethod "default" .
 
 ex:op_powMapping a fno:Mapping ;
     fno:function ex:op_pow ;
-    fno:implementation python:op_pow3c3209e3 ;
+    fno:implementation python:pow3c3209e3 ;
     fno:methodMapping [ a fnom:StringMethodMapping ;
             fnom:method-name "pow" ] ;
     fno:parameterMapping [ a fnom:PositionParameterMapping ;
-            fnom:functionParameter ex:op_powParameter1 ;
-            fnom:implementationParameterPosition 1 ],
-        [ a fnom:PositionParameterMapping ;
             fnom:functionParameter ex:op_powParameter0 ;
-            fnom:implementationParameterPosition 0 ] ;
+            fnom:implementationParameterPosition 0 ],
+        [ a fnom:PositionParameterMapping ;
+            fnom:functionParameter ex:op_powParameter1 ;
+            fnom:implementationParameterPosition 1 ] ;
     fno:returnMapping [ a fnom:DefaultReturnMapping ;
             fnom:functionOutput ex:op_powOutput ] ;
     fnom:mappingMethod "default" .
 
-cf:if a prov:Entity,
-        fno:Function ;
-    fno:expects [ a rdf:Seq ;
-            rdf:_1 cf:TestParameter ] ;
-    fno:name "if" .
+python:add3c3209e3 a fnoi:Implementation,
+        fnoi:PythonFunction ;
+    dcterms:description "Same as a + b." ;
+    doap:name "add" ;
+    fnoi:module "_operator" .
 
 python:binarycount184ba669 a fnoi:Implementation,
         fnoi:PythonFunction ;
@@ -182,6 +194,22 @@ python:binarycount184ba669 a fnoi:Implementation,
     fnoi:file <file:///home/ponachte/projects/py2rdf/python_examples/example_functions.py> ;
     fnoi:module "python_examples.example_functions" ;
     fnoi:package "python_examples" .
+
+python:boole513fb1f a fnoi:Implementation,
+        fnoi:PythonClass ;
+    dcterms:description """bool(x) -> bool
+
+Returns True when the argument x is true, False otherwise.
+The builtins True and False are the only two instances of the class bool.
+The class bool is a subclass of the class int, and cannot be subclassed.""" ;
+    doap:name "bool" ;
+    fnoi:module "builtins" .
+
+python:eq3c3209e3 a fnoi:Implementation,
+        fnoi:PythonFunction ;
+    dcterms:description "Same as a == b." ;
+    doap:name "eq" ;
+    fnoi:module "_operator" .
 
 python:itere513fb1f a fnoi:Implementation,
         fnoi:PythonFunction ;
@@ -201,22 +229,10 @@ it is returned instead of raising StopIteration.""" ;
     doap:name "next" ;
     fnoi:module "builtins" .
 
-python:op_add3c3209e3 a fnoi:Implementation,
-        fnoi:PythonFunction ;
-    dcterms:description "Same as a + b." ;
-    doap:name "op_add" ;
-    fnoi:module "_operator" .
-
-python:op_eq3c3209e3 a fnoi:Implementation,
-        fnoi:PythonFunction ;
-    dcterms:description "Same as a == b." ;
-    doap:name "op_eq" ;
-    fnoi:module "_operator" .
-
-python:op_pow3c3209e3 a fnoi:Implementation,
+python:pow3c3209e3 a fnoi:Implementation,
         fnoi:PythonFunction ;
     dcterms:description "Same as a ** b." ;
-    doap:name "op_pow" ;
+    doap:name "pow" ;
     fnoi:module "_operator" .
 
 ex:enumerate a prov:Entity,
@@ -271,9 +287,17 @@ ex:op_pow a prov:Entity,
     fno:returns [ a rdf:Seq ;
             rdf:_1 ex:op_powOutput ] .
 
-cf:TestParameter a fno:Parameter ;
-    fno:predicate cf:test ;
+cf:BoolOutput a fno:Output ;
+    fno:predicate cf:bool ;
     fno:type ptype:bool .
+
+cf:if a prov:Entity,
+        fno:Function ;
+    fno:expects [ a rdf:Seq ;
+            rdf:_1 cf:TestParameter ] ;
+    fno:name "if" ;
+    fno:returns [ a rdf:Seq ;
+            rdf:_2 cf:BoolOutput ] .
 
 cf:if_1 fnoc:applies cf:if ;
     fnoc:false ex:next_1 ;
@@ -296,7 +320,7 @@ enumerate is useful for obtaining an indexed list:
 
 ex:binarycountOutput a fno:Output ;
     fno:predicate ex:binarycountResult ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:enumerateOutput a fno:Output ;
     fno:predicate ex:enumerateResult ;
@@ -307,12 +331,12 @@ ex:enumerate_1 fnoc:applies ex:enumerate ;
 
 ex:iterOutput a fno:Output ;
     fno:predicate ex:iterResult ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:iterParameter0 a fno:Parameter ;
     fno:predicate ex:param0 ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:iter_1 fnoc:applies ex:iter ;
     fnoc:next ex:next_1 .
@@ -320,40 +344,45 @@ ex:iter_1 fnoc:applies ex:iter ;
 ex:nextParameter0 a fno:Parameter ;
     fno:predicate ex:param0 ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_addParameter1 a fno:Parameter ;
     fno:predicate ex:b ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_eqOutput a fno:Output ;
     fno:predicate ex:op_eqResult ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_eqParameter0 a fno:Parameter ;
     fno:predicate ex:a ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_eqParameter1 a fno:Parameter ;
     fno:predicate ex:b ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_powOutput a fno:Output ;
     fno:predicate ex:op_powResult ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_powParameter0 a fno:Parameter ;
     fno:predicate ex:a ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_powParameter1 a fno:Parameter ;
     fno:predicate ex:b ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
+
+cf:TestParameter a fno:Parameter ;
+    fno:predicate cf:test ;
+    fno:required true ;
+    fno:type ptype:bool .
 
 ex:binarycount a prov:Entity,
         fno:Function ;
@@ -366,30 +395,30 @@ ex:binarycount a prov:Entity,
 ex:binarycountParameter0 a fno:Parameter ;
     fno:predicate ex:bits ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:enumerateParameter0 a fno:Parameter ;
     fno:predicate ex:iterable ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:enumerateParameter1 a fno:Parameter ;
     fno:predicate ex:start ;
     fno:required false ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:nextOutput a fno:Output ;
     fno:predicate ex:nextResult ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_addOutput a fno:Output ;
     fno:predicate ex:op_addResult ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_addParameter0 a fno:Parameter ;
     fno:predicate ex:a ;
     fno:required true ;
-    fno:type python:Any41485baa .
+    fno:type python:Any3b977f6c .
 
 ex:op_eq_1 fnoc:applies ex:op_eq ;
     fnoc:next cf:if_1 .
@@ -403,7 +432,7 @@ ex:next_1 fnoc:applies ex:next ;
 ex:op_add_1 fnoc:applies ex:op_add ;
     fnoc:next ex:next_1 .
 
-python:Any41485baa a fnoi:Implementation,
+python:Any3b977f6c a fnoi:Implementation,
         fnoi:PythonClass ;
     dcterms:description """Special type indicating an unconstrained type.
 
@@ -416,6 +445,6 @@ python:Any41485baa a fnoi:Implementation,
     checks.
     """ ;
     doap:name "Any" ;
-    fnoi:file <file:///home/ponachte/anaconda3/lib/python3.12/typing.py> ;
+    fnoi:file <file:///usr/lib/python3.12/typing.py> ;
     fnoi:module "typing" .
 

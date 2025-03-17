@@ -7,7 +7,6 @@ acc_events = events[events['Metric'].str.contains('smartphone') & events[
 print(
     f'Received {len(events)} events - {len(acc_events)} of them are accelerometer data'
     )
-del events
 if len(acc_events) >= 3 * conf['min_duration_s'] * conf['frequency']:
 "]
 	4 [label="#4

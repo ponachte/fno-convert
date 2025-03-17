@@ -145,7 +145,7 @@ class ExecutableGraph(Graph):
         result = [x['name'].value for x in self.query(
             f'''
             SELECT ?name WHERE {{
-                <{f}> fno:name ?name ;
+                <{f}> rdfs:label ?name ;
             }}''', 
             initNs=Prefix.NAMESPACES
         )]
@@ -271,7 +271,7 @@ class ExecutableGraph(Graph):
         result = [
             x['param'] for x in self.query(f'''
                 SELECT ?param WHERE {{
-                    ?mapping a fnom:Mapping ;
+                    ?mapping a fno:Mapping ;
                              fno:function <{f}> ;
                              fno:parameterMapping ?parmapping .
                     ?parmapping a fnom:PositionParameterMapping ;
@@ -761,6 +761,20 @@ class ExecutableGraph(Graph):
         ]
         return result
     
+    def mappings(self, fun, imp):
+        """
+        Retrieve a list of FnO Mappings for a given FnO Function and implementation pair. 
+        Return None if no mapping can be found for this pair.
+        """
+        result = [
+            x['mapping'] for x in self.query(f'''
+                SELECT ?mapping WHERE {{
+                    ?mapping fno:function <{fun}> ;
+                                fno:implementation <{imp}> .
+                }}''', initNs=Prefix.NAMESPACES)
+        ]
+        return result
+    
     def imp_from_file(self, file):
         result = [
             (x['imp'], x['mapping'], x['fun']) for x in self.query(f'''
@@ -1041,9 +1055,11 @@ class ExecutableGraph(Graph):
                 ?mapping ?map ?node .
                 ?node fnoc:constituentFunction ?call .
             }}
-            ''', initNs=Prefix.NAMESPACES) 
-
-        return  { x['call'] for x in results }
+            ''', initNs=Prefix.NAMESPACES)
+        results = { x['call'] for x in results }
+        results.add(self.get_start(c))
+        
+        return  results
     
     def depends_on(self, c: URIRef, f: URIRef):
         """
@@ -1240,6 +1256,15 @@ class ExecutableGraph(Graph):
       
     ### PYTHON ###
     
+    def is_python(self, uri: URIRef):
+        return self.is_pythonfunction(uri) or self.is_pythonclass(uri) or self.is_pythonfile(uri)
+        
+    def is_pythonfunction(self, uri: URIRef):
+        return self.query(f"""ASK WHERE {{ <{uri}> a fnoi:PythonFunction . }}""", initNs=Prefix.NAMESPACES)
+    
+    def is_pythonclass(self, uri: URIRef):
+        return self.query(f"""ASK WHERE {{ <{uri}> a fnoi:PythonClass . }}""", initNs=Prefix.NAMESPACES)
+        
     def is_pythonfile(self, uri: URIRef):
         return self.query(f"""ASK WHERE {{ <{uri}> a fnoi:PythonFile . }}""", initNs=Prefix.NAMESPACES)
     

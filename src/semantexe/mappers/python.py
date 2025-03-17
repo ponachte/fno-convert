@@ -72,8 +72,7 @@ class PythonMapper:
         elif imp is None:
             imp = type(None)
         
-        if imp_name is None:
-            imp_name = getattr(imp, '__name__', getattr(type(imp), '__name__', str(imp)))
+        imp_name = getattr(imp, '__name__', getattr(type(imp), '__name__', str(imp)))
     
         m_name = p_name = f_name = doc = None
         
@@ -185,6 +184,8 @@ class PythonMapper:
                 triples.append((param, Prefix.ns('fno')["required"], Literal(True)))
         
         [ g.add(x) for x in triples ]
+        
+        return uri
     
     @staticmethod
     def map_with_sig(g: ExecutableGraph, f, s, imp, f_name, output, self_output): 

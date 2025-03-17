@@ -4,7 +4,7 @@ import traceback
 import ast
 import os, sys
 
-from operator import (__add__, __and__, __contains__, __eq__, __floordiv__, __ge__, __getitem__, __gt__, 
+from operator import (__add__, __and__, __call__, __contains__, __eq__, __floordiv__, __ge__, __getitem__, __gt__, 
                       __iadd__, __iand__, __ifloordiv__, __ilshift__, __imatmul__, __imod__, __imul__, __invert__, 
                       __ior__, __ipow__, __irshift__, __isub__, __itruediv__, __ixor__, __le__, __lshift__, __lt__, 
                       __matmul__, __mod__, __mul__, __ne__, __neg__, __not__, __or__, __pos__, __pow__, __rshift__,
@@ -28,6 +28,7 @@ from ..prefix import Prefix
 from ..mappers import PythonMapper, FileMapper
 from ..descriptors.file import AbstractFileDescriptor
 from .resource import AbstractResourceDescriptor
+from ..executors import PythonExecutor
 
 class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
 
@@ -37,6 +38,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
     
     def __init__(self, g: ExecutableGraph, max_depth=3) -> None:
         self.g = g
+        self.executor = PythonExecutor(g)
         self.importer = Importer()
         self.rewriter = ASTRewriter(parse_arg=True)
         self.max_depth = max_depth
@@ -51,7 +53,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         if path is not None:
             sys.path.append(os.path.dirname(path))
 
-    def new_scope(self, new_scope, new_path):
+    def new_scope(self, new_scope, new_path=None):
         # Save current state
         self.state.append(self.scope)
         # Reset to a new blank state
@@ -76,9 +78,9 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         if file_path.endswith(".py"):
             name = os.path.basename(file_path).rstrip(".py")
             file_uri = FileMapper.uri(name, file_path)
-            if not self.g.exists(file_uri):
-                file_name, suff = os.path.splitext(os.path.basename(file_path))
-                
+            file_name, suff = os.path.splitext(os.path.basename(file_path))
+            fun_uri = Prefix.base()[f"{file_name}_main"]
+            if not self.g.exists(fun_uri):
                 ### IMPORT ###
 
                 try:
@@ -94,8 +96,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
                 source_code, args = self.rewriter.rewrite(source_code)
                 
                 # URI
-                fun_uri = Prefix.base()[f"{file_name}"]
-                comp_uri = Prefix.base()[f"{file_name}Composition"]
+                comp_uri = Prefix.base()[f"{file_name}_fileComposition"]
                 
                 # FnO Parameters
                 parameters = []
@@ -122,12 +123,15 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
                 PythonBuilder.describe_file(self.g, file_uri, file_path)
                 
                 # FnO Mapping
-                PythonMapper.map_with_parse_args(self.g, fun_uri, file_uri, output_uri, args)
+                map_uri = PythonMapper.map_with_parse_args(self.g, fun_uri, file_uri, output_uri, args)
                 
                 # FnO Composition
                 self.describe_composition("_", file_path, fun_uri, comp_uri, source_code, alt_name=file_name)
+                
+                return fun_uri, [map_uri], file_uri
             
-            return file_uri
+            map_uris = [ map_uri for map_uri in self.g.mappings(fun_uri) if self.executor.accepts(map_uri, file_uri) ]
+            return fun_uri, map_uris, file_uri
         else:
             return super().describe_file(file_path)
 
@@ -147,7 +151,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         src = inspect.getsource(obj)
         
         # Uri
-        fun_uri = self.function_to_rdf(name, context, obj, num, keywords)
+        fun_uri = self.function_to_rdf(name, context, num, keywords, obj)
         comp_uri = URIRef(f"{fun_uri}Composition")
 
         # FnO Composition
@@ -414,6 +418,11 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
             # Return the object without context
             return MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, obj))
         
+        # Check if it references a module
+        mod = self.importer.get_module(id)
+        if mod:
+            return MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, mod))
+        
         # Return the identifier without context if no resolution is found
         return MappingNode().set_constant(PythonMapper.inst_to_rdf(self.g, id))
     
@@ -570,7 +579,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         name = None
         context = None
         func_object = None
-        value_name = None
+        value_output = None
         value_type = None
         static = None
 
@@ -578,17 +587,18 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         if isinstance(func, ast.Attribute):
             name = str.strip(func.attr, '_')
             context = name
-            value_name = self.handle_stmt(func.value)
-            if value_name.from_term():
-                value_type = type(value_name.get_value())
+            
+            value_output = self.handle_stmt(func.value)
+            if value_output.from_term():
+                value_type = type(value_output.get_value())
             else:
-                value_type = self.get_type(value_name.get_value())
-
+                value_type = self.get_type(value_output.get_value())
+            
             # The value is an imported object
-            if callable(value_name.get_value()):
-                func_object = getattr(value_name.get_value(), name, None)
-                context = f"{getattr(value_name.get_value(), '__name__', getattr(type(value_name.get_value()), '__name__', value_name.get_value()))}_{name}"
-                value_type = False
+            if callable(value_output.get_value()):
+                func_object = getattr(value_output.get_value(), name, None)
+                context = f"{getattr(value_output.get_value(), '__name__', getattr(type(value_output.get_value()), '__name__', value_output.get_value()))}_{name}"
+                value_type = type(value_output.get_value())
 
             # If the value is called on an instance, try to get the object from that type
             elif value_type is not None:
@@ -597,26 +607,80 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
                 static = False
             
             # If the value is called on a module, get the object from that module
-            elif self.importer.is_module(value_name.get_value()):
-                func_object = self.importer.object_from_module(value_name.get_value(), name)
-                context = f"{value_name.get_value()}_{name}"
+            elif self.importer.is_module(value_output.get_value()):
+                func_object = self.importer.object_from_module(value_output.get_value(), name)
+                context = f"{value_output.get_value()}_{name}"
                 value_type = False
                 
             # If the value is called on a class, get the object from that class
-            elif get_name(value_name.get_value()) in self.importer.objects():
-                value_type = self.importer.get_object(get_name(value_name.get_value()))
-                func_object = getattr(value_type, name, None)
+            elif get_name(value_output.get_value()) in self.importer.objects():
+                func_object = getattr(self.importer.get_object(get_name(value_output.get_value())), name, None)
                 context = f"{getattr(value_type, '__name__', getattr(type(value_type), '__name__', value_type))}_{name}"
                 value_type = False
                 static = True
             
-            if value_type is None:
-                value_type = True
+            # Create an applied function with internal body
+            if func_object is None:
+                call_output = self.handle_func(name, context, None, args, kargs, value_output, value_type, False)
+                applied = call_output.context
+                
+                self.new_scope(applied)
+                
+                # getattr call
+                fun_uri = self.g.check_call(applied)
+                value_input = MappingNode().set_function_par(fun_uri, self.g.get_self(fun_uri))
+                attr_output = self.handle_func("getattr", "getattr", getattr, [value_input, self.name_node(name)])
+                
+                # call on attr
+                positional = self.g.get_positional(fun_uri)
+                varpos = self.g.get_varpositional(fun_uri)
+                varkey = self.g.get_varkeyword(fun_uri)
+                
+                ## map arguments to correct applied inputs
+                new_args = [attr_output]
+                new_kargs = []
+                
+                for i, _ in enumerate(args):
+                    if i < len(positional):
+                        par = positional[i]
+                        new_args.append(MappingNode().set_function_par(fun_uri, par))
+                    else:
+                        break
+                        
+                if varpos is not None:
+                    new_args.append(MappingNode().set_function_par(fun_uri, varpos))
+                    
+                for karg in kargs:
+                    par = self.g.get_predicate_param(fun_uri, karg.arg)
+                    if par is not None:
+                        new_karg = ast.keyword(arg=karg.arg, value=MappingNode().set_function_par(fun_uri, par))
+                        new_kargs.append(new_karg)
+                        
+                if varkey is not None:
+                    new_args.append(MappingNode().set_function_par(fun_uri, varkey))
+                    
+                attrcall_output = self.handle_func("call", "call", __call__, new_args, new_kargs)
+                
+                ## map output
+                fun_output = MappingNode().set_function_out(fun_uri, self.g.get_output(fun_uri))
+                self.handle_mapping(attrcall_output, fun_output)
+                
+                fun_selfoutput = MappingNode().set_function_out(fun_uri, self.g.get_self_output(fun_uri))
+                self.handle_mapping(value_input, fun_selfoutput)
+                
+                # create composition
+                comp_uri =  URIRef(f"{applied}Composition")
+                FnOBuilder.describe_composition(self.g, comp_uri, self.scope.mappings, represents=applied)
+                FnOBuilder.start(self.g, comp_uri, attr_output.context)
+                
+                self.restore_scope()
+
+                return call_output
         
         # the function is called on the output of another function
         elif isinstance(func, ast.Call):
-            value_name = self.handle_stmt(func)
-            value_type = self.get_type(value_name.get_value())
+            value_output = self.handle_stmt(func)
+            value_type = self.get_type(value_output.get_value())
             name = "call"
             context = f"{value_type.__name__}_call"
             func_object = getattr(value_type, 'call', getattr(value_type, '__call__', None))
@@ -629,11 +693,10 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
             if func_object is None:
                 func_object = self.importer.object_from_builtins(name)
         
-        return self.handle_func(name, context, func_object, args, kargs, value_name, value_type, static, func)
+        return self.handle_func(name, context, func_object, args, kargs, value_output, value_type, static)
     
-    def handle_func(self, name, context, func_object, args=[], kargs=[],
-                    value_name=None, value_type=None, static=None,
-                    func=None):
+    def handle_func(self, name, context, func_object=None, args=[], kargs=[],
+                    value_output=None, value_type=None, static=None):
         """
         Handles the processing of a function call, including generating its RDF representation and composing function descriptions.
 
@@ -685,15 +748,15 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
             # Not a recursive call
             if not context == get_name(self.scope.scope):
                 # Do not describe composition of functions that were not defined by the user
-                if self.importer.skip(func_object):
-                    self.function_to_rdf(name, context, func_object, len(args), kargs, value_type, static)
+                if func_object is None or self.importer.skip(func_object):
+                    self.function_to_rdf(name, context, len(args), kargs, func_object, value_type, static)
                 # Do not go deeper then necesary
                 elif self.depth < self.max_depth:
                     self.depth += 1
                     self.from_function(name, context, func_object, len(args), kargs)
                     self.depth -= 1
                 else:
-                    self.function_to_rdf(name, context, func_object, len(args), kargs, value_type, static)
+                    self.function_to_rdf(name, context, len(args), kargs, func_object, value_type, static)
         else:
             self.g.f_counter[context] += 1
         
@@ -716,7 +779,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         # Map value to self parameter if called upon a variable
         if self_par:
             mapto = MappingNode().set_function_par(call, self_par)
-            self.handle_mapping(value_name, mapto)       
+            self.handle_mapping(value_output, mapto)       
         
         # first map all positional arguments
         # If no more positional arguments, add to variable positional argument
@@ -744,18 +807,25 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
 
         # Functions called upon a variable may potentially change the variable
         # TODO Take a better look at this!
-        if value_name in self.scope.assigned.values():
+        # attribute call may potentially change the variable
+        if value_output and value_output.from_variable():
             self_output = MappingNode().set_function_out(call, self.g.get_self_output(f))
-            if value_name.from_term():
+            self.handle_assignment(self_output, [self.name_node(value_output.get_variable())])
+            if value_type:
+                self.scope.var_types[self_output.get_value()] = value_type
+        
+        """if value_output in self.scope.assigned.values():
+            self_output = MappingNode().set_function_out(call, self.g.get_self_output(f))
+            if value_output.from_term():
                 # called upon a constant
-                self.handle_assignment(self_output, [self.name_node(value_name.get_value())])
+                self.handle_assignment(self_output, [self.name_node(value_output.get_value())])
                 if value_type != True:
                     self.scope.var_types[self_output.get_value()] = value_type
             else:
                 # variable is the value called upon
-                self.handle_assignment(self_output, [func.value])
+                self.handle_assignment(self_output, [value_output.get_variable()])
                 if value_type != True:
-                    self.scope.var_types[self_output.get_value()] = value_type
+                    self.scope.var_types[self_output.get_value()] = value_type"""
 
         self.handle_order(call)
         
@@ -793,6 +863,34 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         5. Handle the attribute and value nodes to generate their RDF representations.
         6. Describe the composition of the attribute access in the RDF graph.
         """
+        name = str.strip(attr, '_')
+        context = name
+        
+        value_output = self.handle_stmt(value)
+        
+        call_output = self.handle_func(name, context, None, [value_output])
+        applied = call_output.context
+        
+        self.new_scope(applied)
+        
+        # getattr call
+        fun_uri = self.g.check_call(applied)
+        value_input = MappingNode().set_function_par(fun_uri, self.g.get_parameter_at(fun_uri, 0))
+        attr_output = self.handle_func("getattr", "getattr", getattr, [value_input, self.name_node(name)])
+        
+        ## map output
+        fun_output = MappingNode().set_function_out(fun_uri, self.g.get_output(fun_uri))
+        self.handle_mapping(attr_output, fun_output)
+        
+        # create composition
+        comp_uri =  URIRef(f"{applied}Composition")
+        FnOBuilder.describe_composition(self.g, comp_uri, self.scope.mappings, represents=applied)
+        FnOBuilder.start(self.g, comp_uri, attr_output.context)
+        
+        self.restore_scope()
+        
+        return call_output
+        
         # Create function description if it does not exist
         name = 'attribute'
         context = 'attribute'
@@ -1586,6 +1684,10 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         if "if" not in self.g.f_counter:
             self.g.f_counter["if"] = 1
             self.g += STD_KG[s]
+            
+            # Map to 'bool' implementation
+            imp = PythonMapper.obj_to_fno(self.g, bool, "bool")
+            PythonMapper.map_with_num(self.g, s, [], imp, "if", Prefix.cf()['BoolOutput'], None)
         else:
             self.g.f_counter["if"] += 1
         
@@ -1601,7 +1703,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         
         self.handle_order(call)
     
-    def function_to_rdf(self, fun_name, context, fun, num, keywords, self_class=None, static=None):
+    def function_to_rdf(self, fun_name, context, num, keywords, fun=None, self_class=None, static=None):
         """
         Converts a Python function definition into its RDF representation.
 
@@ -1631,15 +1733,16 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
             The unique identifier (URI) representing the function in the RDF graph.
         """
 
-        # Get the function object if it is a method
-        fun = getattr(fun, '__func__', fun)
+        if fun is not None:
+            # Get the function object if it is a method
+            fun = getattr(fun, '__func__', fun)
 
         ### FUNCTION DESCRIPTION ###
 
         try:
             s, output, self_output, self_type = self.desc_with_sig(fun_name, context, fun, self_class)
         except:
-            s, output, self_output, self_type = self.desc_with_amount(fun_name, context, num, keywords, self_class)
+            s, output, self_output, self_type = self.desc_with_amount(fun_name, context, num, keywords, static)
         
         ### FUNCTION IMPLEMENTATION ###
 
@@ -1650,7 +1753,6 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
                 imp = PythonMapper.uri(fun_name)
                 PythonBuilder.describe_imp(self.g, imp, context)
         except:
-            print(fun_name, context)
             module = getattr(fun, "__module__")
             imp = PythonBuilder.describe_imp(self.g, context, module, getattr(fun, '__package__', None))
 
@@ -1775,7 +1877,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
 
         return s, output, self_output, self_type
     
-    def desc_with_amount(self, f_name, context, num_of_params, keywords, self_class):
+    def desc_with_amount(self, f_name, context, num_of_params, keywords, has_self):
         """
         Creates a function description based on the number of parameters and keywords.
 
@@ -1814,7 +1916,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
         
         #### SELF OUTPUT AND INPUT ####
 
-        if self_class:
+        if has_self is not None:
             self_type = any_type
             
             uri = Prefix.base()[f"{context}ParameterSelf"]
@@ -1826,7 +1928,7 @@ class PythonDescriptor(AbstractResourceDescriptor, AbstractFileDescriptor):
             
             self_output = Prefix.base()[f"{context}SelfOutput"]
             FnOBuilder.describe_output(self.g,
-                                       uri=uri,
+                                       uri=self_output,
                                        type=self_type,
                                        pred="self_output")
             outputs.append(self_output)
