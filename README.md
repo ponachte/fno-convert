@@ -2,6 +2,8 @@
 
 A tool to automatically semantically annotate pipelines written in Dockerfiles and/or Python files using FnO. These semantic representations allow execution to capture provenance across implementation framework using PROV-O.
 
+[![Watch the demo video](https://github.com/user-attachments/assets/90b66d85-fc8a-45dc-9f25-c3874af953c0)](https://youtu.be/KqrxYbmYfPE)
+
 ## Installation
 
 ### Development
